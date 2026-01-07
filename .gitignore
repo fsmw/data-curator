@@ -1,0 +1,38 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Metadata cache
+.metadata_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (optional - uncomment if you don't want to version data)
+# 01_Raw_Data_Bank/
+# 02_Datasets_Limpios/
+# 03_Metadata_y_Notas/
+# 04_Graficos_Asociados/

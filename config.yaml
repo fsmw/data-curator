@@ -1,0 +1,57 @@
+# Data Curation Configuration
+
+# Directory structure
+directories:
+  raw: "01_Raw_Data_Bank"
+  clean: "02_Datasets_Limpios"
+  metadata: "03_Metadata_y_Notas"
+  graphics: "04_Graficos_Asociados"
+
+# Data sources
+sources:
+  - ILOSTAT
+  - OECD
+  - IMF
+  - WorldBank
+  - ECLAC
+  - Institutos_Nacionales
+
+# Topics/categories
+topics:
+  - salarios_reales
+  - informalidad_laboral
+  - presion_fiscal
+  - libertad_economica
+
+# Naming convention
+naming:
+  pattern: "{topic}_{source}_{coverage}_{start_year}_{end_year}.csv"
+  lowercase: true
+
+# Data cleaning rules
+cleaning:
+  drop_empty_rows: true
+  drop_empty_columns: true
+  standardize_country_codes: true
+  normalize_dates: true
+  
+# Metadata generation
+metadata:
+  use_llm: true
+  fallback_template: true
+  cache_enabled: true
+  template_sections:
+    - source
+    - variables
+    - coverage
+    - transformations
+    - warnings
+
+# LLM configuration
+llm:
+  max_tokens: 2000
+  temperature: 0.3
+  system_prompt: |
+    You are an expert data curator for economic datasets. Generate clear, professional 
+    metadata documentation in Spanish. Focus on methodology, data quality, and relevant 
+    warnings for researchers.

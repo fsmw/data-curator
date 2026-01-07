@@ -1,0 +1,13 @@
+country,year,real_wage_index,currency
+Argentina,2010,100.0,ARS
+Argentina,2015,95.3,ARS
+Argentina,2020,87.2,ARS
+Brasil,2010,100.0,BRL
+Brasil,2015,103.5,BRL
+Brasil,2020,98.7,BRL
+Chile,2010,100.0,CLP
+Chile,2015,108.2,CLP
+Chile,2020,112.5,CLP
+México,2010,100.0,MXN
+México,2015,102.1,MXN
+México,2020,99.8,MXN
