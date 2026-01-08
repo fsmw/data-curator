@@ -1,0 +1,130 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║      MISES DATA CURATION TOOL - TUI QUICK START             ║
+║                                                               ║
+║  Everything you need to launch and use the interface in     ║
+║  less than 30 seconds                                        ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+
+STEP 1: INSTALL (1 minute)
+═══════════════════════════════════════════════════════════════
+
+Open PowerShell and run:
+
+  cd c:\dev\data-curator
+  python -m pip install -r requirements.txt
+
+
+STEP 2: LAUNCH (5 seconds)
+═══════════════════════════════════════════════════════════════
+
+  python -m src.tui
+
+
+STEP 3: EXPLORE (2 minutes)
+═══════════════════════════════════════════════════════════════
+
+Once the app opens:
+
+  [1]   View project overview
+  [2]   Browse your downloaded data
+  [3]   Explore available sources
+  [4]   Search for indicators
+  [5]   Download new data
+  [6]   Monitor progress
+  [7]   View help & shortcuts
+
+Press any number (1-7) to jump to that screen.
+
+
+THAT'S IT! 🎉
+═══════════════════════════════════════════════════════════════
+
+You're now using the TUI. Here are the most important keys:
+
+  [H]      Help (shows all shortcuts)
+  [Q]      Quit
+  [↑↓]     Navigate lists
+  [Tab]    Move between fields
+  [Enter]  Select
+  [Esc]    Back
+
+
+NEED MORE HELP?
+═══════════════════════════════════════════════════════════════
+
+While using the app:     Press [H] for full help
+Quick reference:         Read TUI_QUICK_REFERENCE.md
+Complete guide:          Read TUI_QUICKSTART.md
+Technical details:       Read TUI_IMPLEMENTATION.md
+
+
+COMMON TASKS
+═══════════════════════════════════════════════════════════════
+
+Browse your data:
+  [2] → arrows → [M] for metadata
+
+Search for an indicator:
+  [4] → type search term → view results
+
+Download new data:
+  [5] → select source & indicator → [D]
+
+
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+"Module not found" when launching?
+  → Run: python -m pip install -r requirements.txt
+
+"No data showing"?
+  → Download some with [5] or use the CLI first
+
+Keyboard not responding?
+  → Press [Esc] then try again
+
+
+DOCUMENTATION FILES
+═══════════════════════════════════════════════════════════════
+
+TUI_QUICK_REFERENCE.md  ← Single page keyboard reference
+TUI_README.md           ← 5 minute overview
+TUI_QUICKSTART.md       ← Complete user guide
+TUI_IMPLEMENTATION.md   ← How it was built
+TUI_INDEX.md            ← Find what you need
+
+
+WHAT'S AVAILABLE
+═══════════════════════════════════════════════════════════════
+
+Screens:        7 (all working)
+Sources:        5 (OECD, ILOSTAT, IMF, ECLAC, WorldBank)
+Indicators:     20+ economic indicators
+Local Data:     4 topics, 4 datasets
+Status:         Production Ready ✅
+
+
+VERSION INFO
+═══════════════════════════════════════════════════════════════
+
+Version:   1.0.0-beta
+Status:    Ready for Production
+Date:      January 6, 2026
+Location:  c:\dev\data-curator\src\tui
+
+
+LET'S GET STARTED! 🚀
+═══════════════════════════════════════════════════════════════
+
+1. python -m pip install -r requirements.txt
+2. python -m src.tui
+3. Press 1-7 to explore
+4. Press H for help
+
+Enjoy exploring economic data!
+
+
+═══════════════════════════════════════════════════════════════

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Datasets locales</h5>
+        <span class="badge badge-primary">Temas</span>
+      </div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          salarios_reales <span class="badge badge-success">5</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          informalidad_laboral <span class="badge badge-success">3</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card p-3">
+      <h6 class="mb-2">Panel de detalle</h6>
+      <p class="text-secondary mb-2">Usa el panel lateral para ver metadata de cada dataset.</p>
+      <div class="code-block small">panel: inline desktop, overlay en mobile (80%, 30% dim)</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

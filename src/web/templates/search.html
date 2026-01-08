@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card p-3 mb-3" x-data="searchForm()">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-8">
+      <input 
+        x-model="query" 
+        class="form-control" 
+        id="search-query"
+        placeholder="Buscar indicadores (ej: salarios, tax, inflation, poverty)"
+        @keyup.enter="performSearch()"
+      />
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" x-model="source">
+        <option value="">Fuente</option>
+        <option value="owid">Our World in Data</option>
+        <option value="ilostat">ILOSTAT</option>
+        <option value="oecd">OECD</option>
+        <option value="imf">IMF</option>
+        <option value="worldbank">World Bank</option>
+        <option value="eclac">ECLAC</option>
+      </select>
+    </div>
+    <div class="col-md-2 text-end">
+      <button 
+        @click="performSearch()"
+        class="btn btn-primary w-100"
+        :disabled="loading"
+      >
+        <span x-show="!loading"><i class="ms-Icon ms-Icon--Search"></i> Buscar</span>
+        <span x-show="loading" class="spinner-border spinner-border-sm me-2"></span>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="card p-3" x-data="searchForm()">
+  <div class="text-secondary small mb-2">
+    Resultados 
+    <span x-show="query || source">
+      para: <strong x-text="`${query}${source ? ' • ' + source : ''}`"></strong>
+    </span>
+  </div>
+  <div x-show="error" class="alert alert-warning mb-3" role="alert">
+    <span x-text="error"></span>
+  </div>
+  <table class="table table-hover align-middle mb-0">
+    <thead>
+      <tr><th>Indicador</th><th>Fuente</th><th>Tema</th><th></th></tr>
+    </thead>
+    <tbody>
+      <template x-for="result in results" :key="result.id">
+        <tr>
+          <td x-text="result.indicator"></td>
+          <td><span class="badge badge-primary" x-text="result.source"></span></td>
+          <td x-text="result.topic"></td>
+          <td class="text-end"><a class="btn btn-outline-light btn-sm" href="/download">Descargar</a></td>
+        </tr>
+      </template>
+      <tr x-show="results.length === 0 && !loading">
+        <td colspan="4" class="text-center text-secondary py-4">
+          <span x-show="!query && !source">Escribe algo para buscar...</span>
+          <span x-show="(query || source) && results.length === 0">Sin resultados</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+function searchForm() {
+  return {
+    query: '',
+    source: '',
+    results: [],
+    loading: false,
+    error: '',
+    async performSearch() {
+      if (!this.query && !this.source) {
+        this.results = [];
+        return;
+      }
+      this.loading = true;
+      this.error = '';
+      try {
+        const params = new URLSearchParams();
+        if (this.query) params.append('q', this.query);
+        if (this.source) params.append('source', this.source);
+        
+        const res = await fetch(`/api/search?${params}`);
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const data = await res.json();
+        this.results = data.results || [];
+      } catch (err) {
+        this.error = `Búsqueda falló: ${err.message}`;
+        this.results = [];
+      } finally {
+        this.loading = false;
+      }
+    }
+  };
+}
+</script>
+{% endblock %}

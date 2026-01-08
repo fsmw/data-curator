@@ -13,5 +13,12 @@ pyyaml>=6.0
 # CLI
 click>=8.1.0
 
+# TUI Framework
+textual>=0.50.0
+rich>=13.0.0
+
+# Web UI
+flask>=3.0.0
+
 # Utilities
 python-dateutil>=2.8.0

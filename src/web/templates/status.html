@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <div class="text-secondary small">Directories</div>
+      <h5 class="mb-1">Estructura</h5>
+      <p class="text-secondary mb-2">Estado general del repositorio de datos.</p>
+      <div class="d-flex gap-2">
+        <span class="badge badge-primary">raw</span>
+        <span class="badge badge-success">clean</span>
+        <span class="badge badge-warning text-dark">metadata</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <div class="text-secondary small">Fuentes</div>
+      <h5 class="mb-1">5 APIs</h5>
+      <p class="text-secondary mb-2">ILOSTAT · OECD · IMF · WorldBank · ECLAC</p>
+      <span class="badge badge-success">Operational</span>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <div class="text-secondary small">Descargas recientes</div>
+      <h5 class="mb-1">Cola</h5>
+      <p class="text-secondary mb-2">Supervisa tareas en progreso y completadas.</p>
+      <a class="btn btn-outline-light btn-sm" href="/progress">Ver progreso</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <div class="text-secondary small">Fuentes</div>
+      <h5 class="mb-0">Indicadores disponibles</h5>
+    </div>
+    <a class="btn btn-primary btn-sm" href="/search"><i class="ms-Icon ms-Icon--Search"></i> Buscar</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> ILOSTAT</div>
+        <div class="text-secondary small">Labor stats · LATAM</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> OECD</div>
+        <div class="text-secondary small">Economic indicators</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> World Bank</div>
+        <div class="text-secondary small">Development data</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
