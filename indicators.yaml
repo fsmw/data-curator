@@ -1,255 +1,210 @@
-# Economic Indicators Mapping
-# Maps topics to available indicators across ILOSTAT, OECD, and IMF
-# Format: indicator_name: {source: code, description: ..., countries: ..., years: ...}
+# Economic Indicators - Search-Focused Structure
+# Simple format: source + description + searchable tags
+# No manual topic mappings - search by any term, filter by source
 
 indicators:
-  # INFORMALIDAD LABORAL / INFORMAL EMPLOYMENT
-  informal_employment_rate:
-    source: ilostat
-    ilostat_code: "EMP_TEMP_SEX_AGE_NB"  # Employment by status - informal
-    description: "Informal employment rate (% of total employment)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-    
-  informal_workers_count:
-    source: ilostat
-    ilostat_code: "EMP_TEMP_SEX_NB"
-    description: "Number of informal workers"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
+  # === OUR WORLD IN DATA (OWID) ===
+  # Note: OWID Grapher API - use slug from chart URL
 
-  # SALARIOS REALES / REAL WAGES
-  real_wage_index:
-    source: oecd
-    oecd_dataset: "ALFS"
-    oecd_indicator: "AVNL,AVE"
-    description: "Real wage index (2015=100)"
-    coverage: "OECD + partner countries"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,MEX"
-    
-  average_wage_usd:
-    source: oecd
-    oecd_dataset: "ELS_EARN"
-    oecd_indicator: "AVGRNL"
-    description: "Average nominal wage (USD)"
-    coverage: "OECD"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,MEX,COL,URY"
+  - id: tax_revenue_owid
+    source: owid
+    name: "Tax Revenue (% GDP)"
+    description: "Tax revenue including social contributions as percentage of GDP"
+    slug: "total-tax-revenues-gdp"
+    url: "https://ourworldindata.org/grapher/total-tax-revenues-gdp"
+    tags: [tax, fiscal, government, revenue, impuestos, recaudacion]
 
-  minimum_wage:
-    source: oecd
-    oecd_dataset: "LAB_STAT"
-    oecd_indicator: "MIN_WAGE"
-    description: "Minimum wage levels"
-    coverage: "OECD"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,MEX,COL,URY"
+  - id: gdp_per_capita_owid
+    source: owid
+    name: "GDP Per Capita"
+    description: "GDP per capita in constant 2017 international dollars"
+    slug: "gdp-per-capita-worldbank"
+    url: "https://ourworldindata.org/grapher/gdp-per-capita-worldbank"
+    tags: [gdp, income, wealth, pib, renta, economic growth]
 
-  # PRESIÓN FISCAL / TAX PRESSURE
-  tax_revenue_gdp:
-    source: oecd
-    oecd_dataset: "REV"
-    oecd_indicator: "1100_1200_1300"
-    description: "Tax revenue as % of GDP"
-    coverage: "OECD"
-    years: "2010-2023"
-    countries: "ARG,BRA,CHL,MEX,COL,PER,URY"
-    
-  income_tax_rate:
-    source: oecd
-    oecd_dataset: "LAB_STAT"
-    oecd_indicator: "INCOME_TAX"
-    description: "Average income tax rate"
-    coverage: "OECD"
-    years: "2010-2023"
-    countries: "ARG,BRA,CHL,MEX,COL,URY"
+  - id: labor_share_gdp_owid
+    source: owid
+    name: "Labor Share of GDP"
+    description: "Labor share of GDP - percentage of GDP paid to workers"
+    slug: "labor-share-of-gdp"
+    url: "https://ourworldindata.org/grapher/labor-share-of-gdp"
+    tags: [wages, salary, income, salarios, remuneracion, labor, trabajo]
 
-  # LIBERTAD ECONÓMICA / ECONOMIC FREEDOM
-  gdp_growth:
-    source: imf
-    imf_database: "WEO"
-    imf_indicator: "NGDP_RPCH"
-    description: "Real GDP growth (annual %)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-    
-  unemployment_rate:
-    source: ilostat
-    ilostat_code: "UNE_DEUC_SEX_AGE_NB"
-    description: "Unemployment rate (%)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-    
-  inflation_rate:
-    source: imf
-    imf_database: "WEO"
-    imf_indicator: "PCPIPCH"
-    description: "Inflation rate (annual %)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
+  - id: inequality_gini_owid
+    source: owid
+    name: "Gini Coefficient"
+    description: "Income inequality measured by Gini coefficient"
+    slug: "economic-inequality-gini-index"
+    url: "https://ourworldindata.org/income-inequality"
+    tags: [inequality, gini, distribution, desigualdad, income, wealth]
 
-  # LABOR PRODUCTIVITY
-  labor_productivity:
-    source: oecd
-    oecd_dataset: "PROD"
-    description: "Labor productivity index"
-    coverage: "OECD"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,MEX,COL,URY"
-
-  # WORLD BANK INDICATORS
-  gini_coefficient:
-    source: worldbank
-    worldbank_code: "SI.POV.GINI"
-    description: "GINI index (income inequality)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  poverty_headcount:
-    source: worldbank
-    worldbank_code: "SI.POV.DDAY"
-    description: "Poverty headcount ratio at $1.90 a day (%)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  trade_openness:
-    source: worldbank
-    worldbank_code: "NE.TRD.GNRL.ZS"
-    description: "Trade (% of GDP)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  fdi_inflows:
-    source: worldbank
-    worldbank_code: "BX.KLT.DINV.CD.WD"
-    description: "Foreign direct investment (current USD)"
-    coverage: "Global"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  # ECLAC INDICATORS
-  total_factor_productivity:
-    source: eclac
-    eclac_table: "TFP"
-    description: "Total Factor Productivity growth rate"
-    coverage: "Latin America"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  inequality_ratio:
-    source: eclac
-    eclac_table: "DESIGUALDAD"
-    description: "Income inequality ratio (richest 10% / poorest 10%)"
-    coverage: "Latin America"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  debt_to_gdp:
-    source: eclac
-    eclac_table: "DEUDA"
-    description: "Public debt as % of GDP"
-    coverage: "Latin America"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-
-  labor_participation_rate:
-    source: eclac
-    eclac_table: "PARTICIPACION"
-    description: "Labor force participation rate (%)"
-    coverage: "Latin America"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,COL,MEX,PER,URY"
-    oecd_indicator: "PROD_INDEX"
-    description: "Labor productivity index (2015=100)"
-    coverage: "OECD"
-    years: "2010-2024"
-    countries: "ARG,BRA,CHL,MEX,COL"
-
-  # WAGE INEQUALITY
-  wage_inequality_gini:
-    source: oecd
-    oecd_dataset: "INEQUALITY"
-    oecd_indicator: "GINI_WAGE"
-    description: "Gini coefficient for wages"
-    coverage: "OECD"
-    years: "2010-2023"
-    countries: "ARG,BRA,CHL,MEX,COL"
-
-# Topics mapping for quick access
-topic_indicators:
-  salarios_reales:
-    - real_wage_index
-    - average_wage_usd
-    - minimum_wage
-    - labor_productivity
-    - wage_inequality_gini
-    
-  informalidad_laboral:
-    - informal_employment_rate
-    - informal_workers_count
-    - unemployment_rate
-    
-  presion_fiscal:
-    - tax_revenue_gdp
-    - income_tax_rate
-    - debt_to_gdp
-    
-  libertad_economica:
-    - gdp_growth
-    - inflation_rate
-    - unemployment_rate
-    - gini_coefficient
-    - poverty_headcount
-    - trade_openness
-    - fdi_inflows
-    - total_factor_productivity
-    - inequality_ratio
-
-# Coverage/regions mapping
-coverage_countries:
-  latam:
-    - ARG
-    - BRA
-    - CHL
-    - COL
-    - MEX
-    - PER
-    - URY
+  - id: unemployment_rate_owid
+    source: owid
+    name: "Unemployment Rate"
+    description: "Unemployment rate as percentage of labor force"
+    slug: "unemployment-rate"
+    url: "https://ourworldindata.org/grapher/unemployment-rate"
+    tags: [unemployment, labor, employment, desempleo, trabajo]
   
-  oecd:
-    - USA
-    - ESP
-    - FRA
-    - DEU
-    - GBR
-    - ITA
-    - CAN
-    - AUS
-    - JPN
-    - KOR
-    
-  andina:
-    - COL
-    - PER
-    - ECU
-    - BOL
-    - VEN
-    
-  cono_sur:
-    - ARG
-    - BRA
-    - CHL
-    - URY
-    - PRY
-    
-  global:
-    - "*"  # All countries available
+  - id: consumer_price_index_owid
+    source: owid
+    name: "Consumer Price Index"
+    description: "Consumer price index (2010=100) - measure of inflation"
+    slug: "consumer-price-index"
+    url: "https://ourworldindata.org/grapher/consumer-price-index"
+    tags: [inflation, prices, cpi, inflacion, precios]
+  
+  - id: working_hours_owid
+    source: owid
+    name: "Annual Working Hours"
+    description: "Annual working hours per worker"
+    slug: "annual-working-hours-per-worker"
+    url: "https://ourworldindata.org/grapher/annual-working-hours-per-worker"
+    tags: [labor, hours, work, trabajo, horas]
+
+  - id: life_expectancy_owid
+    source: owid
+    name: "Life Expectancy"
+    description: "Life expectancy at birth"
+    slug: "life-expectancy"
+    url: "https://ourworldindata.org/life-expectancy"
+    tags: [health, life expectancy, longevity, salud, esperanza vida]
+
+  # === OECD ===
+
+  - id: tax_revenue_gdp
+    source: oecd
+    name: "Tax Revenue (% GDP)"
+    description: "Tax revenue as percentage of GDP"
+    dataset: "REV"
+    indicator_code: "1100_1200_1300"
+    code: "REV.1100_1200_1300"  # Legacy format (kept for compatibility)
+    tags: [tax, fiscal, revenue, impuestos, tributacion]
+
+  - id: real_wage_index
+    source: oecd
+    name: "Real Wage Index"
+    description: "Real wage index adjusted for inflation"
+    dataset: "ALFS"
+    indicator_code: "AVNL"
+    code: "ALFS.AVNL"  # Legacy format (kept for compatibility)
+    tags: [wages, salary, real income, salarios, remuneracion]
+
+  - id: minimum_wage
+    source: oecd
+    name: "Minimum Wage"
+    description: "Statutory minimum wage levels"
+    dataset: "LAB_STAT"
+    indicator_code: "MIN_WAGE"
+    code: "LAB_STAT.MIN_WAGE"
+    tags: [wages, minimum wage, labor, salario minimo, trabajo]
+
+  - id: gdp_growth
+    source: oecd
+    name: "GDP Growth Rate"
+    description: "Real GDP growth rate (annual %)"
+    dataset: "EO"
+    indicator_code: "GDPV_ANNPCT"
+    code: "EO.GDPV_ANNPCT"
+    tags: [gdp, growth, economic growth, crecimiento, pib]
+
+  - id: labor_productivity
+    source: oecd
+    name: "Labor Productivity"
+    description: "GDP per hour worked"
+    dataset: "PROD"
+    indicator_code: "PROD_INDEX"
+    code: "PROD.PROD_INDEX"
+    tags: [productivity, labor, efficiency, productividad, trabajo]
+
+  # === ILOSTAT ===
+
+  - id: informal_employment_rate
+    source: ilostat
+    name: "Informal Employment Rate"
+    description: "Informal employment as % of total employment"
+    code: "EMP_TEMP_SEX_AGE_NB"
+    tags: [informal, employment, labor, informalidad, empleo, trabajo]
+
+  - id: unemployment_rate
+    source: ilostat
+    name: "Unemployment Rate"
+    description: "Unemployment rate (%)"
+    code: "UNE_DEUC_SEX_AGE_NB"
+    tags: [unemployment, labor, desempleo, empleo, jobless]
+
+  - id: wage_growth
+    source: ilostat
+    name: "Wage Growth"
+    description: "Average wage growth rate"
+    code: "EAR_XWAP_SEX_ECO_NB"
+    tags: [wages, growth, salary, salarios, crecimiento]
+
+  # === IMF ===
+
+  - id: inflation_rate
+    source: imf
+    name: "Inflation Rate"
+    description: "Consumer price inflation (annual %)"
+    code: "WEO.PCPIPCH"
+    tags: [inflation, prices, cpi, inflacion, precios]
+
+  - id: gdp_growth_imf
+    source: imf
+    name: "GDP Growth Rate"
+    description: "Real GDP growth (annual %)"
+    code: "WEO.NGDP_RPCH"
+    tags: [gdp, growth, economic growth, crecimiento, pib]
+
+  # === WORLD BANK ===
+
+  - id: gini_coefficient
+    source: worldbank
+    name: "Gini Index"
+    description: "Gini index of income inequality"
+    code: "SI.POV.GINI"
+    tags: [inequality, gini, distribution, desigualdad]
+
+  - id: poverty_headcount
+    source: worldbank
+    name: "Poverty Headcount Ratio"
+    description: "Poverty headcount ratio at $2.15 a day"
+    code: "SI.POV.DDAY"
+    tags: [poverty, poor, pobreza, income]
+
+  - id: trade_openness
+    source: worldbank
+    name: "Trade (% GDP)"
+    description: "Trade as percentage of GDP"
+    code: "NE.TRD.GNRL.ZS"
+    tags: [trade, openness, exports, imports, comercio]
+
+  - id: fdi_inflows
+    source: worldbank
+    name: "Foreign Direct Investment"
+    description: "FDI net inflows (current USD)"
+    code: "BX.KLT.DINV.CD.WD"
+    tags: [fdi, investment, capital, inversion extranjera]
+
+  # === ECLAC ===
+
+  - id: labor_informality_eclac
+    source: eclac
+    name: "Labor Informality Rate"
+    description: "Informal employment rate in Latin America"
+    code: "INFORMALIDAD"
+    tags: [informal, labor, informalidad, empleo, trabajo]
+
+  - id: tax_pressure_eclac
+    source: eclac
+    name: "Tax Pressure"
+    description: "Tax burden as % of GDP"
+    code: "PRESION_FISCAL"
+    tags: [tax, fiscal, pressure, impuestos, carga tributaria]
+
+# Configuration for default countries by region
+regions:
+  latam: [ARG, BRA, CHL, COL, MEX, PER, URY]
+  oecd: [USA, CAN, GBR, DEU, FRA, ITA, ESP, JPN, KOR, AUS]
+  andean: [COL, PER, ECU, BOL, VEN]
+  southern_cone: [ARG, CHL, URY, PRY, BRA]

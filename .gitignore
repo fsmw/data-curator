@@ -31,8 +31,19 @@ build/
 .DS_Store
 Thumbs.db
 
-# Data files (optional - uncomment if you don't want to version data)
-# 01_Raw_Data_Bank/
-# 02_Datasets_Limpios/
+# Data files - downloaded datasets (keep structure, ignore data)
+01_Raw_Data_Bank/
+02_Datasets_Limpios/**/*.csv
+# Keep metadata for now
 # 03_Metadata_y_Notas/
 # 04_Graficos_Asociados/
+
+# Backup files
+*.backup
+*.bak
+backups/
+
+# Test and diagnostic files
+tests/manual/
+diagnostic*.py
+*_test.html

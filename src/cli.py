@@ -46,25 +46,26 @@ def init(config):
 
 @cli.command()
 @click.argument('query', required=False)
-@click.option('--topic', is_flag=False, flag_value='all', help='Search only in a specific topic')
-@click.option('--source', type=click.Choice(['ilostat', 'oecd', 'imf', 'worldbank', 'eclac']), help='Filter by source')
+@click.option('--tag', help='Search by specific tag (e.g., wages, fiscal, inequality)')
+@click.option('--source', type=click.Choice(['owid', 'ilostat', 'oecd', 'imf', 'worldbank', 'eclac']), help='Filter by source')
 @click.option('--list-topics', is_flag=True, help='List all available topics')
 @click.option('--list-sources', is_flag=True, help='List all available sources')
 @click.option('-v', '--verbose', is_flag=True, help='Show detailed information')
 @click.option('--config', default='config.yaml', help='Path to configuration file')
-def search(query, topic, source, list_topics, list_sources, verbose, config):
+def search(query, tag, source, list_topics, list_sources, verbose, config):
     """Search for available economic indicators (like 'apt search')."""
     try:
         cfg = Config(config)
         searcher = IndicatorSearcher(cfg)
         
-        # List all topics
+        # List all tags
         if list_topics:
-            topics = searcher.list_topics()
-            click.echo("📊 Available Topics:\n")
-            for t in topics:
-                indicators = searcher.search_by_topic(t)
-                click.echo(f"  {t:<30} ({len(indicators)} indicators)")
+            tags = searcher.list_tags()
+            click.echo("🏷️  Available Tags:\n")
+            # Group tags in columns
+            for i in range(0, len(tags), 4):
+                row = tags[i:i+4]
+                click.echo("  " + "  ".join(f"{tag:<20}" for tag in row))
             return
         
         # List all sources
@@ -83,10 +84,10 @@ def search(query, topic, source, list_topics, list_sources, verbose, config):
             click.echo(searcher.format_results_table(results, verbose=verbose))
             return
         
-        # Search by topic
-        if topic and topic != 'all':
-            results = searcher.search_by_topic(topic)
-            click.echo(f"\n🔍 Indicators for topic: {topic}\n")
+        # Search by tag
+        if tag:
+            results = searcher.search_by_tag(tag)
+            click.echo(f"\n🔍 Indicators with tag: {tag}\n")
             click.echo(searcher.format_results_table(results, verbose=verbose))
             return
         
@@ -95,8 +96,9 @@ def search(query, topic, source, list_topics, list_sources, verbose, config):
             click.echo("Usage: curate search <query> [OPTIONS]")
             click.echo("\nExamples:")
             click.echo("  curate search wage              # Search for wage-related indicators")
-            click.echo("  curate search --list-topics     # See all topics")
-            click.echo("  curate search --source ilostat  # See ILOSTAT indicators")
+            click.echo("  curate search --list-topics     # See all available tags")
+            click.echo("  curate search --source owid     # See OWID indicators")
+            click.echo("  curate search --tag wages       # Search by specific tag")
             click.echo("  curate search informal -v       # Detailed search results")
             return
         
@@ -123,7 +125,7 @@ def search(query, topic, source, list_topics, list_sources, verbose, config):
 
 
 @cli.command()
-@click.option('--source', type=click.Choice(['manual', 'ilostat', 'oecd', 'imf', 'worldbank', 'eclac']), 
+@click.option('--source', type=click.Choice(['manual', 'owid', 'ilostat', 'oecd', 'imf', 'worldbank', 'eclac']), 
               required=True, help='Data source')
 @click.option('--filepath', type=click.Path(exists=True), 
               help='Path to file (for manual uploads)')
@@ -196,45 +198,50 @@ def ingest(source, filepath, indicator, dataset, database, countries, start_year
 
 
 @cli.command()
-@click.option('--source', type=click.Choice(['ilostat', 'oecd', 'imf', 'worldbank', 'eclac']), 
+@click.option('--source', type=click.Choice(['owid', 'ilostat', 'oecd', 'imf', 'worldbank', 'eclac']),
               required=True, help='Data source (API)')
+@click.option('--slug', help='OWID chart slug (for owid source, e.g., real-wages)')
 @click.option('--indicator', help='Indicator name or code')
 @click.option('--dataset', help='Dataset identifier (for OECD)')
 @click.option('--database', help='Database identifier (for IMF)')
-@click.option('--countries', help='Country codes (comma-separated, e.g., ARG,BRA,CHL)')
+@click.option('--countries', help='Country names or codes (comma-separated, e.g., Argentina,Brazil,Chile)')
 @click.option('--start-year', type=int, default=2010, help='Starting year')
 @click.option('--end-year', type=int, default=2024, help='Ending year')
 @click.option('--topic', required=True, help='Topic for organization (e.g., salarios_reales)')
 @click.option('--coverage', default='latam', help='Geographic coverage')
 @click.option('--url', help='Original source URL for metadata')
 @click.option('--config', default='config.yaml', help='Path to configuration file')
-def download(source, indicator, dataset, database, countries, start_year, end_year, topic, coverage, url, config):
+def download(source, slug, indicator, dataset, database, countries, start_year, end_year, topic, coverage, url, config):
     """Download from API and pipeline in one step (ingest → clean → document)."""
     click.echo(f"🚀 Download + Pipeline: {source.upper()} → {topic}\n")
-    
+
     try:
         cfg = Config(config)
         manager = DataIngestionManager(cfg)
         cleaner = DataCleaner(cfg)
         metadata_gen = MetadataGenerator(cfg)
-        
+
         # Parse countries list
         country_list = None
         if countries:
-            country_list = [c.strip().upper() for c in countries.split(',')]
-        
+            country_list = [c.strip() for c in countries.split(',')]
+
         # Step 1: DOWNLOAD from API
         click.echo(f"Step 1/3: Downloading from {source.upper()}...")
-        
+
         kwargs = {
             'start_year': start_year,
             'end_year': end_year
         }
-        
+
         if country_list:
             kwargs['countries'] = country_list
-        
-        if source == 'ilostat':
+
+        if source == 'owid':
+            if not slug:
+                raise click.UsageError("--slug is required for OWID (e.g., real-wages, gdp-per-capita)")
+            kwargs['slug'] = slug
+        elif source == 'ilostat':
             if not indicator:
                 raise click.UsageError("--indicator is required for ILOSTAT")
             kwargs['indicator'] = indicator

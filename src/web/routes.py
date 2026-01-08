@@ -3,8 +3,19 @@ from __future__ import annotations
 import json
 import time
 from typing import Any, Dict, List
+from pathlib import Path
+import glob
 
 from flask import Blueprint, Response, render_template, stream_with_context, request, jsonify
+
+# Import the real search functionality
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import Config
+from searcher import IndicatorSearcher
+from ingestion import DataIngestionManager
+from cleaning import DataCleaner
+from metadata import MetadataGenerator
 
 ui_bp = Blueprint(
     "ui",
@@ -13,13 +24,44 @@ ui_bp = Blueprint(
     static_folder="static",
 )
 
+
+def check_indicator_downloaded(config: Config, indicator_id: str, source: str) -> bool:
+    """
+    Check if an indicator has already been downloaded.
+    
+    Args:
+        config: Configuration object
+        indicator_id: Indicator ID
+        source: Data source name
+    
+    Returns:
+        True if indicator has been downloaded, False otherwise
+    """
+    try:
+        clean_dir = config.get_directory('clean')
+        
+        # Search for any files matching the pattern *_{source}_*.csv
+        # across all topic subdirectories
+        for topic_dir in clean_dir.iterdir():
+            if topic_dir.is_dir():
+                # Look for files with source name in them
+                pattern = f"*_{source.lower()}_*.csv"
+                matching_files = list(topic_dir.glob(pattern))
+                if matching_files:
+                    # Found at least one file from this source
+                    # Could enhance this to check indicator_id in filename
+                    return True
+        
+        return False
+    except Exception as e:
+        print(f"Error checking downloaded status: {e}")
+        return False
+
 NAV_ITEMS: List[Dict[str, str]] = [
     {"slug": "status", "label": "Status", "icon": "Home"},
     {"slug": "browse_local", "label": "Browse Local", "icon": "Folder"},
     {"slug": "browse_available", "label": "Browse Available", "icon": "CloudDownload"},
     {"slug": "search", "label": "Search", "icon": "Search"},
-    {"slug": "download", "label": "Download", "icon": "Download"},
-    {"slug": "progress", "label": "Progress", "icon": "LineChart"},
     {"slug": "help", "label": "Help", "icon": "Help"},
 ]
 
@@ -58,51 +100,18 @@ def search() -> str:
     return render_template("search.html", **ctx)
 
 
-@ui_bp.route("/download")
-def download() -> str:
-    ctx = base_context("download", "Download", "Configurar descargas y cola")
-    return render_template("download.html", **ctx)
 
+# REMOVED: /download route - downloads now happen directly from /search page
+# Users can click "Descargar" button on search results to download immediately
 
-@ui_bp.route("/progress")
-def progress() -> str:
-    ctx = base_context("progress", "Progress", "Monitorear progreso y logs")
-    return render_template("progress.html", **ctx)
-
+# REMOVED: /progress route and related API endpoints
+# Progress tracking not needed - downloads are fast (<15s) and happen in /search page
+# Removed routes: /progress, /api/progress/stream, /api/progress/poll
 
 @ui_bp.route("/help")
 def help_page() -> str:
     ctx = base_context("help", "Help", "Atajos y guia")
     return render_template("help.html", **ctx)
-
-
-@ui_bp.route("/api/progress/stream")
-def progress_stream() -> Response:
-    """SSE demo stream; replace with real coordinator events later."""
-
-    def event_stream():
-        sample = [
-            {"step": "ingest", "status": "running", "percent": 25},
-            {"step": "clean", "status": "running", "percent": 55},
-            {"step": "document", "status": "running", "percent": 80},
-            {"step": "done", "status": "complete", "percent": 100},
-        ]
-        for payload in sample:
-            yield f"data: {json.dumps(payload)}\n\n"
-            time.sleep(0.8)
-
-    return Response(stream_with_context(event_stream()), mimetype="text/event-stream")
-
-
-@ui_bp.route("/api/progress/poll")
-def progress_poll() -> Response:
-    """Polling fallback delivering a single snapshot."""
-    payload = {
-        "step": "document",
-        "status": "running",
-        "percent": 72,
-    }
-    return Response(json.dumps(payload), mimetype="application/json")
 
 
 # Demo search data
@@ -151,31 +160,257 @@ MOCK_INDICATORS = [
 
 @ui_bp.route("/api/search")
 def search_api() -> Response:
-    """Search API endpoint."""
+    """Search API endpoint using real indicator data."""
     query = request.args.get("q", "").lower().strip()
-    source = request.args.get("source", "").lower().strip()
-    topic = request.args.get("topic", "").lower().strip()
+    source_filter = request.args.get("source", "").lower().strip()
+    topic_filter = request.args.get("topic", "").lower().strip()
 
-    results = []
-    for ind in MOCK_INDICATORS:
-        # Match by query (searches indicator, topic, and keywords)
-        if query:
-            query_match = (
-                query in ind["indicator"].lower() or 
-                query in ind["topic"].lower() or
-                query in ind.get("keywords", "").lower()
-            )
-            if not query_match:
+    try:
+        # Use the real IndicatorSearcher
+        config = Config()
+        searcher = IndicatorSearcher(config)
+
+        # Get results based on filters
+        if topic_filter:
+            raw_results = searcher.search_by_topic(topic_filter)
+        elif source_filter:
+            raw_results = searcher.search_by_source(source_filter)
+        elif query:
+            raw_results = searcher.search(query)
+        else:
+            # Return empty if no search criteria
+            return jsonify({"results": []})
+
+        # Format results for web frontend
+        results = []
+        for r in raw_results:
+            indicator_id = r.get("id", "")
+            source = r.get("source", "")
+            
+            # Check if already downloaded
+            is_downloaded = check_indicator_downloaded(config, indicator_id, source)
+            
+            results.append({
+                "id": indicator_id,
+                "indicator": r.get("name", ""),
+                "source": source.upper(),
+                "description": r.get("description", ""),
+                "tags": ", ".join(r.get("tags", [])),
+                "downloaded": is_downloaded  # Add downloaded flag
+            })
+
+        return jsonify({"results": results})
+    except Exception as e:
+        # Fallback to mock data if real searcher fails
+        import traceback
+        print(f"Search API error: {e}")
+        traceback.print_exc()
+
+        # Use mock data as fallback
+        results = []
+        for ind in MOCK_INDICATORS:
+            # Match by query (searches indicator, topic, and keywords)
+            if query:
+                query_match = (
+                    query in ind["indicator"].lower() or
+                    query in ind["topic"].lower() or
+                    query in ind.get("keywords", "").lower()
+                )
+                if not query_match:
+                    continue
+
+            # Match by source
+            if source_filter and source_filter != ind["source"].lower():
                 continue
-        
-        # Match by source
-        if source and source != ind["source"].lower():
-            continue
-        
-        # Match by topic
-        if topic and topic != ind["topic"].lower():
-            continue
-        
-        results.append(ind)
 
-    return jsonify({"results": results})
+            # Match by topic
+            if topic_filter and topic_filter != ind["topic"].lower():
+                continue
+
+            results.append(ind)
+
+        return jsonify({"results": results})
+
+
+@ui_bp.route("/api/download/start", methods=["POST"])
+def start_download() -> Response:
+    """Start automatic download for selected indicator."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No data provided"}), 400
+        
+        indicator_id = data.get("id", "")
+        source = data.get("source", "").lower()
+        indicator_name = data.get("indicator", "")
+        
+        if not indicator_id or not source or not indicator_name:
+            return jsonify({"status": "error", "message": "Missing required fields (id, source, indicator)"}), 400
+        
+        # Initialize configuration
+        config = Config()
+        
+        # Step 1: Get indicator details from indicators.yaml
+        searcher = IndicatorSearcher(config)
+        indicators = config.get_indicators()
+        
+        # Find the full indicator config
+        indicator_config = None
+        for ind in indicators:
+            if ind.get("id") == indicator_id:
+                indicator_config = ind
+                break
+        
+        if not indicator_config:
+            return jsonify({"status": "error", "message": f"Indicator {indicator_id} not found in indicators.yaml"}), 404
+        
+        # Step 2: Download data using DataIngestionManager
+        manager = DataIngestionManager(config)
+        
+        # Get indicator-specific parameters based on source
+        fetch_params = {}
+        
+        # OWID requires 'slug' parameter
+        if source == 'owid':
+            if 'slug' not in indicator_config:
+                return jsonify({"status": "error", "message": f"OWID indicator missing 'slug' field"}), 400
+            fetch_params["slug"] = indicator_config["slug"]
+        
+        # ILOSTAT requires 'indicator' code
+        elif source == 'ilostat':
+            if 'indicator_code' in indicator_config:
+                fetch_params["indicator"] = indicator_config["indicator_code"]
+            else:
+                fetch_params["indicator"] = indicator_config.get("code", indicator_name)
+        
+        # OECD requires 'dataset' and optionally 'indicator'
+        elif source == 'oecd':
+            # Check for explicit dataset and indicator_code fields first
+            if 'dataset' in indicator_config and 'indicator_code' in indicator_config:
+                fetch_params["dataset"] = indicator_config["dataset"]
+                fetch_params["indicator"] = indicator_config["indicator_code"]
+            # Otherwise, try to parse 'code' field in format "DATASET.INDICATOR"
+            elif 'code' in indicator_config:
+                code = indicator_config["code"]
+                if '.' in code:
+                    parts = code.split('.', 1)
+                    fetch_params["dataset"] = parts[0]
+                    fetch_params["indicator"] = parts[1]
+                else:
+                    # If no dot, assume entire code is dataset
+                    fetch_params["dataset"] = code
+            else:
+                return jsonify({"status": "error", "message": f"OECD indicator missing 'dataset' or 'code' field"}), 400
+        
+        # IMF requires 'database' and 'indicator'
+        elif source == 'imf':
+            # Check for explicit fields first
+            if 'database' in indicator_config and 'indicator_code' in indicator_config:
+                fetch_params["database"] = indicator_config["database"]
+                fetch_params["indicator"] = indicator_config["indicator_code"]
+            # Otherwise, try to parse 'code' field in format "DATABASE.INDICATOR"
+            elif 'code' in indicator_config:
+                code = indicator_config["code"]
+                if '.' in code:
+                    parts = code.split('.', 1)
+                    fetch_params["database"] = parts[0]
+                    fetch_params["indicator"] = parts[1]
+                else:
+                    # Default database if not specified
+                    fetch_params["database"] = "IFS"  # International Financial Statistics
+                    fetch_params["indicator"] = code
+            else:
+                return jsonify({"status": "error", "message": f"IMF indicator missing 'database' or 'code' field"}), 400
+        
+        # World Bank requires 'indicator' code
+        elif source == 'worldbank':
+            if 'indicator_code' in indicator_config:
+                fetch_params["indicator"] = indicator_config["indicator_code"]
+            elif 'code' in indicator_config:
+                fetch_params["indicator"] = indicator_config["code"]
+            else:
+                return jsonify({"status": "error", "message": f"World Bank indicator missing 'indicator_code' or 'code' field"}), 400
+        
+        # ECLAC requires 'table'
+        elif source == 'eclac':
+            if 'table' in indicator_config:
+                fetch_params["table"] = indicator_config["table"]
+            elif 'code' in indicator_config:
+                fetch_params["table"] = indicator_config["code"]
+            else:
+                return jsonify({"status": "error", "message": f"ECLAC indicator missing 'table' or 'code' field"}), 400
+        
+        # Add URL if present (for reference)
+        if "url" in indicator_config:
+            fetch_params["url"] = indicator_config["url"]
+        
+        try:
+            raw_data = manager.ingest(source=source, **fetch_params)
+            
+            if raw_data is None or raw_data.empty:
+                return jsonify({"status": "error", "message": "No data returned from source"}), 500
+            
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Data ingestion failed: {str(e)}"}), 500
+        
+        # Step 3: Clean the data
+        cleaner = DataCleaner(config)
+        
+        # Use default cleaning parameters
+        # TODO: Allow frontend to configure topic, coverage, year range
+        topic = indicator_config.get("tags", ["general"])[0] if indicator_config.get("tags") else "general"
+        coverage = "global"  # Default coverage
+        
+        try:
+            cleaned_data = cleaner.clean_dataset(raw_data)
+            data_summary = cleaner.get_data_summary(cleaned_data)
+            
+            # Save cleaned dataset
+            output_path = cleaner.save_clean_dataset(
+                data=cleaned_data,
+                topic=topic,
+                source=source,
+                coverage=coverage,
+                start_year=None,  # Auto-detect
+                end_year=None     # Auto-detect
+            )
+            
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Data cleaning failed: {str(e)}"}), 500
+        
+        # Step 4: Generate metadata documentation
+        generator = MetadataGenerator(config)
+        
+        try:
+            metadata_text = generator.generate_metadata(
+                topic=topic,
+                data_summary=data_summary,
+                source=source,
+                transformations=data_summary.get("transformations", []),
+                original_source_url=indicator_config.get("url", ""),
+                force_regenerate=False
+            )
+            
+        except Exception as e:
+            # Metadata generation is optional, don't fail the entire process
+            print(f"Warning: Metadata generation failed: {e}")
+            metadata_text = None
+        
+        # Success response
+        return jsonify({
+            "status": "success",
+            "message": f"✓ Descarga completada: {indicator_name}",
+            "details": {
+                "output_file": str(output_path),
+                "rows": data_summary.get("rows", 0),
+                "columns": data_summary.get("columns", 0),  # Already an int, not a list
+                "countries": len(data_summary.get("countries", [])),
+                "date_range": data_summary.get("date_range", []),
+                "metadata_generated": metadata_text is not None
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}"}), 500

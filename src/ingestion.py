@@ -197,36 +197,76 @@ class ILOSTATSource(DataSource):
 
 class OECDSource(DataSource):
     """Handler for OECD API data."""
-    
-    BASE_URL = "https://stats.oecd.org/sdmx-json/data"
-    
+
+    BASE_URL = "https://sdmx.oecd.org/public/rest/data"
+
+    # Country name to ISO 3-letter code mapping
+    COUNTRY_CODES = {
+        'Argentina': 'ARG',
+        'Brasil': 'BRA', 'Brazil': 'BRA',
+        'Chile': 'CHL',
+        'Colombia': 'COL',
+        'Mexico': 'MEX', 'México': 'MEX',
+        'Peru': 'PER', 'Perú': 'PER',
+        'Uruguay': 'URY',
+        'Paraguay': 'PRY',
+        'Bolivia': 'BOL',
+        'Ecuador': 'ECU',
+        'Venezuela': 'VEN',
+        'United States': 'USA', 'USA': 'USA',
+        'Canada': 'CAN',
+        'United Kingdom': 'GBR',
+        'Germany': 'DEU',
+        'France': 'FRA',
+        'Italy': 'ITA',
+        'Spain': 'ESP',
+        'Japan': 'JPN',
+        'South Korea': 'KOR',
+        'Australia': 'AUS'
+    }
+
     def __init__(self, raw_data_dir: Path, api_key: Optional[str] = None):
         super().__init__("OECD", raw_data_dir)
         self.api_key = api_key
     
-    def fetch(self, dataset: str, indicator: str = "", countries: list = None, 
+    def fetch(self, dataset: str, indicator: str = "", countries: list = None,
               start_year: int = 2010, end_year: int = 2024, **kwargs) -> pd.DataFrame:
         """
         Fetch data from OECD API using SDMX-JSON.
-        
+
         Args:
             dataset: OECD dataset identifier (e.g., 'ALFS', 'REV')
             indicator: Indicator code within dataset
-            countries: List of country codes
+            countries: List of country names or codes
             start_year: Starting year
             end_year: Ending year
-            
+
         Returns:
             DataFrame with the data
         """
         if countries is None:
             countries = ["ARG", "BRA", "CHL", "MEX", "COL", "URY"]
-        
+
         try:
-            countries_str = ",".join(countries)
-            
-            # OECD SDMX-JSON format: {base}/{dataset}/{filter}?startTime={start}&endTime={end}
-            url = f"{self.BASE_URL}/{dataset}/{countries_str}.{indicator if indicator else ''}?startTime={start_year}&endTime={end_year}&format=sdmx-json&detail=full"
+            # Convert country names to ISO codes if needed
+            country_codes = []
+            for country in countries:
+                # If it's already a 3-letter code, use it
+                if len(country) == 3 and country.isupper():
+                    country_codes.append(country)
+                # Otherwise, try to map the name to a code
+                elif country in self.COUNTRY_CODES:
+                    country_codes.append(self.COUNTRY_CODES[country])
+                else:
+                    # If not found, assume it's already a code
+                    country_codes.append(country)
+
+            countries_str = "+".join(country_codes)
+
+            # OECD SDMX 2.1 format: {base}/{dataset}/{key}?startPeriod={start}&endPeriod={end}
+            # Key format: COUNTRY+COUNTRY.INDICATOR or just COUNTRY+COUNTRY if no indicator
+            key = f"{countries_str}.{indicator}" if indicator else countries_str
+            url = f"{self.BASE_URL}/{dataset}/{key}?startPeriod={start_year}&endPeriod={end_year}&dimensionAtObservation=AllDimensions"
             
             print(f"Fetching from OECD: {dataset}/{indicator if indicator else 'all'}")
             print(f"  Countries: {countries_str}")
@@ -290,33 +330,71 @@ class OECDSource(DataSource):
 
 class IMFSource(DataSource):
     """Handler for IMF API data."""
-    
-    BASE_URL = "http://dataservices.imf.org/REST/SDMX_JSON.svc"
-    
+
+    BASE_URL = "https://dataservices.imf.org/REST/SDMX_JSON.svc"
+
+    # Country name to ISO 3-letter code mapping
+    COUNTRY_CODES = {
+        'Argentina': 'ARG',
+        'Brasil': 'BRA', 'Brazil': 'BRA',
+        'Chile': 'CHL',
+        'Colombia': 'COL',
+        'Mexico': 'MEX', 'México': 'MEX',
+        'Peru': 'PER', 'Perú': 'PER',
+        'Uruguay': 'URY',
+        'Paraguay': 'PRY',
+        'Bolivia': 'BOL',
+        'Ecuador': 'ECU',
+        'Venezuela': 'VEN',
+        'United States': 'USA', 'USA': 'USA',
+        'Canada': 'CAN',
+        'United Kingdom': 'GBR',
+        'Germany': 'DEU',
+        'France': 'FRA',
+        'Italy': 'ITA',
+        'Spain': 'ESP',
+        'Japan': 'JPN',
+        'South Korea': 'KOR',
+        'Australia': 'AUS'
+    }
+
     def __init__(self, raw_data_dir: Path, api_key: Optional[str] = None):
         super().__init__("IMF", raw_data_dir)
         self.api_key = api_key
     
-    def fetch(self, database: str, indicator: str, countries: list = None, 
+    def fetch(self, database: str, indicator: str, countries: list = None,
               start_year: int = 2010, end_year: int = 2024, **kwargs) -> pd.DataFrame:
         """
         Fetch data from IMF API.
-        
+
         Args:
             database: IMF database (e.g., 'WEO' for World Economic Outlook)
             indicator: Indicator code (e.g., 'NGDP_RPCH' for real GDP growth)
-            countries: List of country codes
+            countries: List of country names or codes
             start_year: Starting year
             end_year: Ending year
-            
+
         Returns:
             DataFrame with the data
         """
         if countries is None:
             countries = ["ARG", "BRA", "CHL", "COL", "MEX", "PER", "URY"]
-        
+
         try:
-            countries_str = ",".join(countries)
+            # Convert country names to ISO codes if needed
+            country_codes = []
+            for country in countries:
+                # If it's already a 3-letter code, use it
+                if len(country) == 3 and country.isupper():
+                    country_codes.append(country)
+                # Otherwise, try to map the name to a code
+                elif country in self.COUNTRY_CODES:
+                    country_codes.append(self.COUNTRY_CODES[country])
+                else:
+                    # If not found, assume it's already a code
+                    country_codes.append(country)
+
+            countries_str = ",".join(country_codes)
             
             # IMF SDMX format: /data/{database}/{countries}/{indicator}
             url = f"{self.BASE_URL}/data/{database}/{countries_str}/{indicator}?startPeriod={start_year}&endPeriod={end_year}&format=sdmx-json"
@@ -383,31 +461,69 @@ class IMFSource(DataSource):
 
 class WorldBankSource(DataSource):
     """Handler for World Bank API data."""
-    
+
     BASE_URL = "https://api.worldbank.org/v2/country"
-    
+
+    # Country name to ISO 3-letter code mapping
+    COUNTRY_CODES = {
+        'Argentina': 'ARG',
+        'Brasil': 'BRA', 'Brazil': 'BRA',
+        'Chile': 'CHL',
+        'Colombia': 'COL',
+        'Mexico': 'MEX', 'México': 'MEX',
+        'Peru': 'PER', 'Perú': 'PER',
+        'Uruguay': 'URY',
+        'Paraguay': 'PRY',
+        'Bolivia': 'BOL',
+        'Ecuador': 'ECU',
+        'Venezuela': 'VEN',
+        'United States': 'USA', 'USA': 'USA',
+        'Canada': 'CAN',
+        'United Kingdom': 'GBR',
+        'Germany': 'DEU',
+        'France': 'FRA',
+        'Italy': 'ITA',
+        'Spain': 'ESP',
+        'Japan': 'JPN',
+        'South Korea': 'KOR',
+        'Australia': 'AUS'
+    }
+
     def __init__(self, raw_data_dir: Path):
         super().__init__("WorldBank", raw_data_dir)
     
-    def fetch(self, indicator: str, countries: list = None, start_year: int = 2010, 
+    def fetch(self, indicator: str, countries: list = None, start_year: int = 2010,
               end_year: int = 2024, **kwargs) -> pd.DataFrame:
         """
         Fetch data from World Bank API.
-        
+
         Args:
             indicator: World Bank indicator code (e.g., 'NY.GDP.MKTP.CD')
-            countries: List of country codes
+            countries: List of country names or codes
             start_year: Starting year
             end_year: Ending year
-            
+
         Returns:
             DataFrame with the data
         """
         if countries is None:
             countries = ["ARG", "BRA", "CHL", "COL", "MEX", "PER", "URY"]
-        
+
         try:
-            countries_str = ";".join(countries)
+            # Convert country names to ISO codes if needed
+            country_codes = []
+            for country in countries:
+                # If it's already a 3-letter code, use it
+                if len(country) == 3 and country.isupper():
+                    country_codes.append(country)
+                # Otherwise, try to map the name to a code
+                elif country in self.COUNTRY_CODES:
+                    country_codes.append(self.COUNTRY_CODES[country])
+                else:
+                    # If not found, assume it's already a code
+                    country_codes.append(country)
+
+            countries_str = ";".join(country_codes)
             
             # World Bank API format: /country/{countries}/indicator/{indicator}
             url = f"{self.BASE_URL}/{countries_str}/indicator/{indicator}?date={start_year}:{end_year}&format=json"
@@ -437,17 +553,17 @@ class WorldBankSource(DataSource):
     def _parse_json(self, data: list) -> pd.DataFrame:
         """Parse World Bank JSON response into DataFrame."""
         rows = []
-        
+
         try:
             if len(data) < 2:
                 return pd.DataFrame()
-            
+
             indicators_data = data[1]
-            
+
             for record in indicators_data:
                 if record.get('value') is None:
                     continue
-                
+
                 try:
                     rows.append({
                         'country': record.get('countryiso3code', 'UNKNOWN'),
@@ -457,9 +573,9 @@ class WorldBankSource(DataSource):
                     })
                 except (ValueError, TypeError):
                     continue
-            
+
             return pd.DataFrame(rows)
-            
+
         except Exception as e:
             print(f"  Error parsing World Bank JSON: {e}")
             return pd.DataFrame()
@@ -544,22 +660,118 @@ class ECLACSource(DataSource):
             return pd.DataFrame()
 
 
+class OWIDSource(DataSource):
+    """Handler for Our World in Data (OWID) Grapher API."""
+
+    BASE_URL = "https://ourworldindata.org/grapher"
+
+    def __init__(self, raw_data_dir: Path):
+        super().__init__("OWID", raw_data_dir)
+
+    def fetch(self, slug: str, countries: list = None, start_year: int = None,
+              end_year: int = None, **kwargs) -> pd.DataFrame:
+        """
+        Fetch data from OWID Grapher API using chart slug.
+
+        Args:
+            slug: OWID grapher chart slug (e.g., 'real-wages', 'gdp-per-capita')
+            countries: List of country names or codes (e.g., ['Argentina', 'Brazil'])
+            start_year: Starting year (optional, defaults to all available)
+            end_year: Ending year (optional, defaults to all available)
+
+        Returns:
+            DataFrame with the data
+
+        Example:
+            fetch(slug='real-wages', countries=['Argentina', 'Brazil'],
+                  start_year=2000, end_year=2024)
+        """
+        try:
+            # Build URL with .csv endpoint
+            url = f"{self.BASE_URL}/{slug}.csv"
+
+            # Build query parameters
+            params = {}
+
+            # Add csvType for filtered data (only what's visible in chart)
+            params['csvType'] = 'filtered'
+
+            # Add country filter if provided
+            if countries:
+                # Join countries with ~ separator (OWID format)
+                country_str = '~'.join(countries)
+                params['country'] = country_str
+
+            # Add time range if provided
+            if start_year and end_year:
+                params['time'] = f'{start_year}..{end_year}'
+            elif start_year:
+                params['time'] = f'{start_year}..latest'
+            elif end_year:
+                params['time'] = f'earliest..{end_year}'
+
+            print(f"Fetching from OWID: {slug}")
+            if countries:
+                print(f"  Countries: {', '.join(countries)}")
+            if start_year or end_year:
+                print(f"  Period: {params.get('time', 'all')}")
+
+            # Make request
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            # Parse CSV data
+            from io import StringIO
+            df = pd.read_csv(StringIO(response.text))
+
+            # Standardize column names
+            if 'Entity' in df.columns:
+                df = df.rename(columns={'Entity': 'country'})
+            if 'Year' in df.columns:
+                df = df.rename(columns={'Year': 'year'})
+            if 'Code' in df.columns:
+                df = df.rename(columns={'Code': 'country_code'})
+
+            # Save raw data
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{slug}_{timestamp}.csv"
+            self.save_raw(df, filename)
+
+            if len(df) > 0:
+                print(f"✓ Retrieved {len(df)} records from OWID")
+                print(f"  Columns: {', '.join(df.columns.tolist()[:5])}...")
+            else:
+                print(f"⚠ No data found for slug '{slug}'")
+
+            return df
+
+        except requests.exceptions.RequestException as e:
+            print(f"⚠ OWID API error: {e}")
+            print(f"  URL: {url}")
+            print("  Make sure the slug is correct. Check https://ourworldindata.org/charts")
+            return pd.DataFrame()
+        except Exception as e:
+            print(f"⚠ Error parsing OWID data: {e}")
+            return pd.DataFrame()
+
+
 class DataIngestionManager:
     """Manages data ingestion from multiple sources."""
-    
+
     def __init__(self, config):
         """
         Initialize ingestion manager.
-        
+
         Args:
             config: Config object
         """
         self.config = config
         self.raw_dir = config.get_directory('raw')
-        
+
         # Initialize data sources
         self.sources = {
             'manual': ManualUpload(self.raw_dir),
+            'owid': OWIDSource(self.raw_dir),
             'ilostat': ILOSTATSource(self.raw_dir),
             'oecd': OECDSource(self.raw_dir),
             'imf': IMFSource(self.raw_dir),
