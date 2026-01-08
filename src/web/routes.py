@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import Config
 from searcher import IndicatorSearcher
+from dynamic_search import DynamicSearcher  # NEW: Dynamic search with API integration
 from ingestion import DataIngestionManager
 from cleaning import DataCleaner
 from metadata import MetadataGenerator
@@ -160,46 +161,95 @@ MOCK_INDICATORS = [
 
 @ui_bp.route("/api/search")
 def search_api() -> Response:
-    """Search API endpoint using real indicator data."""
-    query = request.args.get("q", "").lower().strip()
+    """
+    Search API endpoint with hybrid local + remote search.
+    
+    Query params:
+        q: Search query
+        source: Filter by source (owid, oecd, etc.)
+        topic: Filter by topic
+        include_remote: Include remote API results (default: true)
+    """
+    query = request.args.get("q", "").strip()
     source_filter = request.args.get("source", "").lower().strip()
     topic_filter = request.args.get("topic", "").lower().strip()
+    include_remote = request.args.get("include_remote", "true").lower() == "true"
 
     try:
-        # Use the real IndicatorSearcher
         config = Config()
-        searcher = IndicatorSearcher(config)
-
-        # Get results based on filters
-        if topic_filter:
-            raw_results = searcher.search_by_topic(topic_filter)
-        elif source_filter:
-            raw_results = searcher.search_by_source(source_filter)
+        
+        # If filtering by source or topic, use old searcher (local only)
+        if source_filter or topic_filter:
+            searcher = IndicatorSearcher(config)
+            if topic_filter:
+                raw_results = searcher.search_by_topic(topic_filter)
+            elif source_filter:
+                raw_results = searcher.search_by_source(source_filter)
+            else:
+                raw_results = []
+            
+            # Format results
+            results = []
+            for r in raw_results:
+                indicator_id = r.get("id", "")
+                source = r.get("source", "")
+                is_downloaded = check_indicator_downloaded(config, indicator_id, source)
+                
+                results.append({
+                    "id": indicator_id,
+                    "indicator": r.get("name", ""),
+                    "source": source.upper(),
+                    "description": r.get("description", ""),
+                    "tags": ", ".join(r.get("tags", [])),
+                    "downloaded": is_downloaded,
+                    "remote": False
+                })
+            
+            return jsonify({"results": results, "total": len(results), "query": query})
+        
+        # Use dynamic searcher for general queries
         elif query:
-            raw_results = searcher.search(query)
+            dynamic_searcher = DynamicSearcher(config, cache_ttl_minutes=5)
+            search_results = dynamic_searcher.search(query, include_remote=include_remote)
+            
+            # Combine local and remote results
+            all_indicators = search_results["local_results"] + search_results["remote_results"]
+            
+            # Format results for web frontend
+            results = []
+            for r in all_indicators:
+                indicator_id = r.get("id", "")
+                source = r.get("source", "")
+                is_remote = r.get("remote", False)
+                
+                # Only check downloaded status for local indicators
+                is_downloaded = False if is_remote else check_indicator_downloaded(config, indicator_id, source)
+                
+                result = {
+                    "id": indicator_id,
+                    "indicator": r.get("name", ""),
+                    "source": source.upper(),
+                    "description": r.get("description", ""),
+                    "tags": ", ".join(r.get("tags", [])) if isinstance(r.get("tags", []), list) else r.get("tags", ""),
+                    "downloaded": is_downloaded,
+                    "remote": is_remote  # Flag to show if from API
+                }
+                
+                # Add slug for OWID remote indicators
+                if is_remote and "slug" in r:
+                    result["slug"] = r["slug"]
+                
+                results.append(result)
+            
+            return jsonify({
+                "results": results,
+                "total": len(results),
+                "query": query,
+                "sources": search_results["sources"]
+            })
         else:
             # Return empty if no search criteria
-            return jsonify({"results": []})
-
-        # Format results for web frontend
-        results = []
-        for r in raw_results:
-            indicator_id = r.get("id", "")
-            source = r.get("source", "")
-            
-            # Check if already downloaded
-            is_downloaded = check_indicator_downloaded(config, indicator_id, source)
-            
-            results.append({
-                "id": indicator_id,
-                "indicator": r.get("name", ""),
-                "source": source.upper(),
-                "description": r.get("description", ""),
-                "tags": ", ".join(r.get("tags", [])),
-                "downloaded": is_downloaded  # Add downloaded flag
-            })
-
-        return jsonify({"results": results})
+            return jsonify({"results": [], "total": 0})
     except Exception as e:
         # Fallback to mock data if real searcher fails
         import traceback

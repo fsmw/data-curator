@@ -37,9 +37,21 @@
   </div>
   <div class="card p-3">
   <div class="text-secondary small mb-2">
-    Resultados 
+    <span x-text="results.length"></span> Resultados
     <span x-show="query || source">
       para: <strong x-text="`${query}${source ? ' • ' + source : ''}`"></strong>
+    </span>
+    <!-- Show breakdown of local vs remote results -->
+    <span x-show="searchMetadata && searchMetadata.sources" class="ms-3">
+      <span class="badge bg-secondary">
+        Local: <span x-text="searchMetadata.sources.local || 0"></span>
+      </span>
+      <span class="badge bg-info ms-1" x-show="searchMetadata.sources.owid">
+        OWID API: <span x-text="searchMetadata.sources.owid"></span>
+      </span>
+      <span class="badge bg-info ms-1" x-show="searchMetadata.sources.oecd">
+        OECD: <span x-text="searchMetadata.sources.oecd"></span>
+      </span>
     </span>
   </div>
   <div x-show="successMessage" class="alert alert-success mb-3" role="alert">
@@ -64,16 +76,33 @@
             </div>
           </td>
           <td class="small text-secondary" x-text="result.description"></td>
-          <td><span class="badge bg-primary" x-text="result.source"></span></td>
+          <td>
+            <span class="badge bg-primary" x-text="result.source"></span>
+            <!-- Show remote badge for API results -->
+            <span x-show="result.remote" class="badge bg-info ms-1" title="From external API">
+              <i class="ms-Icon ms-Icon--Cloud"></i> API
+            </span>
+          </td>
           <td class="text-end">
             <!-- Show badge if already downloaded -->
             <span x-show="result.downloaded" class="badge bg-success">
               <i class="ms-Icon ms-Icon--CheckMark"></i> Ya Descargado
             </span>
             
-            <!-- Show download button if not downloaded -->
+            <!-- Show "View on OWID" link for remote OWID indicators -->
+            <a 
+              x-show="result.remote && result.source === 'OWID' && !result.downloaded"
+              :href="'https://ourworldindata.org/grapher/' + result.slug"
+              target="_blank"
+              class="btn btn-outline-secondary btn-sm"
+              title="Ver en Our World in Data"
+            >
+              <i class="ms-Icon ms-Icon--OpenInNewWindow"></i> Ver en OWID
+            </a>
+            
+            <!-- Show download button for local indicators or info button for remote -->
             <button 
-              x-show="!result.downloaded"
+              x-show="!result.downloaded && !result.remote"
               @click.prevent="startDownload(result)" 
               class="btn btn-outline-primary btn-sm"
               type="button"
@@ -86,6 +115,16 @@
               <span x-show="downloading[result.id] === true">
                 <i class="ms-Icon ms-Icon--Sync"></i> Descargando...
               </span>
+            </button>
+            
+            <!-- Info button for remote non-OWID indicators -->
+            <button 
+              x-show="result.remote && result.source !== 'OWID' && !result.downloaded"
+              class="btn btn-outline-info btn-sm"
+              type="button"
+              @click="alert('Este indicador está disponible en ' + result.source + '. Para descargarlo, primero configúralo en indicators.yaml con los parámetros correctos.')"
+            >
+              <i class="ms-Icon ms-Icon--Info"></i> Info
             </button>
           </td>
         </tr>
@@ -107,6 +146,7 @@ function searchForm() {
     query: '',
     source: '',
     results: [],
+    searchMetadata: null,  // NEW: Store search metadata (sources breakdown)
     loading: false,
     error: '',
     downloading: {},
@@ -114,6 +154,7 @@ function searchForm() {
     async performSearch() {
       if (!this.query && !this.source) {
         this.results = [];
+        this.searchMetadata = null;
         return;
       }
       this.loading = true;
@@ -128,9 +169,16 @@ function searchForm() {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
         this.results = data.results || [];
+        this.searchMetadata = {  // NEW: Store metadata
+          total: data.total,
+          query: data.query,
+          sources: data.sources || {}
+        };
+        console.log('Search complete:', this.searchMetadata);
       } catch (err) {
         this.error = `Búsqueda falló: ${err.message}`;
         this.results = [];
+        this.searchMetadata = null;
       } finally {
         this.loading = false;
       }
