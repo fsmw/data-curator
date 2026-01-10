@@ -1,8 +1,16 @@
-"""MISES Data Curation Tool - Text User Interface (TUI)."""
+"""MISES Data Curation Tool - Text User Interface (TUI).
 
-__version__ = "1.0.0"
+The TUI has been removed from this distribution. Importing this package will
+provide a helper function that prints an informational message.
+"""
+
+__version__ = "0.0.0-deprecated"
 __author__ = "MISES Team"
 
-from .app import MisesApp
 
-__all__ = ["MisesApp"]
+def show_removed_message():
+    print('The Textual TUI has been removed from this distribution.')
+    print('Use the CLI: python -m src.cli')
+    print('Or the Web server: python -m src.web')
+
+__all__ = ["show_removed_message"]

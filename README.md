@@ -121,6 +121,8 @@ python -m src.cli ingest --source ilostat --indicator LAB_INF
 python -m src.cli ingest --source oecd --dataset PRICES
 ```
 
+Note: The Textual-based TUI has been removed from this distribution. Use the CLI (`python -m src.cli`) or the Web server (`python -m src.web`) instead.
+
 #### 3. `clean` - Limpiar datos
 
 ```bash

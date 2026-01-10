@@ -1,13 +1,13 @@
 """Entry point for running the TUI from command line."""
 
-from .app import MisesApp
-
+# TUI removed
+# The Textual TUI has been deprecated and removed. Importing or running the TUI will print an informational message.
 
 def main():
-    """Run the TUI application."""
-    app = MisesApp()
-    app.run()
+    print('The Textual TUI has been removed from this distribution.')
+    print('Use the CLI: python -m src.cli')
+    print('Or the Web server: python -m src.web')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
