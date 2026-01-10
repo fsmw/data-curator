@@ -22,3 +22,7 @@ flask>=3.0.0
 
 # Utilities
 python-dateutil>=2.8.0
+
+# Markdown rendering and sanitization for server-side chat rendering
+markdown>=3.4.0
+bleach>=6.0.0
