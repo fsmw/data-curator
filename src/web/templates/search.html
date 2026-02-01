@@ -29,7 +29,7 @@
           class="btn btn-primary w-100"
           :disabled="loading"
         >
-          <span x-show="!loading"><i class="ms-Icon ms-Icon--Search"></i> Buscar</span>
+          <span x-show="!loading"><i class="bi bi-search"></i> Buscar</span>
           <span x-show="loading" class="spinner-border spinner-border-sm me-2"></span>
         </button>
       </div>
@@ -44,22 +44,26 @@
     <!-- Show breakdown of local vs remote results -->
     <span x-show="searchMetadata && searchMetadata.sources" class="ms-3">
       <span class="badge bg-secondary">
-        Local: <span x-text="searchMetadata.sources.local || 0"></span>
+        Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
       </span>
-      <span class="badge bg-info ms-1" x-show="searchMetadata.sources.owid">
-        OWID API: <span x-text="searchMetadata.sources.owid"></span>
+      <span class="badge bg-info ms-1" x-show="searchMetadata?.sources?.owid">
+        OWID API: <span x-text="searchMetadata?.sources?.owid || 0"></span>
       </span>
-      <span class="badge bg-info ms-1" x-show="searchMetadata.sources.oecd">
-        OECD: <span x-text="searchMetadata.sources.oecd"></span>
+      <span class="badge bg-info ms-1" x-show="searchMetadata?.sources?.oecd">
+        OECD: <span x-text="searchMetadata?.sources?.oecd || 0"></span>
       </span>
     </span>
   </div>
+  <!-- Debug info -->
+  <div x-show="results.length > 0" class="alert alert-info small mb-2">
+    <strong>Debug:</strong> Received <span x-text="results.length"></span> results. First result ID: <span x-text="results[0]?.id"></span>
+  </div>
   <div x-show="successMessage" class="alert alert-success mb-3" role="alert">
-    <i class="ms-Icon ms-Icon--CheckMark"></i>
+    <i class="bi bi-check-circle"></i>
     <span x-text="successMessage"></span>
   </div>
   <div x-show="error" class="alert alert-warning mb-3" role="alert">
-    <i class="ms-Icon ms-Icon--Warning"></i>
+    <i class="bi bi-exclamation-triangle"></i>
     <span x-text="error"></span>
   </div>
   <table class="table table-hover align-middle mb-0">
@@ -67,65 +71,102 @@
       <tr><th>Indicador</th><th>Descripción</th><th>Fuente</th><th></th></tr>
     </thead>
     <tbody>
-      <template x-for="result in results" :key="result.id">
+      <template x-for="(result, index) in results" :key="result.id || index">
         <tr>
           <td>
-            <strong x-text="result.indicator"></strong>
+            <strong x-text="result.indicator || 'N/A'"></strong>
             <div class="small text-secondary" x-show="result.tags">
-              <i class="ms-Icon ms-Icon--Tag"></i> <span x-text="result.tags"></span>
+              <i class="bi bi-tag"></i> <span x-text="result.tags"></span>
             </div>
           </td>
-          <td class="small text-secondary" x-text="result.description"></td>
+          <td class="small text-secondary" x-text="result.description || ''"></td>
           <td>
-            <span class="badge bg-primary" x-text="result.source"></span>
+            <span class="badge bg-primary" x-text="result.source || 'N/A'"></span>
             <!-- Show remote badge for API results -->
-            <span x-show="result.remote" class="badge bg-info ms-1" title="From external API">
-              <i class="ms-Icon ms-Icon--Cloud"></i> API
-            </span>
+            <template x-if="result.remote">
+              <span class="badge bg-info ms-1" title="From external API">
+                <i class="bi bi-cloud"></i> API
+              </span>
+            </template>
           </td>
           <td class="text-end">
-            <!-- Show badge if already downloaded -->
-            <span x-show="result.downloaded" class="badge bg-success">
-              <i class="ms-Icon ms-Icon--CheckMark"></i> Ya Descargado
-            </span>
-            
-            <!-- Show "View on OWID" link for remote OWID indicators -->
-            <a 
-              x-show="result.remote && result.source === 'OWID' && !result.downloaded"
-              :href="'https://ourworldindata.org/grapher/' + result.slug"
-              target="_blank"
-              class="btn btn-outline-secondary btn-sm"
-              title="Ver en Our World in Data"
-            >
-              <i class="ms-Icon ms-Icon--OpenInNewWindow"></i> Ver en OWID
-            </a>
-            
-            <!-- Show download button for local indicators or info button for remote -->
-            <button 
-              x-show="!result.downloaded && !result.remote"
-              @click.prevent="startDownload(result)" 
-              class="btn btn-outline-primary btn-sm"
-              type="button"
-              :disabled="downloading[result.id] === true"
-              :class="{ 'disabled': downloading[result.id] === true }"
-            >
-              <span x-show="downloading[result.id] !== true">
-                <i class="ms-Icon ms-Icon--Download"></i> Descargar
+            <div class="action-buttons d-flex align-items-center gap-2">
+              <!-- Downloaded badge -->
+              <span x-show="result.downloaded" class="badge bg-success">
+                <i class="bi bi-check-circle"></i> Ya Descargado
               </span>
-              <span x-show="downloading[result.id] === true">
-                <i class="ms-Icon ms-Icon--Sync"></i> Descargando...
-              </span>
-            </button>
-            
-            <!-- Info button for remote non-OWID indicators -->
-            <button 
-              x-show="result.remote && result.source !== 'OWID' && !result.downloaded"
-              class="btn btn-outline-info btn-sm"
-              type="button"
-              @click="alert('Este indicador está disponible en ' + result.source + '. Para descargarlo, primero configúralo en indicators.yaml con los parámetros correctos.')"
-            >
-              <i class="ms-Icon ms-Icon--Info"></i> Info
-            </button>
+              
+              <!-- Remote OWID: Preview button -->
+              <button
+                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                @click.prevent="previewRemote(result)"
+                class="btn btn-outline-secondary btn-sm"
+                type="button"
+                title="Ver gráfico PNG desde OWID"
+              >
+                <i class="bi bi-image"></i>
+              </button>
+
+              <!-- Remote OWID: Download button -->
+              <button 
+                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                @click.prevent="startDownload(result)" 
+                class="btn btn-outline-primary btn-sm"
+                type="button"
+                :disabled="downloading[result.id] === true"
+                title="Descargar datos CSV de OWID"
+              >
+                <i x-show="!downloading[result.id]" class="bi bi-download"></i>
+                <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
+              </button>
+              
+              <!-- Remote OWID: Link to website -->
+              <a 
+                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                :href="'https://ourworldindata.org/grapher/' + (result.slug || '')"
+                target="_blank"
+                class="btn btn-link btn-sm"
+                title="Ver en Our World in Data"
+              >
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+              
+               <!-- Local download button -->
+               <button 
+                 x-show="!result.remote"
+                 @click.prevent="startDownload(result)" 
+                 class="btn btn-outline-primary btn-sm"
+                 type="button"
+                 :disabled="downloading[result.id] === true"
+                 title="Descargar datos CSV"
+               >
+                 <i x-show="!downloading[result.id]" class="bi bi-download"></i>
+                 <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
+               </button>
+               
+               <!-- View versions in Browse Local -->
+               <button
+                 class="btn btn-outline-secondary btn-sm"
+                 @click.prevent="openBrowseVersions(result)"
+                 title="View versions in Browse Local"
+               >
+                 <i class="bi bi-clock-history"></i>
+               </button>
+
+              
+              <!-- Remote non-OWID download button -->
+              <button 
+                x-show="result.remote && !(result.source === 'OWID' || result.source?.includes('OWID'))"
+                @click.prevent="startDownload(result)" 
+                class="btn btn-outline-primary btn-sm"
+                type="button"
+                :disabled="downloading[result.id] === true"
+                title="Descargar datos CSV desde API"
+              >
+                <i x-show="!downloading[result.id]" class="bi bi-download"></i>
+                <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
+              </button>
+            </div>
           </td>
         </tr>
       </template>
@@ -140,17 +181,59 @@
   </div>
 </div>
 
+<!-- Preview Modal - PNG from OWID -->
+<div class="modal fade" id="owidPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="owidPreviewTitle" class="modal-title">📊 Gráfico OWID</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <div class="modal-body text-center">
+        <!-- Loading spinner -->
+        <div id="owidPreviewSpinner" class="py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <div class="text-secondary small mt-2">Cargando gráfico...</div>
+        </div>
+        
+        <!-- Error message -->
+        <div id="owidPreviewError" class="alert alert-warning d-none" role="alert"></div>
+        
+        <!-- PNG Image -->
+        <img id="owidPreviewImage" src="" alt="OWID Chart" style="max-width: 100%; height: auto; display: none;" />
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <a id="downloadChartLink" href="#" class="btn btn-primary" download>
+          <i class="bi bi-download"></i> Descargar PNG
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+    </div>
+  </div>
+</div>
+
+
+
 <script>
 function searchForm() {
   return {
     query: '',
     source: '',
     results: [],
-    searchMetadata: null,  // NEW: Store search metadata (sources breakdown)
+    searchMetadata: null,
     loading: false,
     error: '',
     downloading: {},
     successMessage: '',
+    currentSlug: '',
+
     async performSearch() {
       if (!this.query && !this.source) {
         this.results = [];
@@ -169,7 +252,17 @@ function searchForm() {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
         this.results = data.results || [];
-        this.searchMetadata = {  // NEW: Store metadata
+        
+        // DEBUG: Log first 3 results to see structure
+        console.log('First 3 results:', this.results.slice(0, 3).map(r => ({
+          id: r.id,
+          indicator: r.indicator,
+          source: r.source,
+          remote: r.remote,
+          slug: r.slug
+        })));
+        
+        this.searchMetadata = {
           total: data.total,
           query: data.query,
           sources: data.sources || {}
@@ -183,67 +276,119 @@ function searchForm() {
         this.loading = false;
       }
     },
+
+    async previewRemote(result) {
+      const modalEl = document.getElementById('owidPreviewModal');
+      const modal = new bootstrap.Modal(modalEl);
+      
+      // Show spinner, hide content
+      document.getElementById('owidPreviewSpinner').classList.remove('d-none');
+      document.getElementById('owidPreviewError').classList.add('d-none');
+      document.getElementById('owidPreviewImage').style.display = 'none';
+      document.getElementById('owidPreviewTitle').textContent = result.slug || result.indicator || 'Gráfico';
+      
+      modal.show();
+
+      try {
+        const slug = result.slug || result.id;
+        if (!slug) throw new Error('No slug disponible');
+
+        // Load PNG directly
+        const pngUrl = `/api/chart/export-png?slug=${encodeURIComponent(slug)}`;
+        
+        // Verify the image loads
+        const img = new Image();
+        img.onload = () => {
+          document.getElementById('owidPreviewSpinner').classList.add('d-none');
+          document.getElementById('owidPreviewImage').src = pngUrl;
+          document.getElementById('owidPreviewImage').style.display = 'block';
+          
+          // Set download link
+          const downloadBtn = document.getElementById('downloadChartLink');
+          downloadBtn.href = pngUrl;
+          downloadBtn.download = `${slug}.png`;
+        };
+        
+        img.onerror = () => {
+          throw new Error('No se pudo cargar el gráfico');
+        };
+        
+        img.src = pngUrl;
+        this.currentSlug = slug;
+        
+      } catch (err) {
+        console.error('Preview error', err);
+        document.getElementById('owidPreviewSpinner').classList.add('d-none');
+        const errEl = document.getElementById('owidPreviewError');
+        errEl.textContent = err.message || String(err);
+        errEl.classList.remove('d-none');
+      }
+    },
+
     async startDownload(result) {
       console.log('=== DOWNLOAD STARTED ===');
-      console.log('Result:', result);
-      
-      // Mark this indicator as downloading (create new object for reactivity)
       this.downloading = { ...this.downloading, [result.id]: true };
       this.error = '';
       this.successMessage = '';
-      
+
       try {
-        console.log('Sending POST to /api/download/start');
-        
         const res = await fetch('/api/download/start', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: result.id,
-            source: result.source.toLowerCase(),
-            indicator: result.indicator,
-            description: result.description
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            id: result.id, 
+            source: result.source.toLowerCase(), 
+            indicator: result.indicator, 
+            description: result.description, 
+            remote: result.remote || false, 
+            slug: result.slug, 
+            url: result.url 
           })
         });
-        
-        console.log('Response status:', res.status);
-        const data = await res.json();
-        console.log('Response data:', data);
-        
-        if (!res.ok || data.status === 'error') {
-          throw new Error(data.message || 'Download failed');
+
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          const text = await res.text().catch(() => null);
+          if (text) {
+            this.error = text;
+          } else {
+            this.error = 'Invalid response from server';
+          }
+          return;
         }
-        
-        // Show success message
-        this.successMessage = data.message;
-        
-        // Mark this indicator as downloaded in the results
-        const resultIndex = this.results.findIndex(r => r.id === result.id);
-        if (resultIndex !== -1) {
-          this.results[resultIndex].downloaded = true;
+
+        // Rely on consistent backend JSON: status = success|enqueued|already_queued|error
+        if (data.status === 'success') {
+          this.successMessage = data.message || `✓ Descarga completada: ${result.indicator}`;
+          const resultIndex = this.results.findIndex(r => r.id === result.id);
+          if (resultIndex !== -1) { this.results[resultIndex].downloaded = true; }
+          setTimeout(() => { this.successMessage = ''; }, 5000);
+        } else if (data.status === 'enqueued') {
+          this.successMessage = data.message || `✓ Descarga en cola para "${result.indicator}".`;
+          setTimeout(() => { this.successMessage = ''; }, 5000);
+        } else if (data.status === 'already_queued') {
+          this.error = data.message || 'Este indicador ya está en la cola de descargas.';
+        } else {
+          this.error = data.message || data.error || `Error desconocido (status: ${data.status})`;
         }
-        
-        // Show details if available
-        if (data.details) {
-          const details = data.details;
-          const detailsMsg = `Archivo: ${details.output_file}\nFilas: ${details.rows}, Columnas: ${details.columns}\nPaíses: ${details.countries}`;
-          console.log('Download completed:', detailsMsg);
-        }
-        
-        // Auto-hide success message after 5 seconds
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 5000);
-        
+
       } catch (err) {
-        this.error = `Error descargando ${result.indicator}: ${err.message}`;
+        this.error = `Error al iniciar descarga: ${err.message}`;
         console.error('Download error:', err);
       } finally {
-        // Mark as not downloading (create new object for reactivity)
         this.downloading = { ...this.downloading, [result.id]: false };
       }
+    },
+
+    openBrowseVersions(result) {
+      // Prefer passing slug/id to browse local
+      const identifier = result.slug || result.id || result.indicator;
+      const source = (result.source || '').toLowerCase();
+      // Open browse local with query params to show latest and prefill search
+      const url = `/browse/local?q=${encodeURIComponent(identifier)}&latest=true&source=${encodeURIComponent(source)}`;
+      window.location.href = url;
     }
   };
 }

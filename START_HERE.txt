@@ -1,6 +1,5 @@
 ╔═══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║      MISES DATA CURATION TOOL - TUI QUICK START             ║
 ║                                                               ║
 ║  Everything you need to launch and use the interface in     ║
 ║  less than 30 seconds                                        ║
@@ -20,7 +19,6 @@ Open PowerShell and run:
 STEP 2: LAUNCH (5 seconds)
 ═══════════════════════════════════════════════════════════════
 
-  python -m src.tui
 
 
 STEP 3: EXPLORE (2 minutes)
@@ -42,7 +40,6 @@ Press any number (1-7) to jump to that screen.
 THAT'S IT! 🎉
 ═══════════════════════════════════════════════════════════════
 
-You're now using the TUI. Here are the most important keys:
 
   [H]      Help (shows all shortcuts)
   [Q]      Quit
@@ -56,9 +53,6 @@ NEED MORE HELP?
 ═══════════════════════════════════════════════════════════════
 
 While using the app:     Press [H] for full help
-Quick reference:         Read TUI_QUICK_REFERENCE.md
-Complete guide:          Read TUI_QUICKSTART.md
-Technical details:       Read TUI_IMPLEMENTATION.md
 
 
 COMMON TASKS
@@ -90,11 +84,6 @@ Keyboard not responding?
 DOCUMENTATION FILES
 ═══════════════════════════════════════════════════════════════
 
-TUI_QUICK_REFERENCE.md  ← Single page keyboard reference
-TUI_README.md           ← 5 minute overview
-TUI_QUICKSTART.md       ← Complete user guide
-TUI_IMPLEMENTATION.md   ← How it was built
-TUI_INDEX.md            ← Find what you need
 
 
 WHAT'S AVAILABLE
@@ -113,14 +102,12 @@ VERSION INFO
 Version:   1.0.0-beta
 Status:    Ready for Production
 Date:      January 6, 2026
-Location:  c:\dev\data-curator\src\tui
 
 
 LET'S GET STARTED! 🚀
 ═══════════════════════════════════════════════════════════════
 
 1. python -m pip install -r requirements.txt
-2. python -m src.tui
 3. Press 1-7 to explore
 4. Press H for help
 

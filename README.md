@@ -2,6 +2,10 @@
 
 🔧 Una herramienta Python modular para automatizar la curaduria de datos económicos, con generación de metadata inteligente mediante LLM (OpenRouter).
 
+**Interfaces disponibles:**
+- **CLI** - Interfaz de línea de comandos
+- **Web API** - API REST con Flask
+
 ## 🎯 Características
 
 - **Ingesta automatizada** de datos desde ILOSTAT, OECD, IMF y fuentes manuales
@@ -92,12 +96,6 @@ Esto crea todas las carpetas necesarias automáticamente.
 
 ## 📖 Uso
 
-### Comando básico
-
-```bash
-python -m src.cli [comando] [opciones]
-```
-
 ### Comandos disponibles
 
 #### 1. `init` - Inicializar proyecto
@@ -120,8 +118,6 @@ python -m src.cli ingest --source manual --filepath datos_brutos.csv
 python -m src.cli ingest --source ilostat --indicator LAB_INF
 python -m src.cli ingest --source oecd --dataset PRICES
 ```
-
-Note: The Textual-based TUI has been removed from this distribution. Use the CLI (`python -m src.cli`) or the Web server (`python -m src.web`) instead.
 
 #### 3. `clean` - Limpiar datos
 

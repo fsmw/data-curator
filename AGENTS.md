@@ -6,7 +6,7 @@ Purpose
 - Give concise, repo-root guidance for AI agents working in this repository.
 
 Quick facts
-- Project: Mises Data Curator (Python) — CLI, TUI (Textual), Web (Flask)
+- Project: Mises Data Curator (Python) — CLI, Web (Flask)
 - Key source files: `src/cli.py`, `src/ingestion.py`, `src/cleaning.py`, `src/metadata.py`, `src/searcher.py`
 - Config files: `config.yaml`, `indicators.yaml`, `.env` (not committed)
 - Data dirs: `01_Raw_Data_Bank/`, `02_Datasets_Limpios/`, `03_Metadata_y_Notas/`, `04_Graficos_Asociados/`
@@ -17,7 +17,6 @@ Primary guidance for agents
 - Use the `Config` class (`src/config.py`) for all configuration access. Do not hardcode paths or API keys.
 - Follow the Abstract `DataSource` pattern when adding sources (`src/ingestion.py`). Register new sources in `DataIngestionManager._get_source()`.
 - For CLI changes, add commands via Click in `src/cli.py` following existing patterns.
-- For TUI changes, inherit `BaseScreen` and register screens in `src/tui/app.py`. Use `call_later()` to avoid mount timing issues.
 - For metadata/LLM work, prefer using the existing OpenRouter-compatible integration. Respect caching (`.metadata_cache/`) and use `--force` to regenerate.
 
 Agent workflow rules

@@ -38,6 +38,9 @@ Thumbs.db
 # 03_Metadata_y_Notas/
 # 04_Graficos_Asociados/
 
+# Assets
+/assets/icons/
+
 # Backup files
 *.backup
 *.bak

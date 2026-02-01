@@ -1,28 +1,608 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row g-3">
-  <div class="col-lg-7">
-    <div class="card p-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="mb-0">Datasets locales</h5>
-        <span class="badge badge-primary">Temas</span>
+<div x-data="browseLocal" @keydown.window.escape="if (showVersionsModal) closeVersions(); else if (showModal) closeModal();">
+  <!-- Search and Filters Card -->
+  <div class="card p-3 mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input
+          x-model="searchQuery"
+          class="form-control"
+          placeholder="Buscar datasets locales (ej: salarios, tax, informal)"
+          @keyup.enter="loadDatasets()"
+          @input="debounceSearch()"
+        />
       </div>
-      <ul class="list-group list-group-flush">
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          salarios_reales <span class="badge badge-success">5</span>
-        </li>
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          informalidad_laboral <span class="badge badge-success">3</span>
-        </li>
-      </ul>
+      <div class="col-md-2">
+        <select class="form-select" x-model="filters.source" @change="loadDatasets()">
+          <option value="">Todas las fuentes</option>
+          <option value="owid">OWID</option>
+          <option value="ilostat">ILOSTAT</option>
+          <option value="oecd">OECD</option>
+          <option value="worldbank">World Bank</option>
+          <option value="imf">IMF</option>
+          <option value="eclac">ECLAC</option>
+          <option value="sample">Sample</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select class="form-select" x-model="filters.topic" @change="loadDatasets()">
+          <option value="">Todos los temas</option>
+          <option value="salarios">Salarios</option>
+          <option value="libertad">Libertad Económica</option>
+          <option value="informalidad">Informalidad</option>
+          <option value="tax">Impuestos</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+      <div class="col-md-2 text-end">
+        <button
+          @click="refreshCatalog()"
+          class="btn btn-primary w-100"
+          :disabled="loading"
+          title="Re-indexar todos los datasets desde el disco"
+        >
+          <i class="bi bi-arrow-clockwise"></i>
+          <span x-show="!loading">Refresh</span>
+          <span x-show="loading">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+          </span>
+        </button>
+      </div>
     </div>
   </div>
-  <div class="col-lg-5">
-    <div class="card p-3">
-      <h6 class="mb-2">Panel de detalle</h6>
-      <p class="text-secondary mb-2">Usa el panel lateral para ver metadata de cada dataset.</p>
-      <div class="code-block small">panel: inline desktop, overlay en mobile (80%, 30% dim)</div>
+
+  <!-- Statistics Card -->
+  <div class="card p-3 mb-3" x-show="statistics">
+    <div class="row text-center">
+      <div class="col-md-3">
+        <div class="text-secondary small">Total Datasets</div>
+        <div class="h4 mb-0" x-text="statistics?.total_datasets || 0"></div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-secondary small">Database Size</div>
+        <div class="h4 mb-0" x-text="formatSize(statistics?.total_size_mb)"></div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-secondary small">Completeness</div>
+        <div class="h4 mb-0" x-text="formatPercent(statistics?.avg_completeness)"></div>
+      </div>
+      <div class="col-md-3">
+        <div class="text-secondary small">Sources</div>
+        <div class="h4 mb-0" x-text="Object.keys(statistics?.by_source || {}).length"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Card -->
+  <div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="text-secondary small">
+        <span x-text="datasets.length"></span> datasets encontrados
+        <span x-show="searchQuery" class="ms-2">
+          para: <strong x-text="searchQuery"></strong>
+        </span>
+      </div>
+      <div class="btn-group btn-group-sm" role="group">
+        <button 
+          type="button" 
+          class="btn btn-outline-secondary"
+          :class="{ 'active': viewMode === 'table' }"
+          @click="viewMode = 'table'"
+        >
+          <i class="bi bi-table"></i> Tabla
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-outline-secondary"
+          :class="{ 'active': viewMode === 'cards' }"
+          @click="viewMode = 'cards'"
+        >
+          <i class="bi bi-grid"></i> Cards
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <div class="text-secondary small mt-2">Cargando datasets...</div>
+    </div>
+
+    <!-- Error State -->
+    <div x-show="error && !loading" class="alert alert-warning" role="alert">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span x-text="error"></span>
+    </div>
+
+    <div x-show="success && !loading" class="alert alert-success" role="alert">
+      <i class="bi bi-check-circle"></i>
+      <span x-text="success"></span>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="!loading && !error && datasets.length === 0" class="text-center py-5">
+      <i class="bi bi-folder-open" style="font-size: 48px; color: #ccc;"></i>
+      <div class="text-secondary mt-3">No hay datasets en el catálogo</div>
+      <button @click="refreshCatalog()" class="btn btn-primary mt-3">
+        <i class="bi bi-arrow-clockwise"></i> Indexar Datasets
+      </button>
+    </div>
+
+    <!-- Table View -->
+    <div x-show="!loading && !error && datasets.length > 0 && viewMode === 'table'">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Fuente</th>
+            <th>Filas</th>
+            <th>Años</th>
+            <th>Países</th>
+            <th>Completitud</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="dataset in datasets" :key="dataset.id">
+            <tr>
+              <td>
+                <strong x-text="dataset.indicator_name"></strong>
+                <div class="small text-secondary" x-text="dataset.file_name"></div>
+              </td>
+              <td>
+                <span class="badge bg-primary" x-text="dataset.source.toUpperCase()"></span>
+                <span class="badge bg-secondary ms-1" x-text="dataset.topic"></span>
+              </td>
+              <td class="small" x-text="formatNumber(dataset.row_count)"></td>
+              <td class="small">
+                <span x-show="dataset.min_year && dataset.max_year">
+                  <span x-text="dataset.min_year"></span>-<span x-text="dataset.max_year"></span>
+                </span>
+                <span x-show="!dataset.min_year || !dataset.max_year" class="text-secondary">N/A</span>
+              </td>
+              <td class="small" x-text="dataset.country_count || 'N/A'"></td>
+              <td class="small">
+                <span 
+                  class="badge" 
+                  :class="getCompletenessClass(dataset.completeness_score)"
+                  x-text="formatPercent(dataset.completeness_score)"
+                ></span>
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button 
+                    @click="viewDataset(dataset.id)" 
+                    class="btn btn-outline-primary"
+                    title="Ver detalles del dataset"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button 
+                    @click.stop="deleteDataset(dataset.id, dataset.indicator_name)" 
+                    class="btn btn-outline-danger"
+                    title="Eliminar dataset"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cards View -->
+    <div x-show="!loading && !error && datasets.length > 0 && viewMode === 'cards'" class="row g-3">
+      <template x-for="dataset in datasets" :key="dataset.id">
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100" style="cursor: pointer;" @click="viewDataset(dataset.id)">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="card-title mb-0" x-text="dataset.indicator_name"></h6>
+                <span 
+                  class="badge" 
+                  :class="getCompletenessClass(dataset.completeness_score)"
+                  x-text="formatPercent(dataset.completeness_score)"
+                ></span>
+              </div>
+              <div class="small text-secondary mb-2" x-text="dataset.file_name"></div>
+              <div class="d-flex flex-wrap gap-1 mb-2">
+                <span class="badge bg-primary" x-text="dataset.source.toUpperCase()"></span>
+                <span class="badge bg-secondary" x-text="dataset.topic"></span>
+              </div>
+              <div class="small">
+                <div><strong>Filas:</strong> <span x-text="formatNumber(dataset.row_count)"></span></div>
+                <div><strong>Columnas:</strong> <span x-text="dataset.column_count"></span></div>
+                <div x-show="dataset.min_year && dataset.max_year">
+                  <strong>Años:</strong> <span x-text="dataset.min_year + '-' + dataset.max_year"></span>
+                </div>
+                <div><strong>Países:</strong> <span x-text="dataset.country_count || 'N/A'"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Dataset Detail Modal -->
+  <div 
+    class="modal fade" 
+    :class="{ 'show d-block': showModal }" 
+    tabindex="-1" 
+    style="background: rgba(0,0,0,0.5);"
+    x-show="showModal"
+    @click.self="closeModal()"
+  >
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" x-text="currentDataset?.indicator_name"></h5>
+            <div class="small text-secondary" x-text="currentDataset?.file_name"></div>
+          </div>
+          <button type="button" class="btn-close" @click="closeModal()"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Loading Preview -->
+          <div x-show="loadingPreview" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="text-secondary small mt-2">Cargando preview...</div>
+          </div>
+
+          <!-- Dataset Info -->
+          <div x-show="!loadingPreview && currentDataset" class="row mb-4">
+            <div class="col-md-6">
+              <h6>Información del Dataset</h6>
+              <table class="table table-sm">
+                <tr>
+                  <td><strong>Fuente:</strong></td>
+                  <td><span class="badge bg-primary" x-text="currentDataset?.source?.toUpperCase()"></span></td>
+                </tr>
+                <tr>
+                  <td><strong>Tema:</strong></td>
+                  <td><span class="badge bg-secondary" x-text="currentDataset?.topic"></span></td>
+                </tr>
+                <tr>
+                  <td><strong>Filas:</strong></td>
+                  <td x-text="formatNumber(currentDataset?.row_count)"></td>
+                </tr>
+                <tr>
+                  <td><strong>Columnas:</strong></td>
+                  <td x-text="currentDataset?.column_count"></td>
+                </tr>
+                <tr x-show="currentDataset?.min_year && currentDataset?.max_year">
+                  <td><strong>Rango años:</strong></td>
+                  <td><span x-text="currentDataset?.min_year"></span> - <span x-text="currentDataset?.max_year"></span></td>
+                </tr>
+                <tr>
+                  <td><strong>Completitud:</strong></td>
+                  <td>
+                    <span 
+                      class="badge" 
+                      :class="getCompletenessClass(currentDataset?.completeness_score)"
+                      x-text="formatPercent(currentDataset?.completeness_score)"
+                    ></span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h6>Países (<span x-text="currentDataset?.country_count || 0"></span>)</h6>
+              <div class="small" style="max-height: 200px; overflow-y: auto;">
+                <template x-if="currentDataset?.countries && currentDataset.countries.length > 0">
+                  <div class="d-flex flex-wrap gap-1">
+                    <template x-for="country in currentDataset.countries" :key="country">
+                      <span class="badge bg-light text-dark" x-text="country"></span>
+                    </template>
+                  </div>
+                </template>
+                <template x-if="!currentDataset?.countries || currentDataset.countries.length === 0">
+                  <div class="text-secondary">No country data</div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview Data -->
+          <div x-show="!loadingPreview && previewData">
+            <h6>Preview (primeras <span x-text="previewData?.total_rows || 0"></span> filas)</h6>
+            <div style="max-height: 400px; overflow: auto;">
+              <table class="table table-sm table-striped">
+                <thead class="sticky-top bg-white">
+                  <tr>
+                    <template x-for="col in previewData?.columns" :key="col">
+                      <th class="small" x-text="col"></th>
+                    </template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(row, idx) in previewData?.rows" :key="idx">
+                    <tr>
+                      <template x-for="col in previewData?.columns" :key="col">
+                        <td class="small" x-text="formatCell(row[col])"></td>
+                      </template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeModal()">Cerrar</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('browseLocal', () => ({
+    datasets: [],
+    statistics: null,
+    loading: false,
+    loadingPreview: false,
+    error: null,
+    success: null,
+    searchQuery: '',
+    filters: {
+      source: '',
+      topic: '',
+    },
+    viewMode: 'table', // 'table' or 'cards'
+    latestOnly: false, // default to showing all datasets (changed from true to show all 9 datasets)
+
+    showModal: false,
+    currentDataset: null,
+    previewData: null,
+
+    // Versions modal
+    showVersionsModal: false,
+    versionsList: [],
+    selectedIdentifier: null,
+
+    searchTimeout: null,
+
+    init() {
+      // If URL includes q param (from Search page), prefill searchQuery
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialQ = urlParams.get('q');
+      if (initialQ) this.searchQuery = initialQ;
+
+      this.loadStatistics();
+      this.loadDatasets();
+    },
+
+    async loadStatistics() {
+      try {
+        const response = await fetch('/api/datasets/statistics');
+        const data = await response.json();
+        if (data.status === 'success') {
+          this.statistics = data.statistics;
+        }
+      } catch (err) {
+        console.error('Failed to load statistics:', err);
+      }
+    },
+
+    async loadDatasets() {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const params = new URLSearchParams();
+        if (this.searchQuery) params.append('q', this.searchQuery);
+        if (this.filters.source) params.append('source', this.filters.source);
+        if (this.filters.topic) params.append('topic', this.filters.topic);
+        if (this.latestOnly) params.append('latest', 'true');
+
+        const response = await fetch(`/api/datasets?${params}`);
+        const data = await response.json();
+
+        if (data.status === 'success' && data.datasets) {
+          this.datasets = data.datasets;
+        } else {
+          this.error = data.message || 'No se pudo cargar los datasets';
+        }
+      } catch (err) {
+        this.error = 'Error al cargar datasets: ' + err.message;
+        console.error(err);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    debounceSearch() {
+      clearTimeout(this.searchTimeout);
+      this.searchTimeout = setTimeout(() => {
+        this.loadDatasets();
+      }, 500);
+    },
+
+    async refreshCatalog() {
+      this.loading = true;
+      try {
+        const response = await fetch('/api/datasets/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: false })
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          await this.loadStatistics();
+          await this.loadDatasets();
+          this.success = `Catálogo actualizado: ${data.stats.indexed} indexados, ${data.stats.skipped} sin cambios`;
+          setTimeout(() => { this.success = null }, 5000);
+        }
+      } catch (err) {
+        this.error = 'Error al actualizar catálogo: ' + err.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async viewDataset(datasetId) {
+      this.showModal = true;
+      this.loadingPreview = true;
+      this.currentDataset = null;
+      this.previewData = null;
+
+      try {
+        // Load dataset details
+        const detailResponse = await fetch(`/api/datasets/${datasetId}`);
+        const detailData = await detailResponse.json();
+
+        if (detailData.status === 'success') {
+          this.currentDataset = detailData.dataset;
+        }
+
+        // Load preview data
+        const previewResponse = await fetch(`/api/datasets/${datasetId}/preview?limit=100`);
+        const previewData = await previewResponse.json();
+
+        if (previewData.status === 'success') {
+          this.previewData = previewData.preview;
+        }
+      } catch (err) {
+        console.error('Error loading dataset:', err);
+        this.error = 'Error al cargar dataset: ' + err.message;
+      } finally {
+        this.loadingPreview = false;
+      }
+    },
+
+    async deleteDataset(datasetId, datasetName) {
+      if (!confirm(`¿Está seguro que desea eliminar "${datasetName}"?\n\nEsto eliminará el archivo del disco y no se puede deshacer.`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/datasets/${datasetId}/delete`, {
+          method: 'POST'
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+          // Refresh the datasets list
+          await this.loadStatistics();
+          await this.loadDatasets();
+          this.success = 'Dataset eliminado correctamente';
+          setTimeout(() => { this.success = null }, 5000);
+        } else {
+          this.error = 'Error al eliminar dataset: ' + (data.message || 'Unknown error');
+        }
+      } catch (err) {
+        console.error('Error deleting dataset:', err);
+        this.error = 'Error al eliminar dataset: ' + err.message;
+      }
+    },
+
+    // Versions modal
+    async showVersions(dataset) {
+      // Determine identifier: prefer indicator_id if available
+      const identifier = dataset.indicator_id || dataset.indicator_name || dataset.file_name;
+      this.selectedIdentifier = identifier;
+      this.showVersionsModal = true;
+      this.versionsList = [];
+
+      try {
+        const params = new URLSearchParams();
+        params.append('identifier', identifier);
+        if (dataset.source) params.append('source', dataset.source.toLowerCase());
+
+        const res = await fetch(`/api/datasets/versions?${params}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+          this.versionsList = data.versions;
+        } else {
+          this.versionsList = [];
+        }
+      } catch (err) {
+        console.error('Error fetching versions:', err);
+        this.versionsList = [];
+      }
+    },
+
+    closeVersions() {
+      this.showVersionsModal = false;
+      this.versionsList = [];
+      this.selectedIdentifier = null;
+    },
+
+    closeModal() {
+      this.showModal = false;
+      this.currentDataset = null;
+      this.previewData = null;
+    },
+
+    // Utility functions
+    formatNumber(num) {
+      return num?.toLocaleString('es-ES') || '0';
+    },
+
+    formatSize(mb) {
+      if (!mb) return '0 MB';
+      return mb < 1 ? (mb * 1024).toFixed(0) + ' KB' : mb.toFixed(2) + ' MB';
+    },
+
+    formatPercent(val) {
+      if (!val) return '0%';
+      return Math.round(val) + '%';
+    },
+
+    formatCell(value) {
+      if (value === null || value === undefined) return 'N/A';
+      if (typeof value === 'number') return value.toLocaleString('es-ES');
+      return String(value);
+    },
+
+    getCompletenessClass(score) {
+      if (!score) return 'bg-secondary';
+      if (score >= 80) return 'bg-success';
+      if (score >= 60) return 'bg-warning';
+      return 'bg-danger';
+    }
+  }));
+});
+</script>
+
+<!-- Versions Modal -->
+<div class="modal fade" :class="{ 'show d-block': showVersionsModal }" tabindex="-1" style="background: rgba(0,0,0,0.5);" x-show="showVersionsModal" @click.self="closeVersions()">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Versions for <span x-text="selectedIdentifier"></span></h5>
+        <button type="button" class="btn-close" @click="closeVersions()"></button>
+      </div>
+      <div class="modal-body">
+        <div x-show="versionsList.length === 0" class="text-center text-secondary py-4">No versions found</div>
+        <div x-show="versionsList.length > 0" class="list-group">
+          <template x-for="v in versionsList" :key="v.id">
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div><strong x-text="v.file_name"></strong></div>
+                <div class="small text-secondary">Indexed: <span x-text="v.indexed_at"></span></div>
+              </div>
+              <div class="btn-group btn-group-sm">
+                <button @click="viewDataset(v.id)" class="btn btn-outline-primary">View</button>
+                <button @click="deleteDataset(v.id, v.file_name)" class="btn btn-outline-danger">Delete</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="closeVersions()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

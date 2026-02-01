@@ -1,0 +1,3 @@
+2026/02/01-12:52:23.271 5 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/01-12:52:23.275 5 Recovering log #4
+2026/02/01-12:52:23.276 5 Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Local Storage/leveldb/000004.log 

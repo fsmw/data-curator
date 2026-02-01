@@ -30,12 +30,14 @@ class IndicatorSearcher:
 
         for indicator in self.indicators:
             # Search in multiple fields
-            searchable_text = " ".join([
-                indicator.get('id', ''),
-                indicator.get('name', ''),
-                indicator.get('description', ''),
-                " ".join(indicator.get('tags', []))
-            ]).lower()
+            searchable_text = " ".join(
+                [
+                    indicator.get("id", ""),
+                    indicator.get("name", ""),
+                    indicator.get("description", ""),
+                    " ".join(indicator.get("tags", [])),
+                ]
+            ).lower()
 
             if query_lower in searchable_text:
                 results.append(indicator)
@@ -53,7 +55,11 @@ class IndicatorSearcher:
             List of indicators from that source
         """
         source_lower = source.lower().strip()
-        return [ind for ind in self.indicators if ind.get('source', '').lower() == source_lower]
+        return [
+            ind
+            for ind in self.indicators
+            if ind.get("source", "").lower() == source_lower
+        ]
 
     def search_by_tag(self, tag: str) -> List[Dict[str, Any]]:
         """
@@ -69,7 +75,7 @@ class IndicatorSearcher:
         results = []
 
         for indicator in self.indicators:
-            tags = [t.lower() for t in indicator.get('tags', [])]
+            tags = [t.lower() for t in indicator.get("tags", [])]
             if tag_lower in tags:
                 results.append(indicator)
 
@@ -77,14 +83,14 @@ class IndicatorSearcher:
 
     def list_sources(self) -> List[str]:
         """Get list of all available sources."""
-        sources = set(ind.get('source', 'unknown') for ind in self.indicators)
+        sources = set(ind.get("source", "unknown") for ind in self.indicators)
         return sorted(list(sources))
 
     def list_tags(self) -> List[str]:
         """Get list of all unique tags."""
         tags = set()
         for ind in self.indicators:
-            tags.update(ind.get('tags', []))
+            tags.update(ind.get("tags", []))
         return sorted(list(tags))
 
     def get_indicator_by_id(self, indicator_id: str) -> Dict[str, Any]:
@@ -98,11 +104,13 @@ class IndicatorSearcher:
             Indicator dict or empty dict if not found
         """
         for ind in self.indicators:
-            if ind.get('id') == indicator_id:
+            if ind.get("id") == indicator_id:
                 return ind
         return {}
 
-    def format_results_table(self, results: List[Dict[str, Any]], verbose: bool = False) -> str:
+    def format_results_table(
+        self, results: List[Dict[str, Any]], verbose: bool = False
+    ) -> str:
         """
         Format search results for CLI display.
 
@@ -123,7 +131,7 @@ class IndicatorSearcher:
                 output.append(f"   Source: {r.get('source', 'N/A').upper()}")
                 output.append(f"   Description: {r.get('description', 'N/A')}")
                 output.append(f"   Tags: {', '.join(r.get('tags', []))}")
-                if r.get('url'):
+                if r.get("url"):
                     output.append(f"   URL: {r['url']}")
             return "\n".join(output)
         else:
@@ -131,5 +139,7 @@ class IndicatorSearcher:
             separator = "=" * 80
             rows = []
             for r in results:
-                rows.append(f"{r.get('id', 'N/A'):<30} {r.get('name', 'N/A'):<35} {r.get('source', 'N/A').upper():<10}")
+                rows.append(
+                    f"{r.get('id', 'N/A'):<30} {r.get('name', 'N/A'):<35} {r.get('source', 'N/A').upper():<10}"
+                )
             return f"{separator}\n{header}\n{separator}\n" + "\n".join(rows)

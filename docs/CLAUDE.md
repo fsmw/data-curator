@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Mises Data Curator** is a Python-based economic data curation tool that automates the workflow of ingesting, cleaning, documenting, and serving economic datasets. It provides three interfaces: CLI, TUI (Textual), and Web (Flask).
+**Mises Data Curator** is a Python-based economic data curation tool that automates the workflow of ingesting, cleaning, documenting, and serving economic datasets. It provides two interfaces: CLI and Web (Flask).
 
 The tool integrates with multiple data sources (ILOSTAT, OECD, IMF, World Bank, ECLAC) and uses LLM-powered metadata generation via OpenRouter for automated documentation.
 
@@ -35,14 +35,6 @@ python -m src.cli <command>
 python -m src.cli status                    # Check project status
 python -m src.cli search <query>            # Search indicators
 python -m src.cli pipeline <file> --topic <topic> --source <source>
-```
-
-**TUI Interface:**
-```bash
-# Run the Textual-based TUI
-python run_tui.py
-# or
-python -m src.tui
 ```
 
 **Web Interface:**
@@ -83,11 +75,6 @@ src/
 ├── cleaning.py         # DataCleaner for standardization
 ├── metadata.py         # MetadataGenerator with LLM integration
 ├── searcher.py         # IndicatorSearcher for discovery
-├── tui/                # Textual TUI application
-│   ├── app.py          # Main MisesApp class
-│   ├── screens/        # Screen components (Status, Browse, Search, etc.)
-│   ├── widgets/        # Reusable widgets (modals, sidebar)
-│   └── data/           # TUI data managers (local, available, download coordinator)
 └── web/                # Flask web interface
     └── routes.py       # Blueprint with UI routes + API endpoints
 ```
@@ -108,20 +95,6 @@ src/
 ```
 
 Files follow naming convention: `{topic}_{source}_{coverage}_{start_year}_{end_year}.csv`
-
-### TUI Architecture (Textual Framework)
-
-The TUI uses **Textual** (Python TUI framework) with a screen-based navigation model:
-
-- **MisesApp** (`src/tui/app.py`): Main application with screen routing
-- **Screens** inherit from `BaseScreen` with sidebar navigation
-- **Coordinator Pattern**: `DownloadCoordinator` manages async download tasks, shared between Download and Progress screens via `_setup_coordinator_sharing()`
-- **Data Managers**:
-  - `LocalManager`: Scans filesystem for datasets
-  - `AvailableManager`: Queries `indicators.yaml` for available indicators
-  - `DownloadCoordinator`: Orchestrates ingestion → clean → document pipeline
-
-Key TUI implementation detail: The app uses `call_later()` in `on_mount()` to safely initialize screens and prevent `IndexError` in result callback handling.
 
 ### Web Architecture (Flask)
 
@@ -247,7 +220,6 @@ python -m src.cli search wage -v  # Verbose output
 ## Common Gotchas
 
 1. **Unicode on Windows**: The CLI sets `sys.stdout` encoding to UTF-8 to handle Spanish metadata
-2. **TUI Screen Initialization**: Screens must be switched after app mount to avoid callback list errors
 3. **Year Auto-detection**: `DataCleaner.save_clean_dataset()` auto-detects year range if not provided
 4. **API Keys**: OpenRouter API key is optional; metadata falls back to template-based generation
 5. **File Naming**: All topics/sources should use `snake_case` lowercase for consistency
@@ -257,14 +229,12 @@ python -m src.cli search wage -v  # Verbose output
 Currently uses minimal test files (`test_*.py`) for smoke testing. Each file tests a specific component:
 - `test_search.py`: Search logic with mock data
 - `test_api.py`: API integration tests
-- `test_app_init.py`: TUI initialization
 
 ## Development Workflow
 
 When adding new features:
 
 1. **For CLI commands**: Add to `src/cli.py` using `@cli.command()` decorator
-2. **For TUI screens**: Create new screen in `src/tui/screens/`, register in `MisesApp.SCREENS`
 3. **For web routes**: Add to `src/web/routes.py` blueprint and create corresponding template
 4. **For data sources**: Follow the Abstract DataSource Pattern above
 5. **For indicators**: Update `indicators.yaml` with new mappings
@@ -278,7 +248,5 @@ When modifying the data pipeline (ingestion/cleaning/metadata):
 
 - `src/cli.py:470` - CLI entry point
 - `src/config.py:96` - Directory initialization logic
-- `src/tui/app.py:70` - TUI mount initialization (workaround for callback bug)
-- `src/tui/data/download_coordinator.py` - Async download orchestration
 - `indicators.yaml:187` - Topic-to-indicator mappings
 - `config.yaml:39` - LLM metadata settings

@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**Mises Data Curator** is a production-ready Python tool that automates economic data curation workflows. It provides three interfaces (CLI, TUI, Web) for searching, downloading, cleaning, and documenting economic datasets from public APIs (ILOSTAT, OECD, IMF, OWID, World Bank, ECLAC).
+**Mises Data Curator** is a production-ready Python tool that automates economic data curation workflows. It provides two interfaces (CLI, Web) for searching, downloading, cleaning, and documenting economic datasets from public APIs (ILOSTAT, OECD, IMF, OWID, World Bank, ECLAC).
 
 The tool is **83% complete** with core functionality fully implemented and tested. Use this document to understand the architecture, identify agent responsibilities, and implement effective development strategies.
 
@@ -22,7 +22,7 @@ The tool is **83% complete** with core functionality fully implemented and teste
 ```
 USER INTERACTION
     ↓
-[CLI Commands] ← [TUI Screens] ← [Web Routes]
+[CLI Commands] ← [Web Routes]
     ↓
 [CONFIG LAYER]  (config.py)
     ↓
@@ -50,26 +50,6 @@ data-curator/
 │   ├── cleaning.py                # Data standardization pipeline
 │   ├── metadata.py                # LLM-powered documentation
 │   ├── searcher.py                # Indicator search & discovery
-│   ├── tui/                       # Textual TUI application
-│   │   ├── app.py                 # Main app orchestrator
-│   │   ├── screens/               # 7 screen implementations
-│   │   │   ├── base.py            # Base screen class
-│   │   │   ├── status.py          # System status
-│   │   │   ├── browse_local.py    # Local datasets
-│   │   │   ├── browse_available.py # Remote indicators
-│   │   │   ├── search.py          # Indicator search
-│   │   │   ├── download.py        # Download manager
-│   │   │   ├── progress.py        # Progress tracking
-│   │   │   └── help.py            # Help & shortcuts
-│   │   ├── data/                  # Data managers
-│   │   │   ├── local_manager.py   # Filesystem scanning
-│   │   │   ├── available_manager.py # Indicator listing
-│   │   │   └── download_coordinator.py # Async orchestration
-│   │   ├── widgets/               # UI components
-│   │   │   ├── sidebar.py         # Navigation sidebar
-│   │   │   ├── modals.py          # 8 modal dialog types
-│   │   │   └── utils.py           # Helpers
-│   │   └── config.py              # TUI configuration
 │   └── web/                       # Flask web interface
 │       ├── routes.py              # API & UI endpoints
 │       ├── static/                # JS/CSS assets
@@ -78,7 +58,6 @@ data-curator/
 ├── indicators.yaml                # Economic indicators database
 ├── .env.example                   # Environment template
 ├── requirements.txt               # Python dependencies
-├── run_tui.py                     # TUI entry point
 └── [01-04]_Data_Directories/      # Data storage
 
 Total: ~80 files, ~3,500 LOC (production quality)
@@ -396,143 +375,8 @@ python -m src.cli search unemployment -v
 - **Improve search**: Enhance search algorithm (fuzzy matching, etc.)
 - **Add new tags**: Create semantic tag system
 - **Support ranking**: Order results by relevance
-- **Cache indicators**: Implement indicators caching for TUI
+
 - **Validate indicators**: Check URL validity and data availability
-
----
-
-## 3. TUI Application Architecture
-
-### Overview
-
-**Status**: ✅ Production Ready (Phase 5 Complete)  
-**Framework**: Textual (Python TUI framework)  
-**Total Screens**: 7  
-**Total Modals**: 8  
-**Total Lines of Code**: ~2,850
-
-### Screen Architecture
-
-#### Base Class: `BaseScreen`
-
-```python
-class BaseScreen(Screen):
-    def get_content(self) -> Static:
-        """Override to define screen content"""
-    
-    def refresh_data(self) -> None:
-        """Override to refresh data"""
-    
-    def action_*(self) -> None:
-        """Override for keyboard actions"""
-```
-
-All screens inherit from `BaseScreen` and follow this pattern.
-
-#### 7 Implemented Screens
-
-| Screen | File | Purpose | Key Features |
-|--------|------|---------|--------------|
-| **Status** | `status.py` | System overview | Directory status, dataset counts, config |
-| **Browse Local** | `browse_local.py` | View local datasets | List, sort, view metadata, delete |
-| **Browse Available** | `browse_available.py` | View remote indicators | List, source-grouped, search |
-| **Search** | `search.py` | Find indicators | Free-text search, tag/source filters |
-| **Download Manager** | `download.py` | Queue management | Add items, configure, start, cancel |
-| **Progress Monitor** | `progress.py` | Track downloads | Real-time bars, log viewer, export |
-| **Help** | `help.py` | Keyboard shortcuts | Complete binding reference |
-
-### Data Managers (Supporting Classes)
-
-#### `LocalManager` (`data/local_manager.py`)
-- Scans filesystem for datasets
-- Caches results
-- Provides metadata reading
-
-#### `AvailableManager` (`data/available_manager.py`)
-- Queries `indicators.yaml`
-- Groups by source
-- Provides filtering
-
-#### `DownloadCoordinator` (`data/download_coordinator.py`)
-- Manages async downloads
-- Queues and persistence
-- Progress tracking
-- Shared between Download and Progress screens
-
-### 8 Modal Types (`widgets/modals.py`)
-
-1. **ConfirmDialog**: Y/N questions
-2. **MetadataModal**: File info display
-3. **InputDialog**: Text input
-4. **AlertDialog**: Notifications
-5. **FilterDialog**: Multi-select filters
-6. **ProgressDialog**: Progress indication
-7. **SelectDialog**: Single-select
-8. **ModalBase**: Base class for inheritance
-
-### Keyboard Bindings (All Screens)
-
-```
-Global:
-  Q - Quit app
-  H - Help
-
-Navigation (1-7):
-  1 - Status
-  2 - Browse Local
-  3 - Browse Available
-  4 - Search
-  5 - Download Manager
-  6 - Progress Monitor
-  7 - Help
-
-Browse Local (2):
-  M - View metadata
-  D - Delete dataset
-  Arrow keys - Navigate
-
-Download (5):
-  S - Start downloads
-  X - Cancel downloads
-  R - Remove from queue
-  C - Clear queue
-  P - Preview
-  Shift+S - Select source
-  Shift+C - Select countries
-  Shift+Y - Select year range
-  [+] - Add to queue
-
-Progress (6):
-  C - Cancel download
-  E - Export logs
-  [↑↓] - Scroll logs
-
-Search (4):
-  [Text] - Type query
-  Enter - Execute search
-  [Results] - View results
-```
-
-### TUI Launch & Entry Points
-
-```bash
-# Main entry
-python run_tui.py
-python -m src.tui
-
-# Entry point
-src/tui/__main__.py → MisesApp().run()
-```
-
-### Agent Task Examples for TUI
-
-- **Add new screen**: Create in `screens/`, inherit `BaseScreen`, register in `MisesApp.SCREENS`
-- **Add keyboard binding**: Update `BINDINGS` list in screen class
-- **Add modal**: Implement in `widgets/modals.py`, inherit `ModalBase`
-- **Improve data manager**: Optimize queries, add caching
-- **Fix screen issues**: Debug Textual framework issues (mounting, focus, etc.)
-- **Enhance UI**: Improve layout, colors, responsiveness
-- **Add real data**: Implement actual API calls in download coordinator
 
 ---
 
@@ -757,39 +601,6 @@ Always provide graceful fallbacks:
 # Directory missing? Create it
 ```
 
-### Pattern 5: TUI Screen Implementation
-
-Template for new screens:
-
-```python
-from .base import BaseScreen
-from textual.containers import Vertical
-from textual.widgets import Static
-
-class MyScreen(BaseScreen):
-    BINDINGS = [
-        ("a", "my_action", "My Action"),
-    ]
-    
-    def get_screen_id(self) -> str:
-        return "my_screen"
-    
-    def get_content(self) -> Static:
-        content = Vertical(id="content")
-        # Add widgets
-        return content
-    
-    def refresh_data(self) -> None:
-        # Load data here
-        pass
-    
-    def action_my_action(self) -> None:
-        # Handle action
-        pass
-```
-
----
-
 ## 7. Configuration Files
 
 ### `config.yaml` Structure
@@ -917,7 +728,6 @@ DATA_ROOT=.
 **Feature Implementation**
 - [ ] Add new data source (inherit `DataSource`)
 - [ ] Implement new cleaning rule
-- [ ] Add new TUI screen
 - [ ] Add new CLI command
 - [ ] Implement indicator caching
 
@@ -973,16 +783,6 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 ```
 
-### Gotcha #2: TUI Screen Initialization
-
-**Problem**: `IndexError: pop from empty list` when initializing screens  
-**Solution**: Use `call_later()` in `on_mount()` as shown in `tui/app.py:70-75`
-
-```python
-def on_mount(self) -> None:
-    self.call_later(self._init_screens)  # Defer initialization
-```
-
 ### Gotcha #3: Year Auto-detection
 
 **Problem**: Year range not detected correctly  
@@ -1033,12 +833,6 @@ else:
 
 ### Optimization Tips
 
-**TUI Performance**
-- Lazy-load large datasets
-- Cache indicator list in memory
-- Use `call_later()` for long operations
-- Implement progress callbacks
-
 **API Performance**
 - Implement request caching
 - Respect rate limits with backoff
@@ -1053,7 +847,7 @@ else:
 
 **Caching Strategy**
 ```
-Level 1: Indicators cache (in-memory, TUI)
+Level 1: Indicators cache (in-memory)
 Level 2: Metadata cache (disk, .metadata_cache/)
 Level 3: Raw data cache (filesystem, 01_Raw_Data_Bank/)
 Level 4: Query results cache (optional future)
@@ -1078,7 +872,6 @@ Unit Tests (Phase 6):
 ├── test_cleaning.py
 ├── test_metadata.py
 ├── test_searcher.py
-├── test_tui_screens.py
 └── test_web_routes.py
 
 Integration Tests:
@@ -1122,16 +915,6 @@ python -c "from src.config import Config; c = Config(); print(c.config)"
 
 # Test API connection
 python -c "from src.ingestion import ILOSTATSource; s = ILOSTATSource(Path('.')); print(s.fetch(...))"
-```
-
-### TUI Debugging
-
-```bash
-# Launch with debug output
-python run_tui.py 2>&1 | tee debug.log
-
-# Check data manager state
-# Look at ~/.mises_data_curator/queue.json for persistence
 ```
 
 ### Web Debugging
@@ -1190,7 +973,6 @@ cleaned = cleaner.clean_dataset(data)
 - [ ] Set environment variables
 - [ ] Initialize directories
 - [ ] Test CLI commands
-- [ ] Test TUI launch
 - [ ] Verify web interface (if deployed)
 
 ### Post-Deployment
@@ -1262,15 +1044,12 @@ cleaned = cleaner.clean_dataset(data)
 |----------|---------|
 | `src/cli.py:470` | CLI entry point |
 | `src/config.py:96` | Directory initialization |
-| `src/tui/app.py:70` | TUI mount workaround |
-| `src/tui/data/download_coordinator.py` | Async orchestration |
 | `indicators.yaml:1` | Indicator database |
 | `config.yaml:1` | Configuration template |
 
 ### External References
 
 - [Click Documentation](https://click.palletsprojects.com/) - CLI framework
-- [Textual Documentation](https://textual.textualize.io/) - TUI framework
 - [OpenRouter API](https://openrouter.ai/) - LLM provider
 - [Pandas Documentation](https://pandas.pydata.org/) - Data manipulation
 - [Flask Documentation](https://flask.palletsprojects.com/) - Web framework
@@ -1333,10 +1112,6 @@ python -m src.cli pipeline <file> --topic <topic> --source <source>
 python -m src.cli download --source <source> --indicator <ind> --topic <topic>
 python -m src.cli status                        # Show status
 
-# TUI
-python run_tui.py
-python -m src.tui
-
 # Web
 python -m src.web
 ```
@@ -1364,10 +1139,6 @@ searcher.py
 ├─ config.py
 └─ (yaml already loaded)
 
-tui/
-├─ textual
-└─ core modules
-
 web/
 ├─ flask
 └─ core modules
@@ -1383,15 +1154,6 @@ DataSource (ABC)
 ├─ IMFSource
 ├─ OWIDSource
 └─ WorldBankSource
-
-BaseScreen (Textual)
-├─ StatusScreen
-├─ BrowseLocalScreen
-├─ BrowseAvailableScreen
-├─ SearchScreen
-├─ DownloadScreen
-├─ ProgressScreen
-└─ HelpScreen
 
 ModalBase (Textual)
 ├─ ConfirmDialog
@@ -1426,7 +1188,7 @@ ModalBase (Textual)
 - Production-ready quality
 - Follows established patterns
 - Well-documented configuration
-- Multiple interfaces (CLI, TUI, Web)
+- Multiple interfaces (CLI, Web)
 - Real API integration (6 sources)
 - LLM-powered documentation
 - Comprehensive error handling

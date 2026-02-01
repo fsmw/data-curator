@@ -117,3 +117,82 @@ a:hover,
   font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
   color: var(--color-text);
 }
+
+/* Modal Styling */
+.modal-content {
+  background: var(--color-panel);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.modal-header {
+  border-bottom-color: var(--color-border);
+}
+
+.modal-footer {
+  border-top-color: var(--color-border);
+}
+
+.btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Form controls dark theme */
+.form-control, .form-select {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.form-control::placeholder {
+  color: var(--color-text-dim);
+}
+
+/* Alert styling */
+.alert-warning {
+  background-color: #3a3520;
+  border-color: var(--color-warning);
+  color: var(--color-text);
+}
+
+.alert-info {
+  background-color: #1a2e3f;
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.alert-success {
+  background-color: #1f2f2e;
+  border-color: var(--color-success);
+  color: var(--color-text);
+}
+
+/* Bootstrap Icons styling */
+.bi {
+  font-size: 1em;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.btn .bi {
+  margin-right: 4px;
+}
+
+.btn .bi:last-child:only-child {
+  margin-right: 0;
+}
+
+/* Action buttons alignment */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}

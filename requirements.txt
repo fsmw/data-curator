@@ -13,12 +13,12 @@ pyyaml>=6.0
 # CLI
 click>=8.1.0
 
-# TUI Framework
-textual>=0.50.0
-rich>=13.0.0
-
 # Web UI
 flask>=3.0.0
+rich>=13.0.0
+
+# Web Visualization (Vega-Lite)
+altair>=5.0.0      # Python API for Vega-Lite declarative visualization
 
 # Utilities
 python-dateutil>=2.8.0
@@ -26,3 +26,8 @@ python-dateutil>=2.8.0
 # Markdown rendering and sanitization for server-side chat rendering
 markdown>=3.4.0
 bleach>=6.0.0
+
+# Streamlit app requirements
+streamlit>=1.24
+plotly>=5.0
+kaleido

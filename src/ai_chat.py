@@ -15,11 +15,14 @@ from openai import OpenAI
 from pathlib import Path
 import pandas as pd
 
-from config import Config
-from dataset_catalog import DatasetCatalog
-from searcher import IndicatorSearcher
-from dynamic_search import DynamicSearcher
-from ingestion import DataIngestionManager
+from src.config import Config
+from src.dataset_catalog import DatasetCatalog
+from src.searcher import IndicatorSearcher
+from src.dynamic_search import DynamicSearcher
+from src.ingestion import DataIngestionManager
+from src.chat_history import ChatHistory
+from src.cleaning import DataCleaner
+from src.metadata import MetadataGenerator
 
 
 class ChatAssistant:
@@ -35,25 +38,92 @@ class ChatAssistant:
         self.local_searcher = IndicatorSearcher(config)
         self.dynamic_searcher = DynamicSearcher(config)
         self.ingestion = DataIngestionManager(config)
+        self.cleaner = DataCleaner(config)
+        self.metadata_gen = MetadataGenerator(config)
         
-        # Initialize OpenAI-compatible client for OpenRouter
-        self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=self.llm_config['api_key']
-        )
+        # Initialize chat history
+        history_dir = config.data_root / ".chat_history"
+        self.history = ChatHistory(storage_dir=history_dir, max_items=100)
+        
+        # Initialize client depending on provider (OpenRouter by default, Ollama optional)
+        provider = self.llm_config.get("provider", "openrouter")
+        self.provider = provider
+        
+        if provider == "ollama":
+            # Ollama provider - no OpenAI client needed
+            import requests
+            self._ollama_requests = requests
+            self.ollama_host = self.llm_config.get("host", "http://localhost:11434")
+            self.ollama_model = self.llm_config.get("model")
+            self.client = None
+        else:
+            # OpenRouter/OpenAI-compatible client
+            self.client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=self.llm_config['api_key']
+            )
         
         # System prompt
         self.system_prompt = """Eres un asistente experto en datos económicos para Data Curator.
 
-Ayudas a buscar y analizar datasets de fuentes como ILOSTAT, OECD, IMF, WorldBank, OWID, ECLAC.
+Ayudas a buscar y analizar datasets de fuentes como ILOSTAT, OECD, IMF, WorldBank, OWID (Our World in Data), ECLAC.
 
-Reglas:
-- Busca primero en catálogo local antes de fuentes externas
-- Responde en español
-- Ofrece descargar datos si no existen localmente
-- Proporciona insights específicos con números
+HERRAMIENTAS DISPONIBLES:
+1. list_datasets - Lista TODOS los datasets ya descargados localmente
+2. search_local_datasets - Busca en datasets YA DESCARGADOS (requiere: query)
+3. search_external_sources - Busca datasets DISPONIBLES en internet para descargar (requiere: query en INGLÉS, source)
+4. download_dataset - Descarga un dataset de internet (requiere: source, indicator_id)
+5. analyze_dataset - Analiza un dataset descargado (requiere: dataset_id, query)
 
-Herramientas: search_local_datasets, search_external_sources, download_dataset, analyze_dataset, list_datasets"""
+CUÁNDO USAR CADA HERRAMIENTA:
+- "¿Cuántos datasets tenemos?" → list_datasets
+- "¿Tenemos datos de inflación?" → search_local_datasets con query="inflacion"
+- "Busca datasets sobre inflación en internet/OWID/fuentes externas" → search_external_sources con query="inflation" (EN INGLÉS) y source="owid" o "all"
+- "Busca más datasets como estos" → search_external_sources con query en inglés
+- "Quiero descargar..." → download_dataset
+
+IMPORTANTE PARA search_external_sources:
+- SIEMPRE traduce la query al INGLÉS (inflación → inflation, desempleo → unemployment, salarios → wages, impuestos → tax, PIB → gdp)
+- SIEMPRE especifica source: "owid", "oecd", o "all"
+- Ejemplo correcto: [TOOL_CALL]search_external_sources{"query":"inflation","source":"owid"}[/TOOL_CALL]
+- Ejemplo incorrecto: search_external_sources sin parámetros
+
+IMPORTANTE PARA download_dataset:
+- PRIMERO busca con search_external_sources para obtener el 'slug' correcto
+- Luego descarga usando ese slug: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"inflation-of-consumer-prices","topic":"inflacion"}[/TOOL_CALL]
+- El dataset descargado se INDEXA AUTOMÁTICAMENTE en el catálogo local
+- Después del download, el usuario puede buscarlo con search_local_datasets
+
+FORMATO PARA LLAMAR HERRAMIENTAS:
+[TOOL_CALL]nombre_herramienta{"arg1":"valor1","arg2":"valor2"}[/TOOL_CALL]
+
+Ejemplos de workflows completos:
+
+EJEMPLO 1: Usuario busca datasets locales
+Usuario: "¿Tenemos datos de inflación?"
+Tú: [TOOL_CALL]search_local_datasets{"query":"inflacion"}[/TOOL_CALL]
+[Recibes resultados]
+Tú: "Sí, tenemos 3 datasets de inflación: [lista datasets]"
+
+EJEMPLO 2: Usuario busca datasets nuevos para descargar
+Usuario: "Busca datasets de inflación en OWID para descargar"
+Tú: [TOOL_CALL]search_external_sources{"query":"inflation","source":"owid"}[/TOOL_CALL]
+[Recibes resultados con slugs]
+Tú: "Encontré 15 datasets en OWID sobre inflación: 1) Inflation of consumer prices (slug: inflation-of-consumer-prices), 2) ..."
+
+EJEMPLO 3: Usuario descarga un dataset
+Usuario: "Descarga el primer dataset de inflación"
+Tú: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"inflation-of-consumer-prices","topic":"inflacion"}[/TOOL_CALL]
+[Recibes confirmación con dataset_id]
+Tú: "✓ Dataset descargado exitosamente! ID: 20, 372 filas. Ahora está disponible en el catálogo local."
+
+REGLAS:
+- Si el usuario pide "buscar datasets similares" o "buscar más datos" → USA search_external_sources
+- SIEMPRE traduce términos al inglés para search_external_sources
+- Responde SIEMPRE en español (solo las queries van en inglés)
+- Proporciona números específicos y detalles
+- Si search_external_sources devuelve 0 resultados, sugiere al usuario reformular la búsqueda
+- Cuando descargues un dataset, confirma al usuario que está disponible localmente con su ID"""
 
         # Define tools
         self.tools = self._define_tools()
@@ -108,7 +178,21 @@ Herramientas: search_local_datasets, search_external_sources, download_dataset, 
                 "type": "function",
                 "function": {
                     "name": "download_dataset",
-                    "description": "Descarga un dataset de una fuente externa. Requiere información específica del dataset a descargar.",
+                    "description": """Descarga un dataset de una fuente externa. 
+                    
+IMPORTANTE: Primero debes buscar el dataset con search_external_sources para obtener el 'slug' o 'id' correcto.
+
+Parámetros:
+- source: La fuente del dataset (owid, oecd, ilostat, etc.)
+- indicator_id: El 'slug' del dataset (para OWID) o ID del indicador
+- topic: Categoría (usa "general" si no sabes cuál) - OPCIONAL
+
+Ejemplo de flujo correcto:
+1. Usuario: "descarga el dataset de inflation de OWID"
+2. Buscar con search_external_sources para obtener el slug
+3. Usar download_dataset con el slug encontrado
+
+Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-price-inflation","topic":"general"}[/TOOL_CALL]""",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -118,16 +202,17 @@ Herramientas: search_local_datasets, search_external_sources, download_dataset, 
                             },
                             "indicator_id": {
                                 "type": "string",
-                                "description": "ID del indicador o slug (para OWID)"
+                                "description": "ID del indicador o slug. Para OWID usa el 'slug' del resultado de búsqueda."
                             },
                             "topic": {
                                 "type": "string",
-                                "description": "Categoría del dataset: salarios_reales, informalidad_laboral, presion_fiscal, libertad_economica, general"
+                                "description": "Categoría del dataset. Si no sabes, usa 'general'. Opciones: salarios_reales, informalidad_laboral, presion_fiscal, libertad_economica, general",
+                                "default": "general"
                             },
                             "countries": {
                                 "type": "array",
                                 "items": {"type": "string"},
-                                "description": "Lista de países (códigos ISO3 o nombres)"
+                                "description": "Lista de países (códigos ISO3). Por defecto: países de LATAM"
                             },
                             "start_year": {
                                 "type": "integer",
@@ -138,7 +223,7 @@ Herramientas: search_local_datasets, search_external_sources, download_dataset, 
                                 "description": "Año final (opcional)"
                             }
                         },
-                        "required": ["source", "indicator_id", "topic"]
+                        "required": ["source", "indicator_id"]
                     }
                 }
             },
@@ -235,17 +320,181 @@ Herramientas: search_local_datasets, search_external_sources, download_dataset, 
             {"role": "system", "content": self.system_prompt}
         ] + filtered_history + [{"role": "user", "content": message}]
         
-        # Call LLM
-        response = self.client.chat.completions.create(
-            model=self.llm_config['model'],
-            messages=messages,
-            tools=self.tools,
-            tool_choice="auto",
-            temperature=0.3,
-            max_tokens=2000
-        )
+        # Call LLM (handle both OpenRouter and Ollama)
+        if self.provider == "ollama":
+            # Ollama: text generation with manual tool call parsing
+            import re
+            
+            # Build prompt from messages
+            prompt_parts = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                prompt_parts.append(f"[{role}] {content}")
+            prompt = "\n\n".join(prompt_parts)
+            
+            # Call Ollama API
+            try:
+                ollama_response = self._ollama_requests.post(
+                    f"{self.ollama_host}/api/generate",
+                    json={
+                        "model": self.ollama_model,
+                        "prompt": prompt,
+                        "stream": False
+                    },
+                    timeout=60
+                )
+                ollama_data = ollama_response.json()
+                response_text = ollama_data.get("response", "")
+                
+                print(f"DEBUG: Ollama response text: {response_text[:200]}")
+                
+                # Check if response contains tool calls - support multiple formats
+                # Format 1: [TOOL_CALL]function_name{"key":"value"}[/TOOL_CALL]
+                pattern1 = re.compile(r'\[TOOL_CALL\](\w+)(\{[^\]]*\})?\[/TOOL_CALL\]', re.DOTALL)
+                # Format 2: minimax:tool_call function_name (optional args)
+                pattern2 = re.compile(r'minimax:tool_call\s+(\w+)(?:\s+(\{[^\n]*\}))?', re.MULTILINE)
+                # Format 3: <tool_call>function_name</tool_call>
+                pattern3 = re.compile(r'<tool_call>(\w+)(?:\s+(\{[^\>]*\}))?</tool_call>', re.DOTALL)
+                
+                matches1 = pattern1.findall(response_text)
+                matches2 = pattern2.findall(response_text)
+                matches3 = pattern3.findall(response_text)
+                
+                matches = matches1 or matches2 or matches3
+                
+                print(f"DEBUG: Found tool calls: {matches}")
+                
+                if matches:
+                    # Process tool calls
+                    tool_calls_made = []
+                    for tool_name, args_str in matches:
+                        # Parse arguments
+                        try:
+                            if args_str and args_str.strip():
+                                # Clean up args string
+                                args_str = args_str.strip()
+                                function_args = json.loads(args_str) if args_str != "{}" else {}
+                            else:
+                                function_args = {}
+                        except json.JSONDecodeError as e:
+                            print(f"Error parsing tool arguments: {e}")
+                            function_args = {}
+                        
+                        # Execute tool
+                        try:
+                            if tool_name in self.tool_functions:
+                                function_response = self.tool_functions[tool_name](**function_args)
+                                tool_result = {
+                                    "success": True,
+                                    "data": function_response
+                                }
+                            else:
+                                tool_result = {
+                                    "success": False,
+                                    "error": f"Unknown tool: {tool_name}"
+                                }
+                        except Exception as e:
+                            import traceback
+                            traceback.print_exc()
+                            tool_result = {
+                                "success": False,
+                                "error": str(e)
+                            }
+                        
+                        tool_calls_made.append({
+                            "function": tool_name,
+                            "arguments": function_args,
+                            "result": tool_result
+                        })
+                    
+                    # Generate synthesis response with tool results
+                    synthesis_prompt = f"""Has ejecutado las siguientes herramientas:
+
+"""
+                    for tc in tool_calls_made:
+                        synthesis_prompt += f"\nHerramienta: {tc['function']}\n"
+                        synthesis_prompt += f"Resultado: {json.dumps(tc['result'], ensure_ascii=False, indent=2)}\n"
+                    
+                    synthesis_prompt += "\n\nCon base en estos resultados, genera una respuesta clara y útil en español para el usuario. Proporciona números específicos y detalles relevantes."
+                    
+                    # Get synthesis response from Ollama
+                    synthesis_response = self._ollama_requests.post(
+                        f"{self.ollama_host}/api/generate",
+                        json={
+                            "model": self.ollama_model,
+                            "prompt": synthesis_prompt,
+                            "stream": False
+                        },
+                        timeout=60
+                    )
+                    synthesis_data = synthesis_response.json()
+                    final_message = synthesis_data.get("response", "")
+                    
+                    # If synthesis is empty, create default response
+                    if not final_message or final_message.strip() == "":
+                        summary_parts = []
+                        for tc in tool_calls_made:
+                            if tc['result'].get('success'):
+                                data = tc['result'].get('data', {})
+                                if isinstance(data, dict):
+                                    total = data.get('total', 0)
+                                    summary_parts.append(f"✓ {tc['function']}: {total} resultados")
+                                else:
+                                    summary_parts.append(f"✓ {tc['function']}: Completado")
+                            else:
+                                summary_parts.append(f"✗ {tc['function']}: {tc['result'].get('error', 'Error')}")
+                        
+                        final_message = "He ejecutado las siguientes acciones:\n\n" + "\n".join(summary_parts)
+                    
+                    conversation_history.append({
+                        "role": "assistant",
+                        "content": final_message
+                    })
+                    
+                    return {
+                        "response": final_message,
+                        "tool_calls": tool_calls_made,
+                        "conversation_history": conversation_history
+                    }
+                else:
+                    # No tool calls - return direct response
+                    conversation_history.append({
+                        "role": "assistant",
+                        "content": response_text
+                    })
+                    
+                    return {
+                        "response": response_text,
+                        "tool_calls": [],
+                        "conversation_history": conversation_history
+                    }
+                    
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                error_msg = f"Error llamando a Ollama: {str(e)}"
+                conversation_history.append({
+                    "role": "assistant",
+                    "content": error_msg
+                })
+                return {
+                    "response": error_msg,
+                    "tool_calls": [],
+                    "conversation_history": conversation_history
+                }
+        else:
+            # OpenRouter: full function calling support
+            response = self.client.chat.completions.create(
+                model=self.llm_config['model'],
+                messages=messages,
+                tools=self.tools,
+                tool_choice="auto",
+                temperature=0.3,
+                max_tokens=2000
+            )
         
-        assistant_message = response.choices[0].message
+            assistant_message = response.choices[0].message
         tool_calls_made = []
         
         # Handle tool calls
@@ -409,105 +658,203 @@ Herramientas: search_local_datasets, search_external_sources, download_dataset, 
             traceback.print_exc()
             return {"error": str(e)}
     
-    def _search_external_sources(self, query: str, source: str) -> Dict[str, Any]:
-        """Search external data sources."""
-        try:
-            # DynamicSearcher.search returns a dict with 'results' key
-            search_result = self.dynamic_searcher.search(query, include_remote=True, max_remote=10)
+    def _search_external_sources(self, query: str = None, source: str = "all") -> Dict[str, Any]:
+        """Search external data sources.
+        
+        Args:
+            query: Search term in English (required)
+            source: Data source to search ('owid', 'oecd', or 'all'). Defaults to 'all'.
             
-            # Get results list
-            all_results = search_result.get('results', [])
+        Returns:
+            Dict with 'total' and 'results' keys, or 'error' key on failure
+        """
+        try:
+            # Validate required parameters
+            if not query or not query.strip():
+                return {
+                    "error": "Se requiere un término de búsqueda. Por favor especifica qué datos quieres buscar.",
+                    "total": 0,
+                    "results": []
+                }
+            
+            if not source:
+                source = "all"
+            
+            # Validate source
+            valid_sources = ["owid", "oecd", "ilostat", "worldbank", "imf", "eclac", "all"]
+            if source.lower() not in valid_sources:
+                return {
+                    "error": f"Fuente inválida: '{source}'. Fuentes válidas: {', '.join(valid_sources)}",
+                    "total": 0,
+                    "results": []
+                }
+            
+            print(f"DEBUG: Searching external sources with query='{query}', source='{source}'")
+            
+            # DynamicSearcher.search returns a dict with 'results' key
+            search_result = self.dynamic_searcher.search(query, include_remote=True, max_remote=20)
+            
+            print(f"DEBUG: DynamicSearcher returned: {search_result}")
+            
+            # Get results list - try multiple possible keys
+            all_results = search_result.get('remote_results') or search_result.get('results', [])
+            
+            print(f"DEBUG: Found {len(all_results)} total results")
             
             # Filter by source if specified and not 'all'
             if source and source.lower() != 'all':
                 all_results = [r for r in all_results if r.get('source', '').lower() == source.lower()]
+                print(f"DEBUG: After filtering by source '{source}': {len(all_results)} results")
             
-            # Format results - limit to top 10
+            # Format results - limit to top 15
             formatted_results = []
-            for idx, result in enumerate(all_results[:10]):
+            for idx, result in enumerate(all_results[:15]):
                 formatted_results.append({
                     "id": result.get('id'),
-                    "name": result.get('name'),
+                    "name": result.get('name') or result.get('title'),
                     "source": result.get('source'),
-                    "description": result.get('description', '')[:200],
+                    "description": result.get('description', '')[:300],
                     "url": result.get('url'),
                     "slug": result.get('slug')
                 })
             
             return {
                 "total": len(formatted_results),
-                "results": formatted_results
+                "results": formatted_results,
+                "source_searched": source
             }
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return {"error": str(e)}
+            return {
+                "error": f"Error buscando en fuentes externas: {str(e)}",
+                "total": 0,
+                "results": []
+            }
     
     def _download_dataset(
         self,
         source: str,
         indicator_id: str,
-        topic: str,
+        topic: str = "general",
         countries: Optional[List[str]] = None,
         start_year: Optional[int] = None,
         end_year: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Download a dataset from external source."""
+        """Download a dataset from external source.
+        
+        This follows the full pipeline: ingest → clean → save → index
+        
+        Args:
+            source: Data source (owid, oecd, ilostat, etc.)
+            indicator_id: Slug/code/ID for the indicator (from search_external_sources)
+            topic: Topic for organization (default: "general")
+            countries: List of country codes (default: LATAM countries)
+            start_year: Starting year (default: 2010)
+            end_year: Ending year (default: 2024)
+            
+        Returns:
+            Dict with success, dataset_id, file_path, and message
+        """
         try:
             # Prepare download parameters
-            params = {
-                "source": source.lower(),
-                "topic": topic,
-                "countries": countries or ["ARG", "BRA", "CHL", "COL", "MEX", "PER"]  # Default LATAM
-            }
+            kwargs = {}
+            
+            # Set defaults
+            if countries is None:
+                countries = ["ARG", "BRA", "CHL", "COL", "MEX", "PER"]  # Default LATAM
+            if start_year is None:
+                start_year = 2010
+            if end_year is None:
+                end_year = 2024
+                
+            kwargs["countries"] = countries
+            kwargs["start_year"] = start_year
+            kwargs["end_year"] = end_year
             
             # Source-specific parameters
-            if source.lower() == "owid":
-                params["slug"] = indicator_id
-            elif source.lower() == "ilostat":
-                params["indicator"] = indicator_id
-            elif source.lower() == "oecd":
-                params["dataset"] = indicator_id
-            elif source.lower() == "worldbank":
-                params["indicator"] = indicator_id
-            elif source.lower() == "imf":
-                params["indicator"] = indicator_id
-                params["database"] = "IFS"  # Default database
-            elif source.lower() == "eclac":
-                params["table"] = indicator_id
-            else:
-                return {"error": f"Fuente no soportada: {source}"}
-            
-            if start_year:
-                params["start_year"] = start_year
-            if end_year:
-                params["end_year"] = end_year
-            
-            # Download using ingestion manager
-            result = self.ingestion.ingest(**params)
-            
-            # Index in catalog
-            if result.get('success'):
-                file_path = Path(result['file_path'])
-                dataset_id = self.catalog.index_dataset(file_path)
-                
-                return {
-                    "success": True,
-                    "message": f"Dataset descargado exitosamente",
-                    "dataset_id": dataset_id,
-                    "file_path": str(file_path),
-                    "rows": result.get('rows', 0)
-                }
+            source_lower = source.lower()
+            if source_lower == "owid":
+                kwargs["slug"] = indicator_id
+            elif source_lower == "ilostat":
+                kwargs["indicator"] = indicator_id
+            elif source_lower == "oecd":
+                kwargs["dataset"] = indicator_id
+            elif source_lower == "worldbank":
+                kwargs["indicator"] = indicator_id
+            elif source_lower == "imf":
+                kwargs["indicator"] = indicator_id
+                kwargs["database"] = "IFS"  # Default database
+            elif source_lower == "eclac":
+                kwargs["table"] = indicator_id
             else:
                 return {
                     "success": False,
-                    "error": result.get('error', 'Error desconocido')
+                    "error": f"Fuente no soportada: {source}. Fuentes válidas: owid, oecd, ilostat, worldbank, imf, eclac"
                 }
+            
+            # Step 1: Ingest (download raw data)
+            print(f"DEBUG: Downloading from {source} with params: {kwargs}")
+            raw_data = self.ingestion.ingest(source_lower, **kwargs)
+            
+            if raw_data is None or len(raw_data) == 0:
+                return {
+                    "success": False,
+                    "error": "No se obtuvieron datos de la fuente. Verifica los parámetros."
+                }
+            
+            print(f"DEBUG: Downloaded {len(raw_data)} rows")
+            
+            # Step 2: Clean data
+            cleaned_data = self.cleaner.clean_dataset(raw_data)
+            print(f"DEBUG: Cleaned data has {len(cleaned_data)} rows")
+            
+            # Step 3: Save to 02_Datasets_Limpios
+            coverage = "latam" if len(countries) > 1 else countries[0].lower()
+            file_path = self.cleaner.save_clean_dataset(
+                cleaned_data, 
+                topic, 
+                source_lower, 
+                coverage, 
+                start_year, 
+                end_year
+            )
+            print(f"DEBUG: Saved to {file_path}")
+            
+            # Step 4: Generate metadata
+            data_summary = self.cleaner.get_data_summary(cleaned_data)
+            transformations = self.cleaner.get_transformations()
+            metadata_content = self.metadata_gen.generate_metadata(
+                topic=topic,
+                data_summary=data_summary,
+                source=source_lower,
+                transformations=transformations,
+                original_source_url=f"https://{source_lower}.org"
+            )
+            metadata_path = self.metadata_gen.save_metadata(topic, metadata_content)
+            print(f"DEBUG: Metadata saved to {metadata_path}")
+            
+            # Step 5: Index in catalog
+            dataset_id = self.catalog.index_dataset(Path(file_path))
+            print(f"DEBUG: Indexed as dataset_id {dataset_id}")
+            
+            return {
+                "success": True,
+                "message": f"Dataset descargado, documentado e indexado exitosamente como ID {dataset_id}",
+                "dataset_id": dataset_id,
+                "file_path": str(file_path),
+                "metadata_path": str(metadata_path),
+                "rows": len(cleaned_data),
+                "source": source_lower,
+                "topic": topic
+            }
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Error descargando dataset: {str(e)}"
             }
     
     def _analyze_dataset(self, dataset_id: int, query: str) -> Dict[str, Any]:
