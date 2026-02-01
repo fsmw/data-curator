@@ -71,6 +71,9 @@ class MisesCopilotAgent:
         
         # Initialize the client
         self._initialize_client()
+        
+        # Register MCP tools
+        self._register_mcp_tools()
     
     def _initialize_client(self) -> None:
         """Initialize the Copilot SDK client with BYOK configuration."""
@@ -118,6 +121,33 @@ class MisesCopilotAgent:
         except Exception as e:
             print(f"❌ Error initializing Copilot client: {e}")
             raise
+    
+    def _register_mcp_tools(self) -> None:
+        """Register all MCP tools from copilot_tools module."""
+        try:
+            from src.copilot_tools import (
+                search_datasets,
+                preview_data,
+                download_owid,
+                get_metadata,
+                analyze_data,
+                TOOL_REGISTRY
+            )
+            
+            # Register each tool
+            for tool_name, tool_info in TOOL_REGISTRY.items():
+                self.register_tool(
+                    name=tool_name,
+                    function=tool_info['function'],
+                    description=tool_info['description']
+                )
+            
+            print(f"✅ Registered {len(TOOL_REGISTRY)} MCP tools")
+            
+        except ImportError as e:
+            print(f"⚠️  Warning: Could not import MCP tools: {e}")
+        except Exception as e:
+            print(f"⚠️  Warning: Error registering tools: {e}")
     
     async def start(self) -> None:
         """Start the Copilot client connection."""
