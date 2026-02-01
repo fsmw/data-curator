@@ -1,14 +1,21 @@
-# Plan de Mejoras - Integración OWID y Preparación para Agentes IA
+# Plan de Mejoras - Integración OWID y GitHub Copilot SDK
 
 **Fecha:** 2026-02-01  
-**Versión:** 1.0  
+**Versión:** 2.0  
 **Estado:** En desarrollo - Fase 1
 
 ---
 
 ## Resumen Ejecutivo
 
-Este documento detalla el plan para potenciar el Mises Data Curator mediante una integración profunda con Our World in Data (OWID) y la preparación de la aplicación para operación con agentes IA. El objetivo es simplificar la obtención de datos de OWID y estructurarlos de manera que agentes de IA puedan analizarlos eficientemente.
+Este documento detalla el plan para transformar el **Mises Data Curator** en una plataforma inteligente de curaduría de datos económicos, integrando:
+
+1. **Our World in Data (OWID)** - Fuente de datos enriquecidos con metadatos
+2. **GitHub Copilot SDK** - Motor de agentes IA production-tested
+
+**Visión**: En lugar de construir orquestación de agentes desde cero, utilizamos el **GitHub Copilot SDK** (Technical Preview) que expone el mismo runtime de agentes que potencia Copilot CLI. Esto nos permite enfocarnos en herramientas específicas de curaduría de datos mientras el SDK maneja: planning, tool invocation, memoria persistente, y multi-turn conversations.
+
+**Resultado Esperado**: Un asistente de datos conversacional que permite a usuarios interactuar con datos económicos usando lenguaje natural, con capacidades avanzadas de análisis, visualización y descubrimiento automatizado.
 
 ---
 
@@ -34,6 +41,154 @@ Este documento detalla el plan para potenciar el Mises Data Curator mediante una
 - Fuentes originales
 - Fecha de última actualización
 - Licencia (CC BY 4.0)
+
+---
+
+## Infraestructura de Agentes - GitHub Copilot SDK
+
+### ¿Por qué GitHub Copilot SDK?
+
+**Problema**: Construir agentes IA desde cero requiere:
+- Orquestación de herramientas (tool calling)
+- Gestión de contexto y memoria
+- Planning y ejecución multi-step
+- Manejo de múltiples modelos LLM
+- Integración con fuentes de datos
+- Manejo de errores y fallbacks
+
+**Solución**: GitHub Copilot SDK proporciona todo esto listo para usar.
+
+### Arquitectura del SDK
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Mises Data Curator                       │
+│  (Flask Web App + CLI)                                      │
+└──────────────┬──────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              GitHub Copilot SDK (Python)                    │
+│  pip install github-copilot-sdk                             │
+│                                                             │
+│  • Planning & Orchestration                                 │
+│  • Tool Invocation (MCP Servers)                            │
+│  • Multi-turn Conversations                                 │
+│  • Persistent Memory                                        │
+│  • Multi-Model Support (GPT-4, Claude, etc.)                │
+└──────────────┬──────────────────────────────────────────────┘
+               │ JSON-RPC
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              GitHub Copilot CLI (Server Mode)               │
+│  • Production-tested agent runtime                          │
+│  • Authentication & Billing                                 │
+│  • Model Management                                         │
+└──────────────┬──────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              LLM Provider (BYOK)                            │
+│  • OpenAI API                                               │
+│  • Azure OpenAI                                             │
+│  • Anthropic Claude                                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Herramientas Personalizadas (MCP Tools)
+
+El SDK permite exponer nuestras funcionalidades como herramientas que el agente puede invocar:
+
+```python
+# Herramientas de Mises Data Curator para Copilot
+
+async def search_datasets(
+    query: str, 
+    source: Optional[str] = None,
+    topic: Optional[str] = None
+) -> List[Dict]:
+    """Buscar datasets en el catálogo por texto, fuente o tema."""
+
+async def preview_data(
+    dataset_id: str, 
+    limit: int = 10
+) -> Dict:
+    """Obtener vista previa de un dataset (primeras N filas)."""
+
+async def download_owid(
+    slug: str,
+    countries: Optional[List[str]] = None,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None
+) -> Dict:
+    """Descargar datos desde Our World in Data."""
+
+async def analyze_data(
+    dataset_id: str,
+    analysis_type: str  # "summary", "trends", "outliers", "correlations"
+) -> Dict:
+    """Ejecutar análisis automático sobre un dataset."""
+
+async def generate_chart(
+    dataset_id: str,
+    chart_type: str,  # "line", "bar", "scatter", "map"
+    x_column: Optional[str] = None,
+    y_column: Optional[str] = None
+) -> str:
+    """Generar visualización desde datos."""
+
+async def get_metadata(
+    dataset_id: str
+) -> Dict:
+    """Obtener metadata completa de un dataset."""
+
+async def compare_datasets(
+    dataset_ids: List[str],
+    metric: str
+) -> Dict:
+    """Comparar múltiples datasets en una métrica específica."""
+```
+
+### Flujo de Interacción con el Agente
+
+```
+Usuario: "Compara el crecimiento de PIB entre Brasil y Argentina 2010-2023"
+
+Agente (Copilot SDK):
+1. PLAN: Descompone la solicitud
+   └─ Buscar datos de PIB
+   └─ Filtrar Brasil y Argentina
+   └─ Extraer periodo 2010-2023
+   └─ Calcular comparación
+   └─ Generar visualización
+
+2. EXECUTE: Invoca herramientas
+   ├─ search_datasets(query="GDP", source="owid")
+   ├─ download_owid(slug="gdp-per-capita", countries=["BRA", "ARG"], ...)
+   ├─ analyze_data(analysis_type="comparison")
+   └─ generate_chart(chart_type="line")
+
+3. RESPOND: Presenta resultados
+   └─ "Encontré datos de PIB per cápita para Brasil y Argentina...
+        Argentina mostró un crecimiento promedio de X% mientras que Brasil...
+        [Gráfico generado]"
+```
+
+### Ventajas para Nuestro Sistema
+
+1. **No reinventar la rueda**: Planning, tool orchestration, memory management incluidos
+2. **Multi-turn conversations**: Contexto persistente entre mensajes
+3. **BYOK (Bring Your Own Key)**: Control total sobre costos y privacidad
+4. **Multi-model**: GPT-4, Claude, Azure OpenAI según necesidad
+5. **Python-native**: Integración perfecta con nuestro stack Flask
+6. **MCP Support**: Exponer herramientas usando Model Context Protocol
+7. **Streaming**: Respuestas en tiempo real
+
+### Requisitos
+
+- **GitHub Copilot CLI** instalado (prerrequisito)
+- **Suscripción GitHub Copilot** (o BYOK con API keys propias)
+- **Python SDK**: `pip install github-copilot-sdk`
 
 ---
 
@@ -106,56 +261,170 @@ Este documento detalla el plan para potenciar el Mises Data Curator mediante una
 
 ---
 
-## Fase 2: Preparación para Agentes IA
+## Fase 2: Integración GitHub Copilot SDK - Core
 
-### 2.1 Chat con Contexto de Datos
-**Objetivo:** Permitir conversación natural sobre datasets disponibles.
+### 2.1 Setup y Configuración del SDK
+**Objetivo:** Instalar y configurar GitHub Copilot SDK.
 
-**Features:**
-- [ ] Integrar chat con información de datasets locales
-- [ ] Permitir consultas en lenguaje natural
-- [ ] Buscar y sugerir datasets relevantes
-- [ ] Generar análisis automáticos
-- [ ] Crear visualizaciones desde chat
+**Pasos:**
+- [ ] Instalar GitHub Copilot CLI
+- [ ] Instalar Python SDK: `pip install github-copilot-sdk`
+- [ ] Configurar conexión SDK ←→ CLI
+- [ ] Configurar BYOK (traer nuestras propias API keys)
+- [ ] Crear módulo `src/copilot_agent.py`
+- [ ] Implementar cliente básico
 
 **Archivos:**
-- `src/web/templates/chat.html` - Mejorar UI
-- `src/ai_chat.py` - Ampliar capacidades
-- `src/chat_tools.py` - Nuevas herramientas para agente
+- `src/copilot_agent.py` - Cliente del SDK
+- `config.yaml` - Configuración del agente
+- `.env` - API keys para BYOK
+
+**Estimación:** 3-4 horas
+
+### 2.2 Crear Herramientas MCP (Model Context Protocol)
+**Objetivo:** Exponer funcionalidades de Mises como herramientas invocables.
+
+**Herramientas a implementar:**
+- [ ] `search_datasets` - Búsqueda en catálogo
+- [ ] `preview_data` - Vista previa de datos
+- [ ] `download_owid` - Descarga desde OWID
+- [ ] `get_metadata` - Obtener metadata
+- [ ] `analyze_data` - Análisis automático
+
+**Archivos:**
+- `src/copilot_tools.py` - Definiciones de herramientas MCP
+- `src/copilot_registry.py` - Registro de herramientas
 
 **Estimación:** 6-8 horas
 
-### 2.2 Análisis Exploratorio Automático (EDA)
-**Objetivo:** Generar análisis estadístico automático al descargar datasets.
+### 2.3 Endpoint de Chat con Agente
+**Objetivo:** Crear endpoint para conversación con el agente Copilot.
 
 **Features:**
-- [ ] Estadísticas descriptivas
-- [ ] Detección de outliers
-- [ ] Identificación de tendencias
-- [ ] Comparaciones regionales automáticas
-- [ ] Sugerencias de correlaciones
+- [ ] WebSocket endpoint `/api/chat/copilot`
+- [ ] Soporte streaming de respuestas
+- [ ] Manejo de sesiones (session_id)
+- [ ] Integración con herramientas MCP
+- [ ] Fallback a chat anterior si SDK falla
 
 **Archivos:**
-- `src/auto_eda.py` - Nuevo módulo de análisis
-- Integrar en pipeline de descarga
+- `src/web/routes.py` - Nuevo endpoint
+- `src/web/static/js/copilot-chat.js` - Frontend
+- `src/web/templates/copilot-chat.html` - UI
 
-**Estimación:** 5-6 horas
+**Estimación:** 4-6 horas
 
-### 2.3 Data Quality Dashboard
-**Objetivo:** Proporcionar métricas de calidad de datos.
+### 2.4 Análisis Exploratorio Automático (EDA) via Agente
+**Objetivo:** Usar el agente para generar análisis automáticos.
 
 **Features:**
-- [ ] Score de calidad por dataset
-- [ ] Cobertura temporal por país
-- [ ] Completitud de datos
-- [ ] Consistencia temporal
-- [ ] Flags de datos faltantes
+- [ ] Herramienta `analyze_data` con múltiples modos:
+  - `summary` - Estadísticas descriptivas
+  - `trends` - Análisis de tendencias
+  - `outliers` - Detección de anomalías
+  - `correlations` - Matriz de correlación
+- [ ] Prompts optimizados para cada análisis
+- [ ] Cache de resultados de análisis
 
 **Archivos:**
-- `src/quality_checker.py` - Nuevo módulo
-- `src/web/templates/quality.html` - Vista de calidad
+- `src/copilot_tools.py` - Agregar herramienta analyze_data
+- `src/analysis_prompts.py` - Prompts especializados
 
 **Estimación:** 4-5 horas
+
+---
+
+## Fase 3: Capacidades Avanzadas con Copilot SDK
+
+### 3.1 Natural Language Queries
+**Objetivo:** Permitir consultas complejas en lenguaje natural.
+
+**Ejemplos a soportar:**
+```
+"Población de Brasil vs Argentina últimos 10 años"
+"Correlación entre PIB y esperanza de vida en LATAM"
+"Datasets sobre desigualdad disponibles"
+"Análisis de tendencias de inflación"
+```
+
+**Implementación:**
+- [ ] Usar planning loop del SDK para descomponer queries
+- [ ] Multi-step execution automático
+- [ ] Confirmación intermedia para operaciones destructivas
+- [ ] Manejo de ambigüedad ("¿Te refieres a X o Y?")
+
+**Archivos:**
+- `src/copilot_agent.py` - Mejorar handling de queries
+- `src/query_parser.py` - Parser de intenciones (opcional)
+
+**Estimación:** 8-10 horas
+
+### 3.2 Personas del Agente
+**Objetivo:** Crear especialidades del agente para diferentes tareas.
+
+**Personas:**
+- **Data Explorer**: Enfocado en descubrimiento
+  - "¿Qué datasets interesantes tenemos sobre...?"
+  - "Sugiéreme análisis interesantes para este dataset"
+  
+- **Data Analyst**: Enfocado en análisis estadístico
+  - "Calcula la correlación entre estas variables"
+  - "Identifica tendencias significativas"
+  
+- **Data Curator**: Enfocado en gestión de datos
+  - "Verifica la calidad de este dataset"
+  - "Documenta las fuentes y metodología"
+
+**Implementación:**
+- [ ] System prompts especializados por persona
+- [ ] Herramientas disponibles varían por persona
+- [ ] Switch de persona en UI
+
+**Archivos:**
+- `src/copilot_personas.py` - Definición de personas
+- `src/system_prompts/` - Prompts por persona
+
+**Estimación:** 6-8 horas
+
+### 3.3 Contexto Persistente (Work IQ Style)
+**Objetivo:** El agente recuerda contexto entre sesiones.
+
+**Features:**
+- [ ] Memoria de datasets descargados por el usuario
+- [ ] Historial de análisis previos
+- [ ] Preferencias del usuario (formatos, temas favoritos)
+- [ ] "Basándome en tu trabajo anterior..."
+
+**Implementación:**
+- [ ] Usar memoria persistente del SDK
+- [ ] Integrar con base de datos de usuarios (si aplica)
+- [ ] Context injection en cada conversación
+
+**Archivos:**
+- `src/copilot_memory.py` - Gestión de contexto
+- Base de datos SQLite para memoria (opcional)
+
+**Estimación:** 4-6 horas
+
+### 3.4 Multi-Agent Workflows (Microsoft 365 SDK)
+**Objetivo:** Integrar con Microsoft 365 Agents SDK para flujos complejos.
+
+**Escenarios:**
+- Reporte de investigación automatizado:
+  1. Data Explorer (busca datos)
+  2. Data Analyst (analiza)
+  3. Report Writer (genera documento)
+  4. Teams Agent (comparte en canal)
+
+**Implementación:**
+- [ ] Integración M365 Agents SDK
+- [ ] Definición de workflows
+- [ ] Handoff entre agentes
+
+**Archivos:**
+- `src/multi_agent.py` - Orquestación multi-agente
+
+**Estimación:** 8-10 horas (futuro)
 
 ---
 
@@ -213,38 +482,128 @@ Agente:
 
 ---
 
+## Sinergia OWID + Copilot SDK
+
+### Flujo de Trabajo Integrado
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  1. DISCOVER (OWID Smart Search)                          │
+│     Usuario busca "crecimiento poblacional américa latina" │
+│     ↓                                                       │
+│  2. DOWNLOAD (OWID API + AI Packager)                     │
+│     Descarga datos + crea AI package (schema, context)      │
+│     ↓                                                       │
+│  3. EXPLORE (Copilot SDK + Herramientas)                  │
+│     Usuario: "Analiza tendencias 2010-2023"                │
+│     Agente:                                                 │
+│       • Usa tool analyze_data()                            │
+│       • Lee context_owid.md para metodología              │
+│       • Interpreta schema.json para estructura            │
+│       • Genera insights y visualizaciones                 │
+│     ↓                                                       │
+│  4. COLLABORATE (Copilot SDK Chat)                        │
+│     Conversación iterativa con memoria persistente         │
+│     "¿Cómo se compara con Europa?" → Agente busca datos    │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Ventajas de la Integración
+
+1. **OWID proporciona**: Datos de alta calidad + metadatos ricos + contexto metodológico
+2. **AI Packager convierte**: Datos + metadata → Package estructurado para IA
+3. **Copilot SDK habilita**: Interacción conversacional + tool calling + planning
+
+---
+
 ## Implementación Inmediata (Próximos Pasos)
 
-### Tarea 1: Mejorar OWIDSource con Metadata Enriquecida
-**Prioridad:** Alta  
-**Duración:** 2-3 horas
+### Sprint 1: Fundamentos (Semana 1)
 
-**Pasos:**
-1. Extender `OWIDSource` para descargar metadata JSON
-2. Extraer campos clave (descripción, metodología, fuentes)
-3. Guardar metadata en formato estructurado
-4. Actualizar pipeline de documentación
-
-### Tarea 2: Crear Módulo AI Packager
-**Prioridad:** Alta  
+#### Tarea 1.1: Setup GitHub Copilot SDK
 **Duración:** 3-4 horas
 
 **Pasos:**
-1. Crear `src/ai_packager.py`
-2. Definir estructura estándar de salida
-3. Generar schema.json automáticamente
-4. Crear templates de prompts por tema
-5. Integrar en comando `pipeline`
+1. Instalar GitHub Copilot CLI
+2. Instalar Python SDK: `pip install github-copilot-sdk`
+3. Configurar BYOK con OpenRouter API key
+4. Crear `src/copilot_agent.py` con cliente básico
+5. Verificar conexión SDK → CLI
 
-### Tarea 3: Extender Búsqueda Semántica
-**Prioridad:** Media  
-**Duración:** 3-4 horas
+**Entregable:** Cliente SDK funcional con "hello world"
+
+#### Tarea 1.2: Mejorar OWIDSource (Completado ✓)
+**Duración:** 2-3 horas (ya implementado)
+
+**Estado:** ✅ Métodos `fetch_metadata()` y `fetch_with_metadata()` agregados
+
+### Sprint 2: Herramientas MCP (Semana 2)
+
+#### Tarea 2.1: Crear 5 Herramientas Core
+**Duración:** 6-8 horas
+
+**Herramientas:**
+1. `search_datasets` - Buscar en catálogo
+2. `preview_data` - Vista previa
+3. `download_owid` - Descargar datos
+4. `get_metadata` - Obtener metadata
+5. `analyze_data` - Análisis básico
+
+**Entregable:** `src/copilot_tools.py` funcional
+
+#### Tarea 2.2: AI Packager (Completado ✓)
+**Duración:** 3-4 horas (ya implementado)
+
+**Estado:** ✅ Módulo `src/ai_packager.py` creado con:
+- Generación de schema.json
+- Creación de context_owid.md
+- Generación de prompts.json
+
+### Sprint 3: Chat Interface (Semana 3)
+
+#### Tarea 3.1: WebSocket Chat Endpoint
+**Duración:** 4-6 horas
 
 **Pasos:**
-1. Mejorar `DynamicSearcher` para usar OWID semantic API
-2. Agregar filtros por tema en UI
-3. Mostrar indicador de actualización
-4. Agregar preview de datos
+1. Crear endpoint `/api/chat/copilot`
+2. Implementar streaming de respuestas
+3. Manejo de sesiones
+4. Integrar herramientas MCP
+5. Fallback a chat anterior si falla
+
+**Entregable:** Endpoint funcional con testing
+
+#### Tarea 3.2: UI de Chat
+**Duración:** 4-6 horas
+
+**Pasos:**
+1. Crear `src/web/templates/copilot-chat.html`
+2. Implementar `copilot-chat.js` con WebSocket
+3. Diseño tipo ChatGPT/Copilot
+4. Indicadores de tool calling
+5. Visualización de datos en chat
+
+**Entregable:** UI funcional integrada
+
+### Sprint 4: Features Avanzadas (Semana 4)
+
+#### Tarea 4.1: Natural Language Queries
+**Duración:** 8-10 horas
+
+**Pasos:**
+1. Soportar queries complejas
+2. Multi-step planning
+3. Manejo de ambigüedad
+4. Confirmación intermedia
+
+#### Tarea 4.2: Personas del Agente
+**Duración:** 6-8 horas
+
+**Pasos:**
+1. Crear 3 personas (Explorer, Analyst, Curator)
+2. System prompts especializados
+3. Selector de persona en UI
+4. Herramientas por persona
 
 ---
 
@@ -340,14 +699,109 @@ GET https://ourworldindata.org/grapher/{slug}.metadata.json
 
 ---
 
-## Notas
+## Resumen Ejecutivo de la Arquitectura Integrada
 
-- OWID usa licencia CC BY 4.0 - requiere atribución
-- APIs están en desarrollo activo - puede haber cambios
-- ETL catalog se actualiza diariamente
-- Rate limits: TBD (contactar info@ourworldindata.org)
+### Transformación del Sistema
+
+**Enfoque Anterior (Sin Copilot SDK):**
+- Construir orquestación de agentes desde cero
+- Implementar tool calling manualmente
+- Gestión de contexto y memoria propia
+- **Tiempo estimado**: 3-4 meses
+- **Riesgo**: Alto (nuevo código, bugs, mantenimiento)
+
+**Enfoque Nuevo (Con Copilot SDK):**
+- Usar runtime production-tested de GitHub
+- Foco en herramientas de dominio (datos económicos)
+- BYOK para control de costos y privacidad
+- **Tiempo estimado**: 4-6 semanas
+- **Riesgo**: Bajo (SDK probado, comunidad activa)
+
+### Componentes de la Solución
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA DE PRESENTACIÓN                                        │
+│  • Web UI (Flask + WebSocket)                               │
+│  • CLI (Click)                                              │
+│  • Chat Interface (Copilot SDK + Streaming)                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  ORQUESTACIÓN DE AGENTES                                     │
+│  GitHub Copilot SDK (Python)                                │
+│  • Planning & Multi-step Execution                          │
+│  • Tool Invocation (MCP)                                    │
+│  • Memory & Context Management                              │
+│  • Multi-Model Support (GPT-4, Claude, Azure)               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  HERRAMIENTAS DE DOMINIO (MCP Tools)                        │
+│  • search_datasets() - Buscar en catálogo                   │
+│  • download_owid() - Descargar de OWID                      │
+│  • analyze_data() - Análisis automático                     │
+│  • generate_chart() - Visualizaciones                       │
+│  • get_metadata() - Contexto enriquecido                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  DATOS ESTRUCTURADOS (AI-Ready)                             │
+│  • CSV (datos limpios)                                      │
+│  • schema.json (estructura)                                 │
+│  • context_owid.md (metodología)                            │
+│  • prompts.json (sugerencias)                               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  FUENTES DE DATOS                                           │
+│  • OWID (Our World in Data) - Principal                     │
+│  • World Bank, OECD, ILOSTAT - Complementarias              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Diferenciadores Clave
+
+1. **Datos Premium (OWID)**: Metadatos completos (metodología, limitaciones, fuentes)
+2. **Runtime Probado (Copilot SDK)**: Usado por millones en GitHub Copilot CLI
+3. **Estructura AI-Native**: AI Packager prepara datos específicamente para consumo por agentes
+4. **Control Total (BYOK)**: Traer nuestras propias API keys (OpenRouter, Azure, etc.)
+5. **Multi-Persona**: Explorer, Analyst, Curator según necesidad del usuario
+
+### Roadmap de 4 Sprints
+
+| Sprint | Enfoque | Entregable Principal |
+|--------|---------|---------------------|
+| **1** | Fundamentos | Cliente Copilot SDK funcionando |
+| **2** | Herramientas | 5 MCP tools + AI Packager integrado |
+| **3** | Interface | Chat WebSocket con streaming |
+| **4** | Avanzado | Natural language queries + Personas |
+
+### Recursos Adicionales
+
+- **Análisis Detallado Copilot SDK**: `docs/GITHUB_COPILOT_SDK_ANALYSIS.md`
+- **Repositorio SDK**: https://github.com/github/copilot-sdk
+- **Getting Started**: https://github.com/github/copilot-sdk/blob/main/docs/getting-started.md
+- **Cookbook**: https://github.com/github/copilot-sdk/tree/main/cookbook/python
 
 ---
 
-**Última actualización:** 2026-02-01  
-**Responsable:** AI Development Team
+## Notas
+
+- **OWID**: Usa licencia CC BY 4.0 - requiere atribución
+- **Copilot SDK**: Technical Preview - posibles cambios API (mantener abstracción)
+- **BYOK**: Recomendado para control de costos y privacidad
+- **MCP**: Model Context Protocol estándar para tool calling
+- **ETL catalog**: Se actualiza diariamente
+
+---
+
+**Versión del Plan**: 2.0  
+**Última actualización**: 2026-02-01  
+**Estado**: ✅ Integración Copilot SDK completada en documentación  
+**Próximo paso**: Implementación Sprint 1 (Setup SDK)  
+**Responsable**: AI Development Team
