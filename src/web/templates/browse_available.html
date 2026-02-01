@@ -1,32 +1,155 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card p-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <div class="text-secondary small">Fuentes</div>
-      <h5 class="mb-0">Indicadores disponibles</h5>
+<div x-data="availableData()" x-init="init()">
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+          <input type="text" 
+                 class="form-control" 
+                 placeholder="Search indicators..." 
+                 x-model="searchQuery"
+                 @keyup.enter="search()">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" x-model="sourceFilter">
+            <option value="">All Sources</option>
+            <option value="owid">OWID</option>
+            <option value="ilostat">ILOSTAT</option>
+            <option value="oecd">OECD</option>
+            <option value="imf">IMF</option>
+            <option value="worldbank">World Bank</option>
+            <option value="eclac">ECLAC</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100" @click="search()">
+            <i class="bi bi-search"></i> Search
+          </button>
+        </div>
+      </div>
     </div>
-    <a class="btn btn-primary btn-sm" href="/search"><i class="ms-Icon ms-Icon--Search"></i> Buscar</a>
   </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Available Indicators</h5>
+    <span class="text-secondary" x-text="`${results.length} results`"></span>
+  </div>
+
   <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card p-3">
-        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> ILOSTAT</div>
-        <div class="text-secondary small">Labor stats · LATAM</div>
+    <template x-for="indicator in results" :key="indicator.id">
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-secondary" x-text="indicator.source"></span>
+              <span class="badge" :class="indicator.downloaded ? 'bg-success' : 'bg-light text-dark'" 
+                    x-text="indicator.downloaded ? 'Downloaded' : 'Available'"></span>
+            </div>
+            <h6 class="card-title" x-text="indicator.indicator"></h6>
+            <p class="card-text small text-secondary" x-text="indicator.description || 'No description available'"></p>
+            <div class="mt-auto">
+              <button class="btn btn-sm btn-primary w-100" 
+                      @click="download(indicator)"
+                      :disabled="indicator.downloaded || loading">
+                <span x-show="!loading || currentId !== indicator.id">
+                  <i class="bi bi-download"></i> 
+                  <span x-text="indicator.downloaded ? 'Already Downloaded' : 'Download'"></span>
+                </span>
+                <span x-show="loading && currentId === indicator.id">
+                  <span class="spinner-border spinner-border-sm"></span> Downloading...
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card p-3">
-        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> OECD</div>
-        <div class="text-secondary small">Economic indicators</div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card p-3">
-        <div class="d-flex align-items-center mb-2"><i class="ms-Icon ms-Icon--CloudDownload me-2"></i> World Bank</div>
-        <div class="text-secondary small">Development data</div>
-      </div>
-    </div>
+    </template>
+  </div>
+
+  <div x-show="results.length === 0 && !loading" class="text-center py-5">
+    <i class="bi bi-inbox fs-1 text-secondary"></i>
+    <p class="text-secondary mt-2">No indicators found. Try a different search.</p>
+  </div>
+
+  <div x-show="loading && results.length === 0" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="text-secondary mt-2">Loading indicators...</p>
   </div>
 </div>
+
+<script>
+function availableData() {
+  return {
+    searchQuery: '',
+    sourceFilter: '',
+    results: [],
+    loading: false,
+    currentId: null,
+
+    init() {
+      this.search();
+    },
+
+    async search() {
+      this.loading = true;
+      try {
+        const params = new URLSearchParams();
+        if (this.searchQuery) params.append('q', this.searchQuery);
+        if (this.sourceFilter) params.append('source', this.sourceFilter);
+        
+        const response = await fetch(`/api/search?${params}`);
+        const data = await response.json();
+        
+        if (data.status === 'success' || data.results) {
+          this.results = data.results || [];
+        } else {
+          console.error('Search error:', data.message);
+          this.results = [];
+        }
+      } catch (error) {
+        console.error('Search failed:', error);
+        this.results = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async download(indicator) {
+      if (indicator.downloaded) return;
+      
+      this.loading = true;
+      this.currentId = indicator.id;
+      
+      try {
+        const response = await fetch('/api/download/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: indicator.id,
+            source: indicator.source.toLowerCase(),
+            indicator: indicator.indicator,
+            remote: indicator.remote || false
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          indicator.downloaded = true;
+          alert(`Downloaded: ${indicator.indicator}`);
+        } else {
+          alert(`Download failed: ${data.message}`);
+        }
+      } catch (error) {
+        console.error('Download failed:', error);
+        alert('Download failed. Check console for details.');
+      } finally {
+        this.loading = false;
+        this.currentId = null;
+      }
+    }
+  }
+}
+</script>
 {% endblock %}
