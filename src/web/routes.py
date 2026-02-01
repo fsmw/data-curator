@@ -31,6 +31,7 @@ from metadata import MetadataGenerator
 from dataset_catalog import DatasetCatalog
 from ai_chat import ChatAssistant
 from chat_history import ChatHistory
+from ai_packager import AIPackager, create_ai_package_from_owid
 from pathlib import Path
 from uuid import uuid4
 
@@ -741,6 +742,28 @@ def start_download() -> Response:
             print(f"Warning: Metadata generation failed: {e}")
             metadata_text = None
 
+        # Step 5: Create AI-ready package (for OWID sources)
+        ai_package_files = {}
+        if source.lower() == "owid" and indicator_config.get("slug"):
+            try:
+                # Fetch OWID metadata
+                owid_source = manager.sources.get("owid")
+                if owid_source:
+                    owid_metadata = owid_source.fetch_metadata(indicator_config["slug"])
+
+                    if "error" not in owid_metadata:
+                        # Create AI package
+                        ai_packager = AIPackager(output_path.parent)
+                        ai_package_files = ai_packager.enhance_existing_dataset(
+                            csv_path=output_path,
+                            metadata=owid_metadata,
+                            topic=topic,
+                        )
+                        print(f"✓ AI package created: {len(ai_package_files)} files")
+            except Exception as e:
+                print(f"Warning: AI packaging failed: {e}")
+                ai_package_files = {}
+
         # Success response
         response_payload = {
             "status": "success",
@@ -752,6 +775,7 @@ def start_download() -> Response:
                 "countries": int(len(data_summary.get("countries", []))),
                 "date_range": data_summary.get("date_range", []),
                 "metadata_generated": bool(metadata_text is not None),
+                "ai_package": bool(ai_package_files),
             },
         }
 
