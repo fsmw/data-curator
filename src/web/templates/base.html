@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" x-data x-init="$store.panel.setMode(window.innerWidth); window.addEventListener('resize', () => $store.panel.setMode(window.innerWidth))">
+<html lang="en" x-data x-init="(typeof $store !== 'undefined' && $store.panel && typeof $store.panel.setMode === 'function') ? ($store.panel.setMode(window.innerWidth), window.addEventListener('resize', () => $store.panel.setMode(window.innerWidth))) : null">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -43,8 +43,8 @@
                   Quick Actions
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quickActions">
-                  <li><a class="dropdown-item" href="/download">Start a download</a></li>
-                  <li><a class="dropdown-item" href="/api/status">API status</a></li>
+                  <li><a class="dropdown-item" href="/search">Start a download</a></li>
+                  <li><a class="dropdown-item" href="/api/datasets">Browse datasets API</a></li>
                 </ul>
               </div>
             </div>
