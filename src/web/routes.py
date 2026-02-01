@@ -41,6 +41,9 @@ ui_bp = Blueprint(
     static_folder="static",
 )
 
+# In-memory progress tracking for SSE
+_download_progress: Dict[str, Dict] = {}
+
 
 def check_indicator_downloaded(config: Config, indicator_id: str, source: str) -> bool:
     """
@@ -1674,3 +1677,43 @@ def get_llm_models() -> Response:
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@ui_bp.route("/api/progress/stream")
+def progress_stream() -> Response:
+    """SSE endpoint for real-time download progress."""
+    def generate():
+        last_sent = None
+        while True:
+            # Get current progress (would be updated by download process)
+            progress = _download_progress.get('current', {
+                'step': 'idle',
+                'status': 'waiting',
+                'percent': 0
+            })
+            
+            # Only send if changed
+            if progress != last_sent:
+                yield f"data: {json.dumps(progress)}\n\n"
+                last_sent = progress.copy()
+            
+            time.sleep(1)  # Check every second
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@ui_bp.route("/api/progress/poll")
+def progress_poll() -> Response:
+    """Polling fallback for browsers without SSE support."""
+    progress = _download_progress.get('current', {
+        'step': 'idle',
+        'status': 'waiting',
+        'percent': 0
+    })
+    return jsonify(progress)
