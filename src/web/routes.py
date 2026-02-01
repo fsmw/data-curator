@@ -35,6 +35,13 @@ from ai_packager import AIPackager, create_ai_package_from_owid
 from pathlib import Path
 from uuid import uuid4
 
+# Import Copilot SDK agent (new)
+try:
+    from copilot_agent import MisesCopilotAgent
+    COPILOT_AVAILABLE = True
+except ImportError:
+    COPILOT_AVAILABLE = False
+
 ui_bp = Blueprint(
     "ui",
     __name__,
@@ -86,6 +93,7 @@ def check_indicator_downloaded(config: Config, indicator_id: str, source: str) -
 NAV_ITEMS: List[Dict[str, str]] = [
     {"slug": "status", "label": "Status", "icon": "house"},
     {"slug": "browse_local", "label": "Browse Local", "icon": "folder"},
+    {"slug": "copilot_chat", "label": "AI Chat", "icon": "robot"},
     {"slug": "browse_available", "label": "Browse Available", "icon": "cloud-download"},
     {"slug": "search", "label": "Search", "icon": "search"},
     {"slug": "chat", "label": "Chat AI", "icon": "chat"},
@@ -1741,3 +1749,201 @@ def progress_poll() -> Response:
         'percent': 0
     })
     return jsonify(progress)
+
+
+# ============================================================================
+# GitHub Copilot SDK Chat Endpoints
+# ============================================================================
+
+# Global agent instance (initialized on first use)
+_copilot_agent = None
+
+def get_copilot_agent():
+    """Get or initialize the Copilot agent singleton."""
+    global _copilot_agent
+    if _copilot_agent is None and COPILOT_AVAILABLE:
+        try:
+            config = Config()
+            _copilot_agent = MisesCopilotAgent(config)
+        except Exception as e:
+            print(f"❌ Error initializing Copilot agent: {e}")
+            _copilot_agent = None
+    return _copilot_agent
+
+
+@ui_bp.route("/api/copilot/chat", methods=["POST"])
+def copilot_chat() -> Response:
+    """
+    Chat endpoint powered by GitHub Copilot SDK.
+    
+    Expects JSON body:
+    {
+        "message": "User message",
+        "session_id": "optional-session-id",
+        "stream": false
+    }
+    
+    Returns:
+    {
+        "status": "success",
+        "response": "Agent response",
+        "session_id": "session-id",
+        "tools_called": [...]
+    }
+    """
+    if not COPILOT_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "error": "GitHub Copilot SDK not available. Install with: pip install github-copilot-sdk"
+        }), 503
+    
+    try:
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({
+                "status": "error",
+                "error": "Missing 'message' in request body"
+            }), 400
+        
+        message = data.get('message')
+        session_id = data.get('session_id')
+        stream = data.get('stream', False)
+        
+        # Get agent
+        agent = get_copilot_agent()
+        if not agent:
+            return jsonify({
+                "status": "error",
+                "error": "Failed to initialize Copilot agent"
+            }), 500
+        
+        # Process message
+        import asyncio
+        response = asyncio.run(agent.chat(message, session_id=session_id, stream=stream))
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
+@ui_bp.route("/api/copilot/stream", methods=["POST"])
+def copilot_chat_stream() -> Response:
+    """
+    Streaming chat endpoint using Server-Sent Events (SSE).
+    
+    Streams the Copilot agent response in real-time.
+    """
+    if not COPILOT_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "error": "GitHub Copilot SDK not available"
+        }), 503
+    
+    try:
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({
+                "status": "error",
+                "error": "Missing 'message' in request body"
+            }), 400
+        
+        message = data.get('message')
+        session_id = data.get('session_id')
+        
+        def generate():
+            """Generate SSE stream."""
+            agent = get_copilot_agent()
+            if not agent:
+                yield f"data: {json.dumps({'error': 'Agent not initialized'})}\n\n"
+                return
+            
+            import asyncio
+            
+            # Start streaming response
+            yield f"data: {json.dumps({'type': 'start'})}\n\n"
+            
+            try:
+                # TODO: Implement actual streaming when SDK supports it
+                # For now, send complete response
+                response = asyncio.run(agent.chat(message, session_id=session_id, stream=False))
+                
+                if response.get('status') == 'success':
+                    yield f"data: {json.dumps({'type': 'content', 'text': response.get('text', '')})}\n\n"
+                    yield f"data: {json.dumps({'type': 'tools', 'tools': response.get('tools_called', [])})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'error', 'error': response.get('error', 'Unknown error')})}\n\n"
+                
+                yield f"data: {json.dumps({'type': 'done', 'session_id': response.get('session_id')})}\n\n"
+                
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
+@ui_bp.route("/api/copilot/health")
+def copilot_health() -> Response:
+    """Health check endpoint for Copilot SDK integration."""
+    if not COPILOT_AVAILABLE:
+        return jsonify({
+            "status": "unavailable",
+            "sdk_available": False,
+            "agent_initialized": False,
+            "message": "GitHub Copilot SDK not installed"
+        }), 200
+    
+    try:
+        agent = get_copilot_agent()
+        if agent:
+            health = agent.health_check()
+            return jsonify({
+                "status": "healthy" if health.get('healthy') else "degraded",
+                "sdk_available": health.get('sdk_available', False),
+                "agent_initialized": health.get('client_initialized', False),
+                "cli_available": health.get('cli_available', False),
+                "tools_registered": health.get('tools_registered', 0),
+                "details": health
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "sdk_available": True,
+                "agent_initialized": False,
+                "message": "Agent failed to initialize"
+            }), 200
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "sdk_available": COPILOT_AVAILABLE,
+            "error": str(e)
+        }), 200
+
+
+@ui_bp.route("/copilot-chat")
+def copilot_chat_page() -> str:
+    """Render the Copilot chat interface page."""
+    ctx = base_context(
+        "copilot_chat", "Copilot Chat", "Chat with AI powered by GitHub Copilot SDK"
+    )
+    ctx["copilot_available"] = COPILOT_AVAILABLE
+    return render_template("copilot_chat.html", **ctx)
