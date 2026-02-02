@@ -797,6 +797,75 @@ async def analyze_data(
 
 
 # ============================================================================
+# TOOL 6: Recommend Related Datasets
+# ============================================================================
+
+async def recommend_datasets(
+    dataset_id: Optional[str] = None,
+    query: Optional[str] = None,
+    limit: int = 5
+) -> Dict[str, Any]:
+    """
+    Recommend related datasets using semantic similarity.
+    
+    This tool suggests datasets that are:
+    - Semantically similar (same or related topics)
+    - From different sources (for cross-validation)
+    - Covering similar time periods or geographies
+    - Complementary for analysis
+    
+    Args:
+        dataset_id: ID of dataset to find similar datasets for (optional)
+        query: Text query to find relevant datasets (optional)
+        limit: Maximum number of recommendations (default 5)
+    
+    Returns:
+        Dictionary with:
+        - status: "success" or "error"
+        - recommendations: List of recommended datasets with similarity scores
+        - total_found: Number of recommendations
+        - query_info: Information about what was searched
+    
+    Example:
+        >>> result = await recommend_datasets(query="salarios reales")
+        >>> for rec in result['recommendations']:
+        ...     print(f"{rec['name']}: {rec['similarity']:.2f} - {rec['match_reasons']}")
+    """
+    try:
+        config = get_config()
+        
+        # Import recommender
+        from src.recommender import DatasetRecommender
+        recommender = DatasetRecommender(config)
+        
+        # Get recommendations
+        recommendations = await recommender.get_recommendations(
+            dataset_id=dataset_id,
+            query=query,
+            limit=limit
+        )
+        
+        return {
+            "status": "success",
+            "recommendations": recommendations,
+            "total_found": len(recommendations),
+            "query_info": {
+                "dataset_id": dataset_id,
+                "query": query,
+                "limit": limit
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "recommendations": [],
+            "total_found": 0
+        }
+
+
+# ============================================================================
 # TOOL REGISTRY
 # ============================================================================
 
@@ -849,6 +918,15 @@ TOOL_REGISTRY = {
             "analysis_type": {"type": "string", "required": True, "description": "Type of analysis"},
             "column": {"type": "string", "required": False, "description": "Column to analyze"},
             "group_by": {"type": "string", "required": False, "description": "Column to group by"}
+        }
+    },
+    "recommend_datasets": {
+        "function": recommend_datasets,
+        "description": "Recommend related datasets using semantic similarity",
+        "parameters": {
+            "dataset_id": {"type": "string", "required": False, "description": "Dataset ID to find similar datasets for"},
+            "query": {"type": "string", "required": False, "description": "Text query to find relevant datasets"},
+            "limit": {"type": "integer", "required": False, "description": "Maximum number of recommendations"}
         }
     }
 }

@@ -1,0 +1,101 @@
+{
+  "dataset_info": {
+    "name": "",
+    "slug": "annual-growth-of-general-government-final-consumption-expenditure",
+    "description": "",
+    "source": "Unknown",
+    "total_rows": 156,
+    "total_columns": 5,
+    "created_at": "2026-02-02T16:49:10.083983"
+  },
+  "columns": [
+    {
+      "name": "country",
+      "type": "object",
+      "description": "Country or region name",
+      "sample_values": [
+        "Afghanistan",
+        "Algeria",
+        "Angola",
+        "ARG",
+        "Armenia"
+      ],
+      "null_count": 0,
+      "null_percentage": 0.0
+    },
+    {
+      "name": "country_code",
+      "type": "object",
+      "description": "ISO country code",
+      "sample_values": [
+        "AFG",
+        "DZA",
+        "AGO",
+        "ARG",
+        "ARM"
+      ],
+      "null_count": 0,
+      "null_percentage": 0.0
+    },
+    {
+      "name": "year",
+      "type": "int64",
+      "description": "Year of observation",
+      "sample_values": [
+        2023,
+        2023,
+        2023,
+        2023,
+        2023
+      ],
+      "null_count": 0,
+      "null_percentage": 0.0,
+      "statistics": {
+        "min": 2023.0,
+        "max": 2023.0,
+        "mean": 2023.0,
+        "median": 2023.0
+      }
+    },
+    {
+      "name": "Annual growth of the general government final consumption expenditure (%)",
+      "type": "float64",
+      "description": "Annual Growth Of The General Government Final Consumption Expenditure (%)",
+      "sample_values": [
+        1.07,
+        3.4,
+        -36.73,
+        1.54,
+        28.3
+      ],
+      "null_count": 0,
+      "null_percentage": 0.0,
+      "statistics": {
+        "min": -49.42,
+        "max": 34.94,
+        "mean": 1.4971153846153846,
+        "median": 1.94
+      }
+    },
+    {
+      "name": "Annual growth of the general government final consumption expenditure (%) (Original Year)",
+      "type": "float64",
+      "description": "Annual Growth Of The General Government Final Consumption Expenditure (%) (Original Year)",
+      "sample_values": [
+        2022.0,
+        2022.0,
+        2022.0,
+        2022.0,
+        2022.0
+      ],
+      "null_count": 141,
+      "null_percentage": 90.38461538461539,
+      "statistics": {
+        "min": 2022.0,
+        "max": 2022.0,
+        "mean": 2022.0,
+        "median": 2022.0
+      }
+    }
+  ]
+}

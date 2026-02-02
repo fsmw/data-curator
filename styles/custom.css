@@ -8,7 +8,8 @@
   --accent-green: #00bb84;
   --accent-yellow: #ffb800;
   --text: #253347;
-  --muted: #666f7a;
+  /* Improve contrast for small / muted text for accessibility */
+  --muted: #47525b;
   --radius: 12px;
 }
 
@@ -55,6 +56,18 @@ h1, h2, h3, h4 {
 
 /* Table preview adjustments */
 [data-testid="stDataFrameContainer"] { background: transparent }
+
+/* Ensure small table text and sidebar small text use higher-contrast color */
+[data-testid="stDataFrameContainer"] *,
+[data-testid="stSidebar"] *,
+.stApp .muted {
+  color: var(--muted) !important;
+}
+
+/* Make sure table cells are readable on light card backgrounds */
+[data-testid="stDataFrameContainer"] td, [data-testid="stDataFrameContainer"] th {
+  color: var(--text) !important;
+}
 
 /* Ensure plotly figures blend with theme */
 .plotly-graph-div { background: transparent !important }

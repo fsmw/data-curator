@@ -161,9 +161,38 @@ function copilotChat() {
     
     init() {
       console.log('Copilot Chat initialized');
+      
+      // Try to load session from localStorage
+      const storedSessionId = localStorage.getItem('copilot_session_id');
+      if (storedSessionId) {
+        this.sessionId = storedSessionId;
+        this.loadHistory();
+      }
+      
       // Check health on load
       if (this.copilot_available) {
         this.checkHealth();
+      }
+    },
+    
+    async loadHistory() {
+      if (!this.sessionId) return;
+      
+      try {
+        const response = await fetch(`/api/copilot/history/${this.sessionId}`);
+        const data = await response.json();
+        
+        if (data.status === 'success' && data.messages) {
+          this.messages = data.messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            tools: msg.tools || []
+          }));
+          this.scrollToBottom();
+        }
+      } catch (error) {
+        console.error('Failed to load history:', error);
       }
     },
     
@@ -210,6 +239,11 @@ function copilotChat() {
           this.messages[assistantIndex].content = data.text || data.response || 'No response';
           this.messages[assistantIndex].tools = data.tools_called || [];
           this.sessionId = data.session_id || this.sessionId;
+          
+          // Save session ID to localStorage for persistence
+          if (this.sessionId) {
+            localStorage.setItem('copilot_session_id', this.sessionId);
+          }
         } else {
           this.messages[assistantIndex].content = `Error: ${data.error || 'Unknown error'}`;
           this.messages[assistantIndex].error = true;
@@ -243,6 +277,7 @@ function copilotChat() {
       if (confirm('Clear all messages?')) {
         this.messages = [];
         this.sessionId = null;
+        localStorage.removeItem('copilot_session_id');
       }
     },
     

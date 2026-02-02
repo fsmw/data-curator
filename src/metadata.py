@@ -1,11 +1,11 @@
-"""Metadata generation using LLM (OpenRouter) with template fallback."""
+"""Metadata generation using GitHub Copilot SDK with template fallback."""
 
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
 import hashlib
-from openai import OpenAI
+import asyncio
 
 
 class MetadataGenerator:
@@ -28,24 +28,19 @@ class MetadataGenerator:
         if self.cache_enabled:
             self.cache_dir.mkdir(exist_ok=True)
 
-        # Initialize LLM client depending on provider
-        self.client = None
-        self.provider = self.llm_config.get("provider", "openrouter")
+        # Initialize Copilot SDK client
+        self.copilot_agent = None
         if self.use_llm:
-            if self.provider == "ollama":
-                import requests
-
-                self._ollama_requests = requests
-                self.ollama_host = self.llm_config.get("host", "http://localhost:11434")
-                self.ollama_model = self.llm_config.get("model")
-            else:
-                if self.llm_config.get("api_key"):
-                    self.client = OpenAI(
-                        base_url="https://openrouter.ai/api/v1",
-                        api_key=self.llm_config["api_key"],
-                    )
-                else:
-                    self.client = None
+            # Import and initialize CopilotAgent lazily
+            try:
+                from src.copilot_agent import MisesCopilotAgent
+                self.copilot_agent = MisesCopilotAgent(config)
+                # Start client in sync context
+                asyncio.get_event_loop().run_until_complete(self.copilot_agent.start())
+            except Exception as e:
+                print(f"⚠️  Warning: Could not initialize Copilot SDK: {e}")
+                print("   Falling back to template-based metadata generation")
+                self.copilot_agent = None
 
     def generate_metadata(
         self,
@@ -77,13 +72,15 @@ class MetadataGenerator:
                 print(f"✓ Using cached metadata for {topic}")
                 return cached
 
-        # Try LLM generation first
-        if self.use_llm and self.client:
+        # Try Copilot SDK generation first
+        if self.use_llm and self.copilot_agent:
             try:
-                metadata = self._generate_with_llm(
-                    topic, data_summary, source, transformations, original_source_url
+                metadata = asyncio.get_event_loop().run_until_complete(
+                    self._generate_with_copilot(
+                        topic, data_summary, source, transformations, original_source_url
+                    )
                 )
-                print(f"✓ Generated metadata using LLM for {topic}")
+                print(f"✓ Generated metadata using Copilot SDK for {topic}")
 
                 # Cache the result
                 if self.cache_enabled:
@@ -91,7 +88,7 @@ class MetadataGenerator:
 
                 return metadata
             except Exception as e:
-                print(f"⚠ LLM generation failed: {e}")
+                print(f"⚠ Copilot SDK generation failed: {e}")
                 print("  Falling back to template...")
 
         # Fallback to template
@@ -102,7 +99,7 @@ class MetadataGenerator:
 
         return metadata
 
-    def _generate_with_llm(
+    async def _generate_with_copilot(
         self,
         topic: str,
         data_summary: Dict[str, Any],
@@ -110,61 +107,22 @@ class MetadataGenerator:
         transformations: list,
         original_source_url: Optional[str],
     ) -> str:
-        """Generate metadata using LLM."""
+        """Generate metadata using Copilot SDK."""
         # Construct prompt
         prompt = self._build_llm_prompt(
             topic, data_summary, source, transformations, original_source_url
         )
 
-        # Call LLM (supporting Ollama or OpenRouter)
-        if self.provider == "ollama":
-            # Build simple messages and call Ollama via HTTP
-            messages = [
-                {"role": "system", "content": self.llm_config["system_prompt"]},
-                {"role": "user", "content": prompt},
-            ]
-            url = f"{self.ollama_host.rstrip('/')}/api/generate"
-            payload = {
-                "model": self.ollama_model,
-                "prompt": "\n\n".join(
-                    [f"[{m['role']}] {m['content']}" for m in messages]
-                ),
-                "max_tokens": int(self.llm_config["max_tokens"]),
-                "temperature": float(self.llm_config["temperature"]),
-            }
-            resp = self._ollama_requests.post(url, json=payload, timeout=60)
-            resp.raise_for_status()
-            try:
-                data = resp.json()
-            except Exception:
-                return resp.text
-
-            if isinstance(data, dict):
-                if "choices" in data and len(data["choices"]) > 0:
-                    choice = data["choices"][0]
-                    if isinstance(choice, dict):
-                        if "message" in choice and isinstance(choice["message"], dict):
-                            return (
-                                choice["message"].get("content")
-                                or choice.get("text")
-                                or json.dumps(choice)
-                            )
-                        return choice.get("text") or json.dumps(choice)
-                if "text" in data:
-                    return data["text"]
-                return json.dumps(data)
-            return str(data)
+        # Call Copilot SDK
+        response = await self.copilot_agent.chat(
+            message=prompt,
+            stream=False
+        )
+        
+        if response['status'] == 'success':
+            return response['text']
         else:
-            response = self.client.chat.completions.create(
-                model=self.llm_config["model"],
-                messages=[
-                    {"role": "system", "content": self.llm_config["system_prompt"]},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=self.llm_config["max_tokens"],
-                temperature=self.llm_config["temperature"],
-            )
-            return response.choices[0].message.content
+            raise Exception(f"Copilot SDK error: {response.get('error', 'Unknown error')}")
 
     def _build_llm_prompt(
         self,

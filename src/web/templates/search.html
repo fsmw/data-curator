@@ -1,220 +1,230 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="searchForm()">
-  <div class="card p-3 mb-3">
-    <div class="row g-2 align-items-center">
-      <div class="col-md-8">
-        <input
-          x-model="query"
-          class="form-control"
-          id="search-query"
-          placeholder="Buscar indicadores (ej: salarios, tax, inflation, poverty)"
-          @keyup.enter="performSearch()"
-        />
-      </div>
-      <div class="col-md-2">
-        <select class="form-select" x-model="source">
-          <option value="">Fuente</option>
-          <option value="owid">Our World in Data</option>
-          <option value="ilostat">ILOSTAT</option>
-          <option value="oecd">OECD</option>
-          <option value="imf">IMF</option>
-          <option value="worldbank">World Bank</option>
-          <option value="eclac">ECLAC</option>
-        </select>
-      </div>
-      <div class="col-md-2 text-end">
-        <button
-          @click="performSearch()"
-          class="btn btn-primary w-100"
-          :disabled="loading"
-        >
-          <span x-show="!loading"><i class="bi bi-search"></i> Buscar</span>
-          <span x-show="loading" class="spinner-border spinner-border-sm me-2"></span>
-        </button>
+  <!-- Search Box -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-7 col-md-6">
+          <label class="form-label">Search Indicators</label>
+          <div class="search-wrapper">
+            <i class="bi bi-search"></i>
+            <input
+              x-model="query"
+              class="form-control search-input"
+              id="search-query"
+              placeholder="Search by keyword (e.g., GDP, inflation, unemployment)"
+              @keyup.enter="performSearch()"
+            />
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-4">
+          <label class="form-label">Data Source</label>
+          <select class="form-select" x-model="source">
+            <option value="">All Sources</option>
+            <option value="owid">Our World in Data</option>
+            <option value="ilostat">ILOSTAT</option>
+            <option value="oecd">OECD</option>
+            <option value="imf">IMF</option>
+            <option value="worldbank">World Bank</option>
+            <option value="eclac">ECLAC</option>
+          </select>
+        </div>
+        <div class="col-lg-2 col-md-2">
+          <button
+            @click="performSearch()"
+            class="btn btn-primary w-100"
+            :disabled="loading"
+          >
+            <span x-show="!loading"><i class="bi bi-search"></i> Search</span>
+            <span x-show="loading"><span class="spinner-border spinner-border-sm me-1"></span> Searching...</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
-  <div class="card p-3">
-  <div class="text-secondary small mb-2">
-    <span x-text="results.length"></span> Resultados
-    <span x-show="query || source">
-      para: <strong x-text="`${query}${source ? ' • ' + source : ''}`"></strong>
-    </span>
-    <!-- Show breakdown of local vs remote results -->
-    <span x-show="searchMetadata && searchMetadata.sources" class="ms-3">
-      <span class="badge bg-secondary">
-        Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
-      </span>
-      <span class="badge bg-info ms-1" x-show="searchMetadata?.sources?.owid">
-        OWID API: <span x-text="searchMetadata?.sources?.owid || 0"></span>
-      </span>
-      <span class="badge bg-info ms-1" x-show="searchMetadata?.sources?.oecd">
-        OECD: <span x-text="searchMetadata?.sources?.oecd || 0"></span>
-      </span>
-    </span>
-  </div>
-  <!-- Debug info -->
-  <div x-show="results.length > 0" class="alert alert-info small mb-2">
-    <strong>Debug:</strong> Received <span x-text="results.length"></span> results. First result ID: <span x-text="results[0]?.id"></span>
-  </div>
-  <div x-show="successMessage" class="alert alert-success mb-3" role="alert">
-    <i class="bi bi-check-circle"></i>
-    <span x-text="successMessage"></span>
-  </div>
-  <div x-show="error" class="alert alert-warning mb-3" role="alert">
-    <i class="bi bi-exclamation-triangle"></i>
-    <span x-text="error"></span>
-  </div>
-  <table class="table table-hover align-middle mb-0">
-    <thead>
-      <tr><th>Indicador</th><th>Descripción</th><th>Fuente</th><th></th></tr>
-    </thead>
-    <tbody>
-      <template x-for="(result, index) in results" :key="result.id || index">
-        <tr>
-          <td>
-            <strong x-text="result.indicator || 'N/A'"></strong>
-            <div class="small text-secondary" x-show="result.tags">
-              <i class="bi bi-tag"></i> <span x-text="result.tags"></span>
-            </div>
-          </td>
-          <td class="small text-secondary" x-text="result.description || ''"></td>
-          <td>
-            <span class="badge bg-primary" x-text="result.source || 'N/A'"></span>
-            <!-- Show remote badge for API results -->
-            <template x-if="result.remote">
-              <span class="badge bg-info ms-1" title="From external API">
-                <i class="bi bi-cloud"></i> API
-              </span>
-            </template>
-          </td>
-          <td class="text-end">
-            <div class="action-buttons d-flex align-items-center gap-2">
-              <!-- Downloaded badge -->
-              <span x-show="result.downloaded" class="badge bg-success">
-                <i class="bi bi-check-circle"></i> Ya Descargado
-              </span>
-              
-              <!-- Remote OWID: Preview button -->
-              <button
-                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                @click.prevent="previewRemote(result)"
-                class="btn btn-outline-secondary btn-sm"
-                type="button"
-                title="Ver gráfico PNG desde OWID"
-              >
-                <i class="bi bi-image"></i>
-              </button>
 
-              <!-- Remote OWID: Download button -->
-              <button 
-                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                @click.prevent="startDownload(result)" 
-                class="btn btn-outline-primary btn-sm"
-                type="button"
-                :disabled="downloading[result.id] === true"
-                title="Descargar datos CSV de OWID"
-              >
-                <i x-show="!downloading[result.id]" class="bi bi-download"></i>
-                <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
-              </button>
-              
-              <!-- Remote OWID: Link to website -->
-              <a 
-                x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                :href="'https://ourworldindata.org/grapher/' + (result.slug || '')"
-                target="_blank"
-                class="btn btn-link btn-sm"
-                title="Ver en Our World in Data"
-              >
-                <i class="bi bi-box-arrow-up-right"></i>
-              </a>
-              
-               <!-- Local download button -->
-               <button 
-                 x-show="!result.remote"
-                 @click.prevent="startDownload(result)" 
-                 class="btn btn-outline-primary btn-sm"
-                 type="button"
-                 :disabled="downloading[result.id] === true"
-                 title="Descargar datos CSV"
-               >
-                 <i x-show="!downloading[result.id]" class="bi bi-download"></i>
-                 <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
-               </button>
-               
-               <!-- View versions in Browse Local -->
-               <button
-                 class="btn btn-outline-secondary btn-sm"
-                 @click.prevent="openBrowseVersions(result)"
-                 title="View versions in Browse Local"
-               >
-                 <i class="bi bi-clock-history"></i>
-               </button>
+  <!-- Results Section -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <span class="text-gold fw-semibold" x-text="results.length"></span>
+        <span class="text-secondary"> Results</span>
+        <span x-show="query || source" class="text-secondary">
+          for "<strong class="text-gold" x-text="query"></strong>"
+          <span x-show="source"> in <span class="badge badge-source" x-text="source.toUpperCase()"></span></span>
+        </span>
+      </div>
+      <!-- Source breakdown badges -->
+      <div x-show="searchMetadata && searchMetadata.sources" class="d-flex gap-2">
+        <span class="badge badge-secondary badge-pill">
+          <i class="bi bi-hdd me-1"></i>Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
+        </span>
+        <span class="badge badge-info badge-pill" x-show="searchMetadata?.sources?.owid">
+          <i class="bi bi-cloud me-1"></i>OWID: <span x-text="searchMetadata?.sources?.owid || 0"></span>
+        </span>
+        <span class="badge badge-oecd badge-pill" x-show="searchMetadata?.sources?.oecd">
+          OECD: <span x-text="searchMetadata?.sources?.oecd || 0"></span>
+        </span>
+      </div>
+    </div>
+    
+    <div class="card-body p-0">
+      <!-- Success/Error Messages -->
+      <div x-show="successMessage" class="alert alert-success m-3" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span x-text="successMessage"></span>
+      </div>
+      <div x-show="error" class="alert alert-warning m-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span x-text="error"></span>
+      </div>
+      
+      <!-- Results Table -->
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 30%">Indicator</th>
+            <th style="width: 35%">Description</th>
+            <th style="width: 15%">Source</th>
+            <th style="width: 20%" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(result, index) in results" :key="result.id || index">
+            <tr>
+              <td>
+                <div class="fw-semibold" x-text="result.indicator || 'N/A'"></div>
+                <div class="small text-muted" x-show="result.tags">
+                  <i class="bi bi-tags me-1"></i><span x-text="result.tags"></span>
+                </div>
+              </td>
+              <td class="small text-secondary" x-text="result.description || ''"></td>
+              <td>
+                <span 
+                  class="badge badge-pill"
+                  :class="{
+                    'badge-bcch': result.source?.toLowerCase() === 'bcch',
+                    'badge-oecd': result.source?.toLowerCase() === 'oecd',
+                    'badge-worldbank': result.source?.toLowerCase() === 'worldbank',
+                    'badge-fred': result.source?.toLowerCase() === 'fred',
+                    'badge-info': !['bcch','oecd','worldbank','fred'].includes(result.source?.toLowerCase())
+                  }"
+                  x-text="result.source || 'N/A'"
+                ></span>
+                <template x-if="result.remote">
+                  <span class="badge badge-secondary badge-pill ms-1" title="From external API">
+                    <i class="bi bi-cloud-arrow-down"></i>
+                  </span>
+                </template>
+              </td>
+              <td class="text-end">
+                <div class="action-buttons">
+                  <!-- Downloaded badge -->
+                  <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
+                    <i class="bi bi-check-circle-fill"></i> Downloaded
+                  </span>
+                  
+                  <!-- Remote OWID: Preview button -->
+                  <button
+                    x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                    @click.prevent="previewRemote(result)"
+                    class="btn btn-outline-light btn-sm btn-icon"
+                    type="button"
+                    title="Preview chart"
+                  >
+                    <i class="bi bi-eye"></i>
+                  </button>
 
-              
-              <!-- Remote non-OWID download button -->
-              <button 
-                x-show="result.remote && !(result.source === 'OWID' || result.source?.includes('OWID'))"
-                @click.prevent="startDownload(result)" 
-                class="btn btn-outline-primary btn-sm"
-                type="button"
-                :disabled="downloading[result.id] === true"
-                title="Descargar datos CSV desde API"
-              >
-                <i x-show="!downloading[result.id]" class="bi bi-download"></i>
-                <i x-show="downloading[result.id]" class="bi bi-arrow-repeat"></i>
-              </button>
-            </div>
-          </td>
-        </tr>
-      </template>
-      <tr x-show="results.length === 0 && !loading">
-        <td colspan="4" class="text-center text-secondary py-4">
-          <span x-show="!query && !source">Escribe algo para buscar...</span>
-          <span x-show="(query || source) && results.length === 0">Sin resultados</span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+                  <!-- Download button (all types) -->
+                  <button 
+                    @click.prevent="startDownload(result)" 
+                    class="btn btn-outline-primary btn-sm"
+                    type="button"
+                    :disabled="downloading[result.id] === true"
+                    title="Download CSV data"
+                  >
+                    <i x-show="!downloading[result.id]" class="bi bi-download"></i>
+                    <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
+                  </button>
+                  
+                  <!-- Remote OWID: Link to website -->
+                  <a 
+                    x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                    :href="'https://ourworldindata.org/grapher/' + (result.slug || '')"
+                    target="_blank"
+                    class="btn btn-outline-light btn-sm btn-icon"
+                    title="View on Our World in Data"
+                  >
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </a>
+                  
+                  <!-- View versions in Browse Local -->
+                  <button
+                    class="btn btn-outline-light btn-sm btn-icon"
+                    @click.prevent="openBrowseVersions(result)"
+                    title="View version history"
+                  >
+                    <i class="bi bi-clock-history"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+          
+          <!-- Empty State -->
+          <tr x-show="results.length === 0 && !loading">
+            <td colspan="4" class="text-center py-5">
+              <div class="empty-state">
+                <i class="bi bi-search"></i>
+                <h5 x-show="!query && !source">Start your search</h5>
+                <p x-show="!query && !source">Enter keywords to search for economic indicators across multiple data sources.</p>
+                <h5 x-show="(query || source)">No results found</h5>
+                <p x-show="(query || source)">Try different keywords or select a different data source.</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <!-- Preview Modal - PNG from OWID -->
 <div class="modal fade" id="owidPreviewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 id="owidPreviewTitle" class="modal-title">📊 Gráfico OWID</h5>
+        <h5 id="owidPreviewTitle" class="modal-title">
+          <i class="bi bi-bar-chart-line text-gold me-2"></i>
+          Chart Preview
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       
-      <div class="modal-body text-center">
+      <div class="modal-body text-center" style="min-height: 300px;">
         <!-- Loading spinner -->
         <div id="owidPreviewSpinner" class="py-5">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-          <div class="text-secondary small mt-2">Cargando gráfico...</div>
+          <div class="spinner text-center mx-auto mb-3"></div>
+          <div class="text-secondary small">Loading chart from Our World in Data...</div>
         </div>
         
         <!-- Error message -->
-        <div id="owidPreviewError" class="alert alert-warning d-none" role="alert"></div>
+        <div id="owidPreviewError" class="alert alert-warning d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span></span>
+        </div>
         
         <!-- PNG Image -->
-        <img id="owidPreviewImage" src="" alt="OWID Chart" style="max-width: 100%; height: auto; display: none;" />
+        <img id="owidPreviewImage" src="" alt="OWID Chart" class="rounded-lg" style="max-width: 100%; height: auto; display: none;" />
       </div>
       
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
         <a id="downloadChartLink" href="#" class="btn btn-primary" download>
-          <i class="bi bi-download"></i> Descargar PNG
+          <i class="bi bi-download"></i> Download PNG
         </a>
       </div>
-    </div>
-  </div>
-</div>
     </div>
   </div>
 </div>

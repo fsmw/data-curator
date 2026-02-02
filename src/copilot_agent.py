@@ -25,6 +25,7 @@ from pathlib import Path
 try:
     from copilot import CopilotClient, CopilotSession
     from copilot import Tool
+    from copilot.types import SessionConfig, SystemMessageReplaceConfig
     COPILOT_SDK_AVAILABLE = True
 except ImportError as e:
     COPILOT_SDK_AVAILABLE = False
@@ -68,6 +69,7 @@ class MisesCopilotAgent:
         self.client: Optional[CopilotClient] = None
         self.session: Optional[CopilotSession] = None
         self.tools: Dict[str, Any] = {}
+        self._system_prompt: str = ""  # Will be set when creating session
         
         # Initialize the client
         self._initialize_client()
@@ -76,50 +78,21 @@ class MisesCopilotAgent:
         self._register_mcp_tools()
     
     def _initialize_client(self) -> None:
-        """Initialize the Copilot SDK client with BYOK configuration."""
+        """Initialize the Copilot SDK client.
+        
+        Uses GitHub Copilot CLI authentication and subscription.
+        The CLI must be installed and authenticated separately.
+        """
         try:
-            # Get configuration
-            llm_config = self.config.get_llm_config()
-            
-            # Check if we should use BYOK (Bring Your Own Key)
-            provider = llm_config.get('provider', 'openrouter')
-            
-            if provider == 'openrouter':
-                # Use OpenRouter API key
-                api_key = os.getenv('OPENROUTER_API_KEY') or llm_config.get('api_key')
-                model = os.getenv('OPENROUTER_MODEL') or llm_config.get('model', 'anthropic/claude-3.5-sonnet')
-                
-                if not api_key:
-                    print("⚠️  Warning: No OpenRouter API key found. Set OPENROUTER_API_KEY in .env")
-                    print("   Falling back to GitHub Copilot default (requires Copilot subscription)")
-                    
-                    # Initialize without BYOK - uses GitHub Copilot subscription
-                    self.client = CopilotClient()
-                else:
-                    # Initialize with BYOK
-                    self.client = CopilotClient(
-                        api_key=api_key,
-                        model=model
-                    )
-                    print(f"✅ Copilot client initialized with BYOK (model: {model})")
-                    
-            elif provider == 'ollama':
-                # Ollama local deployment
-                host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-                model = os.getenv('OLLAMA_MODEL', 'gpt-oss:120b-cloud')
-                
-                print(f"🦙 Using Ollama at {host} with model {model}")
-                # Note: Copilot SDK may not support Ollama directly yet
-                # This is a placeholder for future integration
-                self.client = CopilotClient()
-                
-            else:
-                # Default initialization
-                self.client = CopilotClient()
-                print("✅ Copilot client initialized (using GitHub Copilot subscription)")
+            # Initialize Copilot SDK client
+            # The client will use the authenticated Copilot CLI automatically
+            self.client = CopilotClient()
+            print("✅ Copilot SDK client initialized (using GitHub Copilot subscription)")
+            print("   Note: Ensure copilot CLI is installed and authenticated")
                 
         except Exception as e:
             print(f"❌ Error initializing Copilot client: {e}")
+            print("   Install Copilot CLI: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli")
             raise
     
     def _register_mcp_tools(self) -> None:
@@ -131,10 +104,13 @@ class MisesCopilotAgent:
                 download_owid,
                 get_metadata,
                 analyze_data,
+                recommend_datasets,
                 TOOL_REGISTRY
             )
             
-            # Register each tool
+            # Store tool functions and metadata
+            # Note: The Copilot SDK discovers tools through MCP protocol,
+            # not through direct registration in Python
             for tool_name, tool_info in TOOL_REGISTRY.items():
                 self.register_tool(
                     name=tool_name,
@@ -180,24 +156,54 @@ class MisesCopilotAgent:
             raise RuntimeError("Client not initialized. Call start() first.")
         
         # Default system prompt for data curation
-        default_prompt = """You are a data curation assistant for Mises Data Curator.
-You help users explore, analyze, and understand economic datasets.
-You have access to tools for searching datasets, downloading data, analyzing trends,
-and generating visualizations. Always be helpful, accurate, and concise."""
+        default_prompt = """You are an expert data analyst for Mises Data Curator, specializing in economic datasets.
+
+**Your Role:**
+- Act as an intelligent analyst, not just a tool executor
+- Use tools INTERNALLY to gather information, then synthesize findings
+- Process and analyze data before presenting to users
+- Provide actionable insights and contextualized answers
+
+**Response Guidelines:**
+1. When users ask about data availability: Use tools to search/explore, then explain what you found in plain language with key insights
+2. Never dump raw tool output or technical details like indicator IDs unless specifically asked
+3. Focus on answering "what this means for the user" rather than "what the system contains"
+4. Provide context: data coverage, time periods, notable gaps, quality notes
+5. Suggest next steps or related analyses when appropriate
+
+**Tool Usage Philosophy:**
+- Tools are YOUR research instruments, not user-facing outputs
+- Call tools to gather facts, then THINK about what matters
+- Synthesize multiple tool results into coherent insights
+- Present findings as a knowledgeable analyst would, not as API responses
+
+**Example Approach:**
+User: "Tell me about inflation data"
+❌ BAD: List indicator IDs and dump technical metadata
+✅ GOOD: "We have comprehensive inflation data from two major sources. The OWID dataset covers consumer prices for 186 countries from 2015-2024, while IMF provides both historical data and forecasts. Coverage is particularly strong for Latin America. I can help you analyze trends for specific countries or compare regional patterns."
+
+Always be helpful, insightful, and user-focused."""
         
-        session_config = {
-            'model': 'gpt-4',  # Can be overridden
-        }
+        # Build SessionConfig with system message
+        config = SessionConfig()
         
         if session_id:
-            session_config['session_id'] = session_id
-            
-        if system_prompt:
-            session_config['system_prompt'] = system_prompt
-        else:
-            session_config['system_prompt'] = default_prompt
+            config['session_id'] = session_id
         
-        self.session = await self.client.create_session(**session_config)
+        # Set system message using SystemMessageReplaceConfig
+        prompt_to_use = system_prompt if system_prompt else default_prompt
+        config['system_message'] = SystemMessageReplaceConfig(
+            mode='replace',
+            content=prompt_to_use
+        )
+        
+        # Note: Tools are registered globally via _register_mcp_tools()
+        # The SDK discovers them automatically through the MCP protocol
+        # No need to pass them explicitly in SessionConfig
+        
+        self._system_prompt = prompt_to_use  # Store for reference
+        
+        self.session = await self.client.create_session(config)
         return self.session
     
     async def chat(
@@ -227,8 +233,13 @@ and generating visualizations. Always be helpful, accurate, and concise."""
                 # Streaming response
                 response_text = ""
                 async for chunk in self.session.send_streaming({'prompt': message}):
-                    response_text += chunk.content
-                    # Could yield chunks here for real-time updates
+                    # chunk is likely a string directly
+                    if isinstance(chunk, str):
+                        response_text += chunk
+                    elif hasattr(chunk, 'content'):
+                        response_text += chunk.content
+                    else:
+                        response_text += str(chunk)
                 
                 return {
                     'status': 'success',
@@ -237,15 +248,20 @@ and generating visualizations. Always be helpful, accurate, and concise."""
                     'streamed': True
                 }
             else:
-                # Regular response
-                response = await self.session.send({'prompt': message})
+                # Regular response - use send_and_wait() which returns a SessionEvent
+                response = await self.session.send_and_wait({'prompt': message})
+                
+                # Extract text from SessionEvent.data.content
+                response_text = ""
+                if hasattr(response, 'data') and hasattr(response.data, 'content') and response.data.content:
+                    response_text = response.data.content
+                else:
+                    response_text = str(response)
                 
                 return {
                     'status': 'success',
-                    'text': response.content,
+                    'text': response_text,
                     'session_id': self.session.session_id,
-                    'model': response.model if hasattr(response, 'model') else None,
-                    'tools_called': response.tool_calls if hasattr(response, 'tool_calls') else [],
                     'streamed': False
                 }
                 

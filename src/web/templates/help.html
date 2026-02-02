@@ -1,12 +1,130 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card p-3">
-  <h5 class="mb-3">Ayuda y atajos</h5>
-  <ul class="list-unstyled mb-0 text-secondary small">
-    <li>1-7 Navegación rápida</li>
-    <li>/ Buscar</li>
-    <li>D Descarga</li>
-    <li>H Ayuda</li>
-  </ul>
+<div class="row g-4">
+  <!-- Getting Started -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title"><i class="bi bi-rocket-takeoff"></i> Getting Started</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-secondary mb-4">
+          Mises Data Curator is a comprehensive tool for discovering, downloading, and managing economic data from major international sources.
+        </p>
+        
+        <h6 class="text-gold mb-3">Basic Workflow</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="panel-surface p-3 h-100">
+              <div class="d-flex align-items-center mb-2">
+                <span class="badge badge-primary me-2">1</span>
+                <strong>Search</strong>
+              </div>
+              <p class="small text-secondary mb-0">Find indicators using keywords or browse by source.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="panel-surface p-3 h-100">
+              <div class="d-flex align-items-center mb-2">
+                <span class="badge badge-primary me-2">2</span>
+                <strong>Download</strong>
+              </div>
+              <p class="small text-secondary mb-0">Click download to fetch data from the source API.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="panel-surface p-3 h-100">
+              <div class="d-flex align-items-center mb-2">
+                <span class="badge badge-primary me-2">3</span>
+                <strong>Analyze</strong>
+              </div>
+              <p class="small text-secondary mb-0">Use the AI Copilot to explore and analyze your data.</p>
+            </div>
+          </div>
+        </div>
+
+        <h6 class="text-gold mb-3">Available Data Sources</h6>
+        <div class="d-flex flex-wrap gap-2 mb-4">
+          <span class="badge badge-bcch badge-pill">BCCH (Chile Central Bank)</span>
+          <span class="badge badge-oecd badge-pill">OECD</span>
+          <span class="badge badge-worldbank badge-pill">World Bank</span>
+          <span class="badge badge-fred badge-pill">FRED</span>
+          <span class="badge badge-info badge-pill">IMF</span>
+          <span class="badge badge-info badge-pill">ILOSTAT</span>
+          <span class="badge badge-info badge-pill">OWID</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title"><i class="bi bi-keyboard"></i> Keyboard Shortcuts</h5>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled mb-0">
+          <li class="d-flex justify-content-between py-2 border-bottom border-dark">
+            <span class="text-secondary">Quick Navigation</span>
+            <kbd class="bg-surface">1-7</kbd>
+          </li>
+          <li class="d-flex justify-content-between py-2 border-bottom border-dark">
+            <span class="text-secondary">Search</span>
+            <kbd class="bg-surface">/</kbd>
+          </li>
+          <li class="d-flex justify-content-between py-2 border-bottom border-dark">
+            <span class="text-secondary">Download</span>
+            <kbd class="bg-surface">D</kbd>
+          </li>
+          <li class="d-flex justify-content-between py-2">
+            <span class="text-secondary">Help</span>
+            <kbd class="bg-surface">H</kbd>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5 class="card-title"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="/search" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-search me-2"></i>Search Data
+          </a>
+          <a href="/browse/available" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-database me-2"></i>Browse Sources
+          </a>
+          <a href="/copilot" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-robot me-2"></i>AI Copilot
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Section -->
+  <div class="col-12">
+    <div class="card card-featured">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h5 class="text-gold mb-2">About Instituto Mises Cono Sur</h5>
+            <p class="text-secondary mb-0">
+              Mises Cono Sur is an academic center that, inspired by the Austrian School of Economics, trains leaders and citizens committed to building free, prosperous, and democratic societies.
+            </p>
+          </div>
+          <div class="col-md-4 text-end">
+            <a href="https://misesconosur.org" target="_blank" class="btn btn-primary">
+              <i class="bi bi-globe me-2"></i>Visit Website
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

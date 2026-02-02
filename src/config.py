@@ -57,38 +57,24 @@ class Config:
         return self.data_root / dir_name
 
     def get_llm_config(self) -> Dict[str, Any]:
-        """Get LLM configuration.
+        """Get LLM configuration for GitHub Copilot SDK.
 
-        Supports multiple backends via env var `LLM_PROVIDER`:
-          - `openrouter` (default) : Uses OpenRouter / OpenAI-compatible client
-          - `ollama`               : Uses local Ollama server (http://localhost:11434)
+        Uses GitHub Copilot subscription (requires authentication via copilot CLI).
+        The Copilot CLI manages all models and authentication automatically.
+        
+        Configuration via config.yaml:
+          - max_tokens: Maximum tokens per request
+          - temperature: Response randomness (0-1)
+          - system_prompt: System prompt for agent
+        
+        Note: Requires copilot CLI installed and authenticated.
         """
-        provider = os.getenv("LLM_PROVIDER", "openrouter").lower()
         llm_cfg = {
-            "provider": provider,
+            "provider": "copilot_sdk",  # Always use GitHub Copilot SDK
             "max_tokens": self.config["llm"]["max_tokens"],
             "temperature": self.config["llm"]["temperature"],
             "system_prompt": self.config["llm"]["system_prompt"],
         }
-
-        if provider == "ollama":
-            # Ollama runs a local HTTP server (default port 11434)
-            llm_cfg.update(
-                {
-                    "host": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-                    "model": os.getenv("OLLAMA_MODEL", "llama2"),
-                }
-            )
-        else:
-            # Default: OpenRouter / OpenAI-compatible
-            llm_cfg.update(
-                {
-                    "api_key": os.getenv("OPENROUTER_API_KEY"),
-                    "model": os.getenv(
-                        "OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet"
-                    ),
-                }
-            )
 
         return llm_cfg
 

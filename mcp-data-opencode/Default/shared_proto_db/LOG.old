@@ -1,3 +1,3 @@
-2026/02/01-12:52:23.348 199477 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/shared_proto_db/MANIFEST-000001
-2026/02/01-12:52:23.348 199477 Recovering log #3
-2026/02/01-12:52:23.348 199477 Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/shared_proto_db/000003.log 
+2026/02/01-13:54:04.050 1acd2b Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/shared_proto_db/MANIFEST-000001
+2026/02/01-13:54:04.050 1acd2b Recovering log #3
+2026/02/01-13:54:04.050 1acd2b Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/shared_proto_db/000003.log 

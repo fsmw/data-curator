@@ -1,0 +1,24 @@
+{
+  "dataset_name": "",
+  "topic": "general",
+  "suggested_prompts": [
+    "Analyze trends and patterns in ",
+    "Identify outliers or anomalies in ",
+    "Compare values across different countries/regions in ",
+    "What is the historical evolution of ?",
+    "Which countries have the highest and lowest values for ?"
+  ],
+  "analysis_types": [
+    "Trend analysis",
+    "Comparative analysis",
+    "Outlier detection",
+    "Correlation analysis",
+    "Regional comparison",
+    "Time series forecasting"
+  ],
+  "context_hints": {
+    "unit": "",
+    "time_range": {},
+    "geographic_coverage": "Regional"
+  }
+}

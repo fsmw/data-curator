@@ -16,6 +16,8 @@ from flask import (
     request,
     jsonify,
     session,
+    redirect,
+    url_for,
 )
 
 # Import the real search functionality
@@ -92,7 +94,6 @@ NAV_ITEMS: List[Dict[str, str]] = [
     {"slug": "status", "label": "Status", "icon": "house"},
     {"slug": "browse_local", "label": "Browse Local", "icon": "folder"},
     {"slug": "copilot_chat", "label": "AI Chat", "icon": "robot"},
-    {"slug": "browse_available", "label": "Browse Available", "icon": "cloud-download"},
     {"slug": "search", "label": "Search", "icon": "search"},
     {"slug": "help", "label": "Help", "icon": "question-circle"},
 ]
@@ -136,11 +137,9 @@ def browse_local() -> str:
 
 @ui_bp.route("/browse/available")
 @ui_bp.route("/browse_available")
-def browse_available() -> str:
-    ctx = base_context(
-        "browse_available", "Browse Available", "Indicadores disponibles para descargar"
-    )
-    return render_template("browse_available.html", **ctx)
+def browse_available() -> Response:
+    """Redirect to search view (consolidated view)."""
+    return redirect(url_for("ui.search"))
 
 
 @ui_bp.route("/search")
@@ -1331,99 +1330,31 @@ def get_dataset_versions() -> Response:
 
 @ui_bp.route('/api/llm/models')
 def get_llm_models() -> Response:
-    """Return available models for a given LLM provider.
+    """Return available models for GitHub Copilot SDK.
 
-    Query params:
-        provider: 'ollama' or 'openrouter' (default: openrouter)
+    Returns models available via GitHub Copilot subscription.
+    Requires copilot CLI installed and authenticated.
     """
     try:
-        provider = request.args.get('provider', 'openrouter').lower()
         config = Config()
         llm_cfg = config.get_llm_config()
-
-        if provider == 'ollama':
-            # Query local Ollama HTTP API for models; try several common endpoints
-            host = llm_cfg.get('host', 'http://localhost:11434').rstrip('/')
-            import requests as _requests
-
-            endpoints = ["/v1/models", "/api/models", "/models"]
-            models = []
-            tried = []
-            last_error = None
-
-            for ep in endpoints:
-                url = f"{host}{ep}"
-                tried.append(url)
-                try:
-                    resp = _requests.get(url, timeout=5)
-                    if resp.status_code != 200:
-                        # record and continue
-                        last_error = f"HTTP {resp.status_code} for {url}"
-                        continue
-                    try:
-                        data = resp.json()
-                    except Exception:
-                        data = resp.text
-
-                    # Normalize multiple shapes
-                    if isinstance(data, dict):
-                        if "data" in data and isinstance(data["data"], list):
-                            for item in data["data"]:
-                                if isinstance(item, dict) and "id" in item:
-                                    models.append(item["id"])
-                                elif isinstance(item, str):
-                                    models.append(item)
-                        elif "models" in data and isinstance(data["models"], list):
-                            for m in data["models"]:
-                                if isinstance(m, str):
-                                    models.append(m)
-                                elif isinstance(m, dict):
-                                    name = m.get("name") or m.get("id") or m.get("model")
-                                    tag = m.get("tag") or m.get("version")
-                                    if name and tag:
-                                        models.append(f"{name}:{tag}")
-                                    elif name:
-                                        models.append(name)
-                        else:
-                            # try to extract ids from lists inside dict
-                            for v in data.values():
-                                if isinstance(v, list):
-                                    for it in v:
-                                        if isinstance(it, dict) and "id" in it:
-                                            models.append(it["id"])
-                    elif isinstance(data, list):
-                        for m in data:
-                            if isinstance(m, str):
-                                models.append(m)
-                            elif isinstance(m, dict):
-                                name = m.get("name") or m.get("id") or m.get("model")
-                                tag = m.get("tag") or m.get("version")
-                                if name and tag:
-                                    models.append(f"{name}:{tag}")
-                                elif name:
-                                    models.append(name)
-
-                    # If we found models, stop trying further endpoints
-                    if models:
-                        break
-
-                except Exception as e:
-                    last_error = str(e)
-                    continue
-
-            if models:
-                return jsonify({"status": "success", "provider": "ollama", "models": models}), 200
-            else:
-                # If we could not fetch models, return 502 Bad Gateway with details
-                msg = f"No models found from Ollama (tried: {', '.join(tried)}). Last error: {last_error}"
-                print(msg)
-                return jsonify({"status": "error", "provider": "ollama", "message": msg, "tried": tried}), 502
-
-        else:
-            # For OpenRouter or default, return configured model and a small default list
-            configured_model = llm_cfg.get('model')
-            default_models = [configured_model] if configured_model else ["gpt-oss-small", "gpt-oss-medium"]
-            return jsonify({"status": "success", "provider": "openrouter", "models": default_models}), 200
+        
+        # Default models available with Copilot subscription
+        # Actual availability depends on subscription tier and Copilot CLI version
+        available_models = [
+            "gpt-4.1",           # Latest GPT-4 Turbo
+            "claude-3.5-sonnet", # Anthropic Claude 3.5 Sonnet
+            "claude-3-opus",     # Anthropic Claude 3 Opus
+            "gpt-4",             # GPT-4
+        ]
+        
+        return jsonify({
+            "status": "success",
+            "provider": "github_copilot_sdk",
+            "source": "GitHub Copilot subscription",
+            "models": available_models,
+            "note": "Actual availability depends on your Copilot subscription tier"
+        }), 200
 
     except Exception as e:
         import traceback
@@ -1492,6 +1423,64 @@ def get_copilot_agent():
     return _copilot_agent
 
 
+def run_async(coro):
+    """
+    Run an async coroutine in a way that works with Flask.
+    
+    Flask runs in a threaded environment, so we need to handle
+    event loops carefully to avoid "Event loop is closed" errors.
+    """
+    import asyncio
+    import threading
+    
+    result_container = []
+    error_container = []
+    
+    def run_in_thread():
+        try:
+            # Create fresh event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(coro)
+                result_container.append(result)
+            finally:
+                loop.close()
+        except Exception as e:
+            error_container.append(e)
+    
+    thread = threading.Thread(target=run_in_thread, daemon=True)
+    thread.start()
+    thread.join(timeout=60)  # 60 second timeout
+    
+    if error_container:
+        raise error_container[0]
+    
+    if thread.is_alive():
+        raise TimeoutError("Copilot request timed out after 60 seconds")
+    
+    if result_container:
+        return result_container[0]
+    
+    raise RuntimeError("No result from async operation")
+
+
+@ui_bp.route("/api/copilot/history/<session_id>", methods=["GET"])
+def copilot_get_history(session_id: str) -> Response:
+    """Get chat history for a session (currently empty - using localStorage on client)."""  
+    try:
+        return jsonify({
+            "status": "success",
+            "messages": [],
+            "session_id": session_id
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
 @ui_bp.route("/api/copilot/chat", methods=["POST"])
 def copilot_chat() -> Response:
     """
@@ -1538,11 +1527,30 @@ def copilot_chat() -> Response:
                 "error": "Failed to initialize Copilot agent"
             }), 500
         
-        # Process message
-        import asyncio
-        response = asyncio.run(agent.chat(message, session_id=session_id, stream=stream))
+        # Debug logging
+        print(f"📝 Received message: {message[:100]}...")
+        print(f"📝 Session ID: {session_id}")
         
-        return jsonify(response), 200
+        # Get or create session ID
+        if not session_id:
+            import uuid
+            session_id = str(uuid.uuid4())
+        
+        # Process message with timeout
+        try:
+            response = run_async(agent.chat(message, session_id=session_id, stream=stream))
+            
+            print(f"✅ Got response status: {response.get('status')}")
+            return jsonify(response), 200
+            
+        except TimeoutError as e:
+            error_msg = str(e)
+            return jsonify({
+                "status": "error",
+                "error": error_msg,
+                "text": error_msg,
+                "session_id": session_id
+            }), 504
         
     except Exception as e:
         import traceback
@@ -1584,15 +1592,13 @@ def copilot_chat_stream() -> Response:
                 yield f"data: {json.dumps({'error': 'Agent not initialized'})}\n\n"
                 return
             
-            import asyncio
-            
             # Start streaming response
             yield f"data: {json.dumps({'type': 'start'})}\n\n"
             
             try:
                 # TODO: Implement actual streaming when SDK supports it
                 # For now, send complete response
-                response = asyncio.run(agent.chat(message, session_id=session_id, stream=False))
+                response = run_async(agent.chat(message, session_id=session_id, stream=False))
                 
                 if response.get('status') == 'success':
                     yield f"data: {json.dumps({'type': 'content', 'text': response.get('text', '')})}\n\n"
