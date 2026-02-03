@@ -5,6 +5,16 @@ from typing import Optional, Dict, Any
 import pandas as pd
 import re
 from datetime import datetime
+try:
+    import pandera as pa
+    from pandera.typing import DataFrame, Series
+except ImportError:
+    pa = None
+
+try:
+    import pyarrow
+except ImportError:
+    pyarrow = None
 
 
 class DataCleaner:
@@ -93,9 +103,33 @@ class DataCleaner:
 
         # Normalize dates
         if rules.get("normalize_dates", True):
+
             df = self._normalize_dates(df)
+            
+        # Validation (Phase 6)
+        if rules.get("validate_schema", True) and pa is not None:
+            df = self._validate_schema(df)
 
         return df
+
+    def _validate_schema(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Validate dataframe against economic data schema."""
+        try:
+            # Dynamic schema based on columns
+            columns = {}
+            for col in df.columns:
+                if "year" in col or "date" in col:
+                     columns[col] = pa.Column(coerce=True, nullable=True)
+                elif pd.api.types.is_numeric_dtype(df[col]):
+                     columns[col] = pa.Column(float, nullable=True)
+                else:
+                     columns[col] = pa.Column(str, nullable=True)
+            
+            schema = pa.DataFrameSchema(columns=columns)
+            return schema.validate(df)
+        except Exception as e:
+            print(f"Schema validation warning: {e}")
+            return df
 
     def _standardize_countries(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -200,9 +234,10 @@ class DataCleaner:
         start_year: Optional[int] = None,
         end_year: Optional[int] = None,
         identifier: Optional[str] = None,
+        format: str = "csv"
     ) -> Path:
         """
-        Save cleaned dataset following naming convention. Filenames now include an optional
+        Save cleaned dataset. Supports CSV and Parquet.
         identifier (slug or id) and a timestamp to avoid collisions.
 
         Args:
@@ -279,8 +314,13 @@ class DataCleaner:
         topic_dir = self.clean_dir / topic
         topic_dir.mkdir(parents=True, exist_ok=True)
         filepath = topic_dir / filename
-
-        data.to_csv(filepath, index=False, encoding="utf-8")
+        
+        if format == "parquet":
+            filepath = filepath.with_suffix(".parquet")
+            data.to_parquet(filepath, index=False)
+        else:
+            data.to_csv(filepath, index=False, encoding="utf-8")
+            
         print(f"✓ Saved cleaned dataset to {filepath}")
 
         return filepath

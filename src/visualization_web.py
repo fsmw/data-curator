@@ -13,20 +13,32 @@ class VegaLiteChartBuilder:
     """Build Vega-Lite specifications for web display."""
 
     # Professional color palette for economic data
+    # Defaults; overwritten if brand assets are loaded
     PROFESSIONAL_COLORS = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-        "#aec7e8",
-        "#ffbb78",
+        "#002b36", "#b58900", "#cb4b16", "#dc322f", 
+        "#d33682", "#6c71c4", "#268bd2", "#2aa198", "#859900"
     ]
+
+    @staticmethod
+    def _load_brand_colors():
+        """Attempt to load brand colors from assets."""
+        try:
+            from pathlib import Path
+            import json
+            # Assume file is at assets/brand/colors.json relative to project root
+            # src/visualization_web.py -> src -> root
+            path = Path(__file__).parent.parent / "assets" / "brand" / "colors.json"
+            if path.exists():
+                with open(path, 'r') as f:
+                    brand = json.load(f)
+                    if "chart_sequence" in brand:
+                        VegaLiteChartBuilder.PROFESSIONAL_COLORS = brand["chart_sequence"]
+        except Exception as e:
+            print(f"Warning: Could not load brand colors: {e}")
+
+    # Load on class definition (or first access if preferred, but simple here)
+    # _load_brand_colors() calls are usually inside methods or executed once
+
 
     @staticmethod
     def build_time_series(
@@ -364,4 +376,8 @@ class ChartExporter:
             }}
           }});
         </script>
+        </script>
         """
+
+# Initialize branded colors if available
+VegaLiteChartBuilder._load_brand_colors()

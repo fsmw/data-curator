@@ -610,5 +610,83 @@ def index(filepath, force, clean, stats, config):
         raise click.Abort()
 
 
+
+@cli.command()
+@click.argument("filepath", type=click.Path(exists=True))
+@click.option(
+    "--type",
+    "analysis_type",
+    type=click.Choice(["descriptive", "regression", "panel", "compare"]),
+    default="descriptive",
+    help="Type of analysis to perform",
+)
+@click.option("--formula", help="Formula for regression or panel models (e.g. 'y ~ x1 + x2')")
+@click.option("--group-col", help="Column for group comparison")
+@click.option("--value-col", help="Value column for comparison")
+@click.option("--entity-col", help="Entity column for panel data (e.g. country)")
+@click.option("--time-col", help="Time column for panel data (e.g. year)")
+@click.option("--config", default="config.yaml", help="Path to configuration file")
+def analyze(
+    filepath,
+    analysis_type,
+    formula,
+    group_col,
+    value_col,
+    entity_col,
+    time_col,
+    config,
+):
+    """
+    Perform statistical analysis on a dataset.
+    
+    Supports:
+    - Descriptive statistics (default)
+    - Group comparisons (t-test, ANOVA)
+    - OLS Regression
+    - Panel Data Fixed Effects
+    """
+    from .analysis import analyze_dataset
+    
+    click.echo(f"📊 Running {analysis_type} analysis on {filepath}...")
+    
+    try:
+        results = analyze_dataset(
+            filepath=filepath,
+            analysis_type=analysis_type,
+            formula=formula,
+            group_col=group_col,
+            value_col=value_col,
+            entity_col=entity_col,
+            time_col=time_col
+        )
+        
+        if "error" in results:
+            click.echo(f"❌ Error: {results['error']}", err=True)
+            return
+
+        click.echo("\n📈 Results:\n")
+        
+        if analysis_type == "descriptive":
+            # Pretty print summary dataframe
+            df_summary = pd.DataFrame(results["summary"])
+            click.echo(df_summary.to_string())
+            
+        elif analysis_type == "compare":
+             click.echo(f"Test: {results['test']}")
+             click.echo(f"Statistic: {results['statistic']:.4f}")
+             click.echo(f"P-value: {results['p_value']:.4f}")
+             click.echo(f"Significant (p<0.05): {'YES' if results['significant_05'] else 'NO'}")
+             
+        elif analysis_type in ["regression", "panel"]:
+             click.echo(results.get("summary", "No summary available"))
+             
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        import traceback
+        traceback.print_exc()
+        raise click.Abort()
+
+
 if __name__ == "__main__":
     cli()
+

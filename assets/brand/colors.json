@@ -1,0 +1,19 @@
+{
+    "primary": "#3B82F6",
+    "secondary": "#10B981",
+    "accent": "#8B5CF6",
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "text": "#0F172A",
+    "chart_sequence": [
+        "#3B82F6",
+        "#10B981",
+        "#8B5CF6",
+        "#F59E0B",
+        "#EC4899",
+        "#6366F1",
+        "#14B8A6",
+        "#F43F5E"
+    ],
+    "font_family": "Inter, system-ui, sans-serif"
+}

@@ -35,3 +35,16 @@ plotly>=5.0
 kaleido
 
 github-copilot-sdk
+
+# Statistical Analysis (Freedom Data Phase 2)
+statsmodels>=0.14.0
+linearmodels>=5.0
+scipy>=1.10.0
+
+# Efficient Data Processing (Freedom Data Phase 5)
+polars>=0.20.0
+pyarrow>=14.0.0
+
+# Schema Validation (Freedom Data Phase 6)
+pandera>=0.18.0
+

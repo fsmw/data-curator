@@ -1674,3 +1674,106 @@ def copilot_chat_page() -> str:
     )
     ctx["copilot_available"] = COPILOT_AVAILABLE
     return render_template("copilot_chat.html", **ctx)
+
+# ... (existing code)
+
+@ui_bp.route("/api/analyze/descriptive", methods=["POST"])
+def analyze_descriptive() -> Response:
+    """API endpoint for descriptive statistics."""
+    try:
+        data = request.get_json()
+        filepath = data.get("filepath")
+        
+        if not filepath:
+            return jsonify({"status": "error", "message": "Filepath required"}), 400
+            
+        from analysis import analyze_dataset
+        results = analyze_dataset(filepath, analysis_type="descriptive")
+        
+        return jsonify({"status": "success", "results": results})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@ui_bp.route("/api/analyze/regression", methods=["POST"])
+def analyze_regression() -> Response:
+    """API endpoint for OLS regression."""
+    try:
+        data = request.get_json()
+        filepath = data.get("filepath")
+        formula = data.get("formula")
+        
+        if not filepath or not formula:
+            return jsonify({"status": "error", "message": "Filepath and formula required"}), 400
+            
+        from analysis import analyze_dataset
+        results = analyze_dataset(
+            filepath, 
+            analysis_type="regression",
+            formula=formula
+        )
+        
+        return jsonify({"status": "success", "results": results})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@ui_bp.route("/api/analyze/compare", methods=["POST"])
+def analyze_compare() -> Response:
+    """API endpoint for group comparison."""
+    try:
+        data = request.get_json()
+        filepath = data.get("filepath")
+        group_col = data.get("group_col")
+        value_col = data.get("value_col")
+        
+        if not filepath or not group_col or not value_col:
+            return jsonify({"status": "error", "message": "Filepath, group_col, and value_col required"}), 400
+            
+        from analysis import analyze_dataset
+        results = analyze_dataset(
+            filepath, 
+            analysis_type="compare",
+            group_col=group_col,
+            value_col=value_col
+        )
+        
+        return jsonify({"status": "success", "results": results})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@ui_bp.route("/api/editorial/generate", methods=["POST"])
+def generate_editorial() -> Response:
+    """API endpoint to generate Dato de la Semana content."""
+    try:
+        data = request.get_json()
+        filepath = data.get("filepath")
+        topic = data.get("topic", "General")
+        context = data.get("context", "")
+        
+        if not filepath:
+            return jsonify({"status": "error", "message": "Filepath required"}), 400
+            
+        from editorial import create_weekly_pack
+        
+        # Determine value column from file if not provided? 
+        # For now assume 'value' or find first numeric column
+        results = create_weekly_pack(filepath, topic=topic)
+        
+        if "status" in results and results["status"] == "no_highlights_found":
+             return jsonify({
+                 "status": "success", 
+                 "message": "No significant anomalies found",
+                 "content": None
+             })
+             
+        return jsonify({
+            "status": "success", 
+            "content": results.get("draft_content"),
+            "highlight": results.get("highlight"),
+            "insights": results.get("all_insights")
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500

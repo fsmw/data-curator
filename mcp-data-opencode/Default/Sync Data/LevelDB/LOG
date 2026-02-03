@@ -1,3 +1,3 @@
-2026/02/01-13:58:19.513 1adbd0 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Sync Data/LevelDB/MANIFEST-000001
-2026/02/01-13:58:19.514 1adbd0 Recovering log #3
-2026/02/01-13:58:19.514 1adbd0 Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Sync Data/LevelDB/000003.log 
+2026/02/02-19:21:06.779 254394 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Sync Data/LevelDB/MANIFEST-000001
+2026/02/02-19:21:06.780 254394 Recovering log #3
+2026/02/02-19:21:06.780 254394 Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Sync Data/LevelDB/000003.log 
