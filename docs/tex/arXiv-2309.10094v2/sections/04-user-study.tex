@@ -1,0 +1,83 @@
+\section{Evaluation: Chart Reproduction Study}\label{sec:user-study}
+
+We conducted a chart reproduction study~\cite{ren2018reflecting} to gather feedback on the new concept binding approach that employs an AI agent, and to evaluate the usability of Data Formulator. 
+
+\subsection{Study Design}
+\noindent \textbf{Participants.} We recruited 10 participants (3 female, 7 male) from a large technology company. All participants had experience creating (simple) charts and identified themselves as a person with normal or corrected-to-normal vision, without color vision deficiency. Six participants are data scientists, two are applied scientists, and the remaining two are data \& applied scientists, and they are all located in the United States. Four participants are in their 30's, three are in 20's, and one participant is in each of the 40's, 50's, and 18-19 age group. They had varying levels of self-identified expertise in terms of chart authoring, computer programming, and experience with LLMs. 
+
+\bpstart{Tasks and Datasets} We prepared six chart reproduction tasks with two datasets (3 tasks for each dataset): daily COVID-19 cases from Jan 21, 2020 to Feb 28, 2023 (3 columns; 1,134 rows) for the first task set (Tasks 1-3) and daily temperatures in 2020 for Seattle and Atlanta (4 columns; 732 rows; \cref{fig:sea-atl-temp-simple}) for the second set (Tasks 4-6). In both task sets, each subsequent task is built upon the previous one. One task (Task 4) required building two new concepts for reshaping and the other five tasks required the use of derived concepts. 
+We also prepared three tutorial tasks, using students' exam scores dataset (5 columns; 1,000 rows): in addition to the scores for three subjects (math, reading, and writing), the data table included a student's id and major. The first tutorial task was about creating a chart with known/available concepts, while the second and third tutorial tasks were for creating charts using derived concepts and unknown concepts, respectively. Finally, we produced two practice tasks (one for reshaping and another for derivation). For these, the exam scores dataset was transformed into a long format, including math and reading scores under the subject and score column, resulting in 4 columns and 2,000 rows.  
+
+
+\bpstart{Setup and Procedure} We conducted sessions remotely via the Microsoft Teams. Each session consisted of four segments: (1) a brief explanation of the study goals and procedure, (2) training with tutorial and practice, (3) chart reproduction tasks, and (4) debrief. 
+
+The training segment started with a quick introduction of Data Formulator's basic interactions using a simple task that does not require data transformation. Then, with their screen shared and recorded with audio, participants went through a tutorial and created three visualizations following step-by-step instructions provided in slides. They next created two visualizations on their own as practice.  
+After an optional break, the participants performed six reproduction tasks using the two datasets mentioned above. Each task included a description (e.g., ``Create a Scatter Plot to compare Atlanta Temperature against Seattle Temperature.''), the labels for axes and color legend (if necessary), and an image of the target visualization. (Study materials are included in the supplemental material.) We encouraged the participants to think aloud, describing their strategies, whether any feature of Data Formulator works or makes sense, if the system behaves as they expect, etc. 
+We recorded if the participants required a hint (and which hint) and how long it took for them to complete the task. The recorded completion time is not intended to indicate performance, as we wanted to gain insights about our approach using the think aloud method. Instead, we wanted to see if and how the participants completed, faltered, or recovered for each task, within a reasonable amount of time.
+The session ended with a debriefing after the participants filled out a questionnaire with 5 questions about their experience with Data Formulator. The entire session took about two hours to complete, while the training segment took about an hour. We compensated each participant with a \$100 Amazon Gift card.
+
+
+\subsection{Results}
+
+After an hour-long tutorial and practice session, most participants could use Data Formulator to create different types of charts that involve advanced data transformations. Furthermore, they were generally positive about their experience with Data Formulator in chart authoring.
+%Time of completion was within range for what we expected. 
+
+\bpstart{Tasks Completion and Usability Issues}
+Participants completed all tasks on average within 20 minutes, with a deviation of about four and a half minutes. 
+\Cref{table:taskcompletion} shows the average and standard deviation of task completion time in minutes, along with the total number of hints provided for each chart reproduction task (for all 10 participants). The participants spent most of their time (on average less than five minutes) on Task 6 because it was not trivial to inspect the code to generate 7-day moving average.
+%Comparing across tasks gives us a sense of difficulty, hinting at which takes longer to complete. Tasks to how long? FILL IN. Further indication of difficulty is when and which stage of the process hints are provided by moderator.
+For Tasks 5 and 6, we had to give one hint (to two different participants) to guide them to use a different type of concept (they needed to derive a concept but initially tried to build a concept). There were a few cases that we had to provide a hint to a single participant: how to select multiple sources for derivation (Task 4), what are the correct source concepts for derivation (Tasks 2 \& 5), and the example values should be from the original table (Task 4). We had to provide the highest number of hints for Task 1. This was because when participants derived the year from the date value, its data type was set to number and the participants did not know or remember how to change its data type to string. (As detailed below, some participants tried to fix it by providing a different natural language prompt). 
+
+\new{For derived concepts, once the participants identified the correct interaction approach and input fields, they are able to describe and refine the transformation in natural language to solve the tasks. We recorded all participants' prompts (see supplementary material). On average, participants made 1.62 prompt attempts per derived concept, and the length of those prompts averaged 7.28 words. The system generated an average of 1.94 candidates per prompt attempt.}
+%Which type of hint was given most often? Need to make these relative to how often they could happen.
+
+\begin{table}[h]
+\small
+\caption{The average and standard deviation of task time (in minutes) and the total number of hints provided for chart reproduction tasks.}
+\centering
+\renewcommand{\arraystretch}{0.7}
+\begin{tabularx}{.44\textwidth}{c|c|c|c}
+    \toprule
+    Task & Average Time & Standard Deviation & Total Number of Hints \\ 
+    \midrule
+    Task 1 & 2:21 & 0:45 & 7 \\
+    Task 2 & 3:19 & 2:09 & 2 \\
+    Task 3 & 3:45 & 1:33 & 2 \\
+    \midrule
+    Task 4 & 2:43 & 1:33 & 2 \\
+    Task 5 & 2:22 & 1:55 & 3 \\
+    Task 6 & 4:29 & 1:39 & 2 \\
+    \bottomrule
+\end{tabularx}
+\label{table:taskcompletion}
+\vspace{-4mm}
+\end{table}
+
+%How easy is Data Formulator to learn? (3.9 average, 0.88 std dev).
+%How does Data Formulator compare to other tools you have used to transform data? (3.8 average, 1.23 std dev)
+%How useful would an AI agent like Data Formulator be for your current chart creation process? (4.4 average, 0.70 std dev)
+%How helpful was Data Formulator in helping you to verify generated data? (4.1 average, 0.74 std dev)
+%How much do you trust the data that Data Formulator generated? (4.7 average, 0.48 std dev)
+
+
+%The Likert scale results from the debrief questionnaire.
+Participants rated Data Formulator on five criteria using a 5-point Likert scale (5 being the most positive) as follows: easy to learn (\textit{M} = 3.90, \textit{SD} = 0.88), easier than other tools to transform data (\textit{M} = 3.80, \textit{SD} = 1.23), AI-agent's usefulness (\textit{M} = 4.4, \textit{SD} = 0.70), helpful to verify generated data (\textit{M} = 4.1, \textit{SD} = 0.74), and the trustworthiness of generated data (\textit{M} = 4.7, \textit{SD} = 0.48).
+
+Participants provide feedback to improve the user interface. Four participants expected a way to multi-select on concept cards and click ``derive'' for deriving a concept from multiple existing ones. The current method of clicking ``derive'' on one concept and then multi-selecting is not intuitive. Two other participants expected the AI to select or identify which concepts to derive from based on their prompts. A few participants expected to change data type using the prompt (e.g., ``year as a string'' when the year is extracted from date).
+Five participants wanted the derived examples table to show more values, or unique derived values. 
+Reshaping data was at times a point of confusion: two participants found it difficult to understand how the AI formulated candidate datasets, while two others did not intuit or remember the task sequence to formulate data for unknown concepts.
+When required to reshape data, three participants entered plausible, but not exact values in the example table during the training: they misunderstood the rigid connection to the original dataset.
+To strengthen that connection participants recommended including additional columns (especially a column that is unique for a pivot transform) or to filter or highlight rows of the data table view that correspond to the values used in the example table. 
+We also observed users' attempts to re-use a derived concept as a commutative function on other concepts: two participants tried to drag a derived concept and drop it on other concepts.
+
+
+\bpstart{Overall Reaction and Experience} To understand participants' reaction to the new concept-drive approach employing an AI agent, we analyzed the debrief interview, during which participants stated something or confirmed an observation made by the experimenter. Using the transcription from the recorded sessions, one researcher applied an open coding method to surface all unique feedback, issues and ideas from the participants. %Coding was applied to the debrief interview only, when participants explicitly stated something or confirmed an observation made by the moderator. 
+He expanded the codes to generalize for semantically similar participant statements. While quantities of qualitative data does not provide a metric for importance, we counted how many participants mentioned each code, providing how frequently our participants had shared experiences or ideas with Data Formulator. 
+
+%Additionally, we recorded how each participant fared for each task by recording: if they were successful, if they required a hint (and which hint), if they recovered from a mistake, and how long it took to complete the task. The completion time metric is not intended to indicate performance, as we did not pose the task as time-constrained. However, these combined metrics provide insights into how the participant completed, faltered, or recovered for each task.
+
+Overall, participants were positive about their experience with Data Formulator. All 10 participants said that natural language prompts work well for generating data transforms and eight mentioned that AI is a helpful tool for the study tasks. Participants more frequently praised the derived concept than the unknown concept method for transforming data. Specifically, when it comes to verifying candidate derived concepts: all except one participant commented that displaying code was helpful and seven found the example derived values table to be useful. While only half of the participants commented that pivoting with unknown concepts is easier than with other tools, only three affirmed the example data table being helpful. 
+
+Five participants mentioned that they were impressed by the power of the AI agent to generate data transforms. Five participants found having candidates (for both derived and formulated data) to be helpful because the candidates provided an opportunity to choose a correct answer, or at the least to select a promising direction to refine. Participants also explained that generating candidates increases trust in a collaborative experience. 
+%When Data Formulator generated a single candidate repeatedly throughout many tasks, we noticed that participants trusted the tool too much. Often this pattern led to complacency, where the participant would not verify the candidate. 
+On the other hand, three participants mentioned they are reluctant to give much trust to the AI generative features of the tool.

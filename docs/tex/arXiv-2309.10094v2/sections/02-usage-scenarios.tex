@@ -1,0 +1,143 @@
+\section{\new{Illustrative Scenarios}}\label{sec:user-experience}
+In this section, we illustrate users' experiences to create visualizations in \cref{fig:sea-atl-temp-simple,fig:sea-atl-temp-pivot-derived} using programs and Data Formulator from the initial input data in \cref{fig:sea-atl-temp-simple}. We refer to this dataset as \code{df} in this section.
+
+\subsection{Experience with Programming}
+
+We first illustrate how an experienced data scientist, Eunice, uses programming to create the desired visualizations with pandas and Altair libraries in Python.
+
+\bpstart{Daily Temperature Trends} Eunice starts with the scatter plot in \cref{fig:sea-atl-temp-simple}. Because \code{df} is in the tidy format with \code{Date}, \code{City}, and \code{Temperature} available, Eunice needs no data transformation and writes a simple Altair program to create the plot:
+
+\begin{center}
+\begin{smpage}{0.9\linewidth}
+\begin{minted}[fontfamily=helvetica,fontsize=\small]{python}
+alt.Chart(df).mark_circle().encode(x='Date', y='Temperature', color='City')
+\end{minted}
+\end{smpage}
+\end{center}
+This program calls the Altair library (\code{alt}), selects the input dataset \code{df} and the scatter plot function \code{mark\_circle}, and maps columns to $x,y$ and color channels. It renders the desired scatter plot in \cref{fig:sea-atl-temp-simple}.
+ 
+\bpstart{Seattle vs. Atlanta Temperatures} To make a more direct comparison of two cities' temperatures, Eunice wants to create a different scatter plot (\cref{fig:sea-atl-temp-pivot-derived}-\circled{1}) by mapping \code{Seattle} and \code{Atlanta} temperatures to $x,y$-axes. However, \code{Seattle} and \code{Atlanta} temperatures are not available as columns in \code{df}. She therefore needs to transform \code{df} to surface them. Because \code{df} is in the ``long'' format, where temperatures of both cities are stored in one column \code{Temperature}, she needs to pivot the table to the ``wide'' format. Eunice switches to the data transformation step and uses the \code{pivot} function from the pandas library to reshape \code{df} (\cref{fig:pivot-table}). This program populates \code{Seattle} and \code{Atlanta} as new column names from the \code{City} column, and their corresponding \code{Temperature} values are moved to these new columns by \code{Date}. %With \code{df2}, Eunice creates the desired visualization with the program \colorbox{blue!3}{\code{alt.Chart(df2).mark_circle().encode(x='Seattle', y='Atlanta')}}, which maps \code{Seattle} and \code{Atlanta} to $x,y$-axes of the scatter plot.
+With \code{df2}, Eunice creates the desired visualization, which maps \code{Seattle} and \code{Atlanta} to $x,y$-axes of the scatter plot with the following program:
+
+\begin{center}
+\begin{smpage}{0.9\linewidth}
+\begin{minted}[fontfamily=helvetica,fontsize=\small]{python}
+alt.Chart(df2).mark_circle().encode(x='Seattle', y='Atlanta')
+\end{minted}
+\end{smpage}
+\end{center}
+
+
+\begin{figure}[t]
+    \centering
+    %\begin{smpage}{\linewidth}
+    \includegraphics[width=0.9\linewidth]{figures/usage-pivot.png}
+    %\end{smpage}
+    \caption{Prepare the new data \code{df2} with the \code{pivot} function to populate \code{Seattle} and \code{Atlanta} temperatures from \code{City} and \code{Temperature} columns.}
+    \label{fig:pivot-table}
+\end{figure}
+
+\bpstart{Temperature Differences} Eunice wants to create two visualizations to show how much warmer is Atlanta compared to Seattle: a bar chart to visualize daily temperate differences (\cref{fig:sea-atl-temp-pivot-derived}-\circled{2}) and a histogram to show the number of days each city is warmer (\cref{fig:sea-atl-temp-pivot-derived}-\circled{3}). Again, because necessary fields \code{Difference} and \code{Warmer} are not in \code{df2}, Eunice needs to transform the data. This time, she writes a program to perform column-wise computation, which extends \code{df2} with two new columns \code{Warmer} and \code{Difference} (\cref{fig:derived-table}). 
+Eunice then creates the daily temperature differences chart by mapping \code{Date} and \code{Difference} to $x,y$-axes and the histogram by mapping \code{Warmer} to $x$-axis and the aggregation function, \code{count()}, to $y$-axis to calculate the number of entries.
+
+\begin{center}
+\begin{smpage}{0.85\linewidth}
+\begin{minted}[fontfamily=helvetica,fontsize=\small]{python}
+# extend df2 with new columns 'Difference' and 'Warmer'
+df2['Difference'] = df2['Seattle'] - df2['Atlanta']
+df2['Warmer'] = df2['Difference'].apply(
+    lambda x: 'Seattle' if x > 0 else ('Atlanta' if x < 0 else 'Same'))
+
+# create the bar chart
+alt.Chart(df2).mark_bar().encode(x='Date', y='Difference', color='Warmer')
+# create the histogram
+alt.Chart(df2).mark_bar().encode(x='Warmer', y='count()', color='Warmer')
+\end{minted}
+\end{smpage}
+\end{center}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/intro-sea-atl-temp-derive-table.png}
+    \caption{Extend \code{df2} in \cref{fig:pivot-table} to derive \code{Warmer}, \code{Difference}, and \code{Seattle 7-day Moving Avg} columns that are necessary for visualizations in \cref{fig:sea-atl-temp-pivot-derived}.}
+    \label{fig:derived-table}
+\end{figure}
+
+\begin{figure*}[t]
+    \includegraphics[width=\linewidth]{figures/data-formulator-interface.png}
+    \caption{Data Formulator UI. After loading the input data, the authors interact with Data Formulator in four steps: (1) in the Concept Shelf, create (e.g., \code{Seattle} and \code{Atlanta}) or derive (e.g., \code{Difference}, \code{Warmer}) new data concepts they plan to visualize, (2) encode data concepts to visual channels of a chart using Chart Builder and formulate the chart, (3) inspect the derived data automatically generated by Data Formulator, and (4) examine and save generated visualizations. Throughout the process, Data Formulator provides feedback to help authors understand generated data and visualizations.}
+    \label{fig:data-formulate-ui}
+\end{figure*}
+
+
+\bpstart{7-day Moving Average of Seattle's Temperature} Finally, Eunice wants to include a line chart for Seattle temperature trends in the report. Because daily temperatures fluctuate, she decides to create a smooth line chart based on 7-day moving average temperatures. Eunice needs an analytical function to calculate the moving average. Because the input data is sorted by \code{Date}, Eunice chooses the \code{rolling} function from pandas: she sets \code{window=7} and \code{center=True} so that the moving average is calculated with a sliding window from day $d-3$ to day $d+3$ for each date $d$.
+This transformation adds the new column \code{Seattle 7-day Moving Avg} to \code{df2} (\cref{fig:derived-table}; the first 3 days are null because of insufficient data), and Eunice maps \code{Date} and the new column to a line chart to create the desired visualization (\cref{fig:sea-atl-temp-pivot-derived}-\circled{4}).
+
+\begin{center}
+\begin{smpage}{0.95\linewidth}
+\begin{minted}[fontfamily=helvetica,fontsize=\small]{python}
+df2['Seattle 7-day Moving Avg'] = df2['Seattle'].rolling(window=7, center=True)
+alt.Chart(df2).mark_line().encode(x='Date', y='Seattle 7-day Moving Avg')
+\end{minted}
+\end{smpage}
+\end{center}
+
+\bpstart{Remark} In all cases, Eunice can specify visualizations using simple Altair programs by mapping data columns to visual channels. However, data transformation steps make the visualization process challenging. Eunice needs to choose the right type of transformation based on the input data and desired visualization (e.g., creating the scatter plot in \cref{fig:sea-atl-temp-simple} from \code{df2} would require unpivot instead). Furthermore, Eunice needs knowledge about \code{pandas} to choose the right function and parameters per task (e.g., \code{rolling} will not fit if Eunice wants to calculate moving average for each city in \code{df}). Eunice's programming experience and data analysis expertise allowed her to successfully complete all tasks. But a less experienced data scientist, Megan, finds this process challenging. Megan decides to use Data Formulator to reduce the data transformation overhead.
+
+\subsection{Experience with Data Formulator} 
+
+Data Formulator (\cref{fig:data-formulate-ui}) has a similar interface as ``shelf-configuration''-style visualization tools like Tableau or Power BI. But unlike these tools that support only mappings from input data columns to visual channels, Data Formulator enables authors to create and derive new data concepts and map them to visual channels to create visualizations \emph{without requiring manual data transformation}.
+
+\bpstart{Daily Temperature Trends} Once Megan loads the input data (\cref{fig:sea-atl-temp-simple}), Data Formulator populates existing data columns (\code{Date}, \code{City}, and \code{Temperature}) as known \emph{data concepts} in the Concept Shelf. Because all three data concepts are already available, no data transformation is needed. Megan selects the visualization type ``Scatter Plot'' and maps these data concepts to $x,y$ and color channels in Chart Builder through drag-and-drop interaction. Data Formulator then generates the desired scatter plot. 
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/usage-data-formulator-pivot.png}
+    \caption{Megan (1) creates new data concepts, \code{Seattle Temp} and \code{Atlanta Temp}, by providing examples and (2) maps them to $x,y$-axes of a scatter plot to specify the visualization intent. (3) Data Formulator asks Megan to provide a small example to illustrate how these two concepts are related, and Megan confirms the example. (4) Based on the example, Data Formulator generates the data transformation and creates the desired visualization.}
+    \label{fig:data-formulator-pivot}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/usage-data-formulator-derive.png}
+    \caption{(1) Megan derives the new concept \code{Difference} from \code{Atlanta Temp} and \code{Seattle Temp} using natural language. Data Formulator generates two candidates and displays the first one in the concept card. (2) Megan opens the dialog to inspect both, confirms the first one, and saves the concept.}
+    \label{fig:data-formulator-derive}
+\end{figure*}
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/usage-data-formulator-bar-chart.png}
+    \caption{Megan creates the bar chart using derived concepts, Difference and Warmer, as well as an original concept Date.}
+    \label{fig:data-formulator-derive-bar-chart}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/usage-data-formulator-7-day-avg.png}
+    \caption{Megan derives the 7-day moving averages from Seattle Temp. After inspecting the results, she edits the description to be more precise.}
+    \label{fig:data-formulator-derive-7-day-avg}
+\end{figure}
+
+
+\bpstart{Seattle vs. Atlanta Temperatures} To create the second scatter plot (\cref{fig:derived-table}-\circled{1}), Megan needs to map \code{Seattle} and \code{Atlanta} temperatures to $x,y$-axes of a scatter plot. Because \code{Seattle} and \code{Atlanta} temperatures are not available as concepts yet, %and Megan cannot directly create the scatter plot. Instead of reshaping the data with program or other data preparation tools and reloading to Data Formulator, Megan delegates data transformation steps to Data Formulator.
+%\cref{fig:data-formulator-pivot} illustrates the interaction between Megan and Data Formulator. Because the desired concepts are not available, 
+Megan starts out by creating a new data concept \code{Atlanta Temp} (\cref{fig:data-formulator-pivot}-\circled{1}): she clicks the {\sf\small\color{orange} new \circled{+}} button in the Concept Shelf, which opens a concept card that asks her to name the new concept and provide some examples values; Megan provides four Atlanta temperatures (45, 47, 56, 41) from the input data as examples and saves it. Similarly, Megan creates another new concept \code{Seattle Temp}. Because Data Formulator's current knowledge to them is limited to their names and example values, both concepts are listed as an unknown concept for now. (They will be resolved later when more information is provided.) 
+
+With these new concepts and the Scatter Plot selected, %Megan specifies the visualization in a similar way as in \cref{fig:data-formulator-simple}: 
+Megan maps new data concepts \code{Seattle Temp} and \code{Atlanta Temp} to $x,y$-axes (\cref{fig:data-formulator-pivot}-\circled{2}), and then clicks the FORMULATE button to let Data Formulator formulate the data and instantiate the chart. Based on the visualization spec, Data Formulator realizes that the two unknown concepts are related to each other but not yet certain how they relate to the input data. Thus, Data Formulator prompts Megan with an example table to complete: each row in the example table will be a data point in the desired scatter plot. Megan needs to provide at least two data points from the input data to guide Data Formulator on how to generate this transform (\cref{fig:data-formulator-pivot}-\circled{3}). Here, Megan provides the temperatures of Atlanta and Seattle on 01/01/2020 and 01/02/2020 from the table \cref{fig:sea-atl-temp-simple}. When Megan submits the example, Data Formulator infers a program that can transform the input data to generate a new table with fields \code{Atlanta Temp} and \code{Seattle Temp} that subsumes the example table provided by Megan. Data Formulator generates the new table and renders the desired scatter plot (\cref{fig:data-formulator-pivot}-\circled{4}). Megan inspects the derived table and visualization and accepts them as correct.
+
+\bpstart{Temperature Differences} To create a bar chart and a histogram to visualize temperature differences between the two cities, Megan needs two new concepts, \code{Difference} and \code{Warmer}. 
+This time, Megan notices that both concepts can be \emph{derived} from existing fields based on column-wise mappings, and thus she uses the ``derive'' function of Data Formulator (\cref{fig:data-formulator-derive}). Megan first clicks the ``derive new concept'' option on the existing concept \code{Seattle Temp}, which opens up a concept card that lets her describe the transformation she wants using natural language. Megan selects \code{Seattle Temp} and \code{Atlanta Temp} as the ``derived from'' concepts, provides a name \code{Difference} for the new concept, and describes the transform using natural language, ``Calculate seattle atlanta temp diff.'' Megan then clicks the generate button and Data Formulator dispatches its backend AI agent to generate code. Data Formulator returns two code candidates and presents the first one in the concept card. Megan opens up the dialog to inspect both candidates and learns that because her description did not clearly specify whether she wants the difference or its absolute value, Data Formulator returns both options as candidates. After inspecting the example table and the transformation code provided by Data Formulator, Megan confirms the first candidate and saves the concept \code{Difference}. Similarly, Megan creates a concept, \code{Warmer}, from \code{Seattle Temp} and \code{Atlanta Temp} with the description ``check which city is warmer, Atlanta, Seattle, or same.'' Data Formulator applies the data transformation on top of the derived table from the last task and displays the extended table in Data View (\cref{fig:data-formulate-ui}). Because both concepts are now ready to use, Megan maps them to Chart Builder to create the desired visualizations (\cref{fig:data-formulator-derive-bar-chart}).
+
+
+\bpstart{7-day Moving Average of Seattle's Temperature} Last, Megan needs to create a line chart with 7-day moving average temperatures. Because the moving average can be derived from the \code{Seattle Temp} column, Megan again chooses to use the derive function.
+Megan starts with a brief description ``calculate 7-day moving avg'' and calls Data Formulator to generate the desired transformation. Upon inspection, Megan notices that the generated transformation is close but does not quite match her intent: the 7-day moving average starts from $d-6$ to $d$ for each day $d$ as opposed to $d-3$ to $d+3$ (\cref{fig:data-formulator-derive-7-day-avg}). Based on this observation, Megan changes the description into ``calculate 7-day moving avg, starts with 3 days before, and ends with 3 days after'' and re-runs Data Formulator. This time, Data Formulator generates the correct transformation and presents the extended data table in \cref{fig:data-formulate-ui}. Megan then maps \code{Date} and {\footnotesize\sf Seattle 7-day Moving Avg} to $x,y$-axes of a line chart.
+
+\bpstart{Remark} With the help of Data Formulator, Megan creates visualizations without manually transforming data. Instead, Megan specifies the data concepts she wants to visualize by:
+\begin{itemize}\itemsep-5pt
+\item building new concepts using examples (when the new concept is spread among multiple columns or multiple concepts are stored in the same column, e.g., \code{Seattle Temp} and \code{Atlanta Temp} are both stored in the  \code{Temperature} column); and
+\item deriving new concepts using natural language (when the new concept can be computed from existing ones using column-wise operators, e.g., \code{Difference} from \code{Seattle Temp} and \code{Atlanta Temp}).
+\end{itemize}
+
+Megan then drags-and-drops data concepts to visual channels of a chart. In this process, for derived concepts, Data Formulator displays generated candidate code and example table to help Megan inspect and select the transformation; for concepts created by example, Data Formulator prompts Megan to elaborate their relations by completing an example table. Data Formulator then transforms the data and generates the desired visualizations. Data Formulator reduces Megan's visualization overhead by shifting the task of specifying data transformation into the task of inspecting generated data. Because Data Formulator's interaction model centers around data concepts, Megan does not need to directly work with table-level operators, such as \code{pivot}, {\footnotesize\sf map/reduce} and \code{partitioning}, which are challenging to master.

@@ -8,6 +8,10 @@ import requests
 from datetime import datetime
 import shutil
 
+from logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class DataSource(ABC):
     """Abstract base class for data sources."""
@@ -42,7 +46,7 @@ class DataSource(ABC):
         """
         filepath = self.raw_data_dir / filename
         data.to_csv(filepath, index=False, encoding="utf-8")
-        print(f"✓ Saved raw data to {filepath}")
+        logger.info(f"Saved raw data to {filepath}")
         return filepath
 
 
@@ -81,8 +85,8 @@ class ManualUpload(DataSource):
         destination = self.raw_data_dir / new_filename
         shutil.copy2(filepath, destination)
 
-        print(f"✓ Imported {filepath}")
-        print(f"✓ Archived to {destination}")
+        logger.info(f"Imported {filepath}")
+        logger.info(f"Archived to {destination}")
 
         return data
 
@@ -125,9 +129,9 @@ class ILOSTATSource(DataSource):
 
             url = f"{self.BASE_URL}/DF_STR/{countries_str}/.*/{indicator}?startPeriod={start_year}&endPeriod={end_year}&format=sdmx-json&detail=full"
 
-            print(f"Fetching from ILOSTAT: {indicator}")
-            print(f"  Countries: {countries_str}")
-            print(f"  Period: {start_year}-{end_year}")
+            logger.info(f"Fetching from ILOSTAT: {indicator}")
+            logger.info(f"  Countries: {countries_str}")
+            logger.info(f"  Period: {start_year}-{end_year}")
 
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -139,15 +143,15 @@ class ILOSTATSource(DataSource):
             df = self._parse_sdmx_json(data, indicator)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from ILOSTAT")
+                logger.info(f"Retrieved {len(df)} records from ILOSTAT")
             else:
-                print(f"⚠ No data found for indicator {indicator}")
+                logger.warning(f"No data found for indicator {indicator}")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ ILOSTAT API error: {e}")
-            print("  Falling back to template mode")
+            logger.error(f"ILOSTAT API error: {e}")
+            logger.info("Falling back to template mode")
             return pd.DataFrame(columns=["country", "year", "value", "indicator"])
 
     def _parse_sdmx_json(self, data: dict, indicator: str) -> pd.DataFrame:
@@ -199,7 +203,7 @@ class ILOSTATSource(DataSource):
             return pd.DataFrame(rows)
 
         except Exception as e:
-            print(f"  Error parsing SDMX response: {e}")
+            logger.error(f"Error parsing SDMX response: {e}")
             return pd.DataFrame()
 
 
@@ -287,9 +291,9 @@ class OECDSource(DataSource):
             key = f"{countries_str}.{indicator}" if indicator else countries_str
             url = f"{self.BASE_URL}/{dataset}/{key}?startPeriod={start_year}&endPeriod={end_year}&dimensionAtObservation=AllDimensions"
 
-            print(f"Fetching from OECD: {dataset}/{indicator if indicator else 'all'}")
-            print(f"  Countries: {countries_str}")
-            print(f"  Period: {start_year}-{end_year}")
+            logger.info(f"Fetching from OECD: {dataset}/{indicator if indicator else 'all'}")
+            logger.info(f"  Countries: {countries_str}")
+            logger.info(f"  Period: {start_year}-{end_year}")
 
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -298,15 +302,15 @@ class OECDSource(DataSource):
             df = self._parse_sdmx_json(data)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from OECD")
+                logger.info(f"Retrieved {len(df)} records from OECD")
             else:
-                print(f"⚠ No data found for dataset {dataset}")
+                logger.warning(f"No data found for dataset {dataset}")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ OECD API error: {e}")
-            print("  Falling back to template mode")
+            logger.error(f"OECD API error: {e}")
+            logger.info("Falling back to template mode")
             return pd.DataFrame(columns=["country", "year", "value", "indicator"])
 
     def _parse_sdmx_json(self, data: dict) -> pd.DataFrame:
@@ -345,7 +349,7 @@ class OECDSource(DataSource):
             return pd.DataFrame(rows)
 
         except Exception as e:
-            print(f"  Error parsing SDMX-JSON: {e}")
+            logger.error(f"Error parsing SDMX-JSON: {e}")
             return pd.DataFrame()
 
 
@@ -431,9 +435,9 @@ class IMFSource(DataSource):
             # IMF SDMX format: /data/{database}/{countries}/{indicator}
             url = f"{self.BASE_URL}/data/{database}/{countries_str}/{indicator}?startPeriod={start_year}&endPeriod={end_year}&format=sdmx-json"
 
-            print(f"Fetching from IMF: {database}/{indicator}")
-            print(f"  Countries: {countries_str}")
-            print(f"  Period: {start_year}-{end_year}")
+            logger.info(f"Fetching from IMF: {database}/{indicator}")
+            logger.info(f"  Countries: {countries_str}")
+            logger.info(f"  Period: {start_year}-{end_year}")
 
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -442,15 +446,15 @@ class IMFSource(DataSource):
             df = self._parse_sdmx_json(data, indicator)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from IMF")
+                logger.info(f"Retrieved {len(df)} records from IMF")
             else:
-                print(f"⚠ No data found for indicator {indicator}")
+                logger.warning(f"No data found for indicator {indicator}")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ IMF API error: {e}")
-            print("  Falling back to template mode")
+            logger.error(f"IMF API error: {e}")
+            logger.info("Falling back to template mode")
             return pd.DataFrame(columns=["country", "year", "value", "indicator"])
 
     def _parse_sdmx_json(self, data: dict, indicator: str) -> pd.DataFrame:
@@ -489,7 +493,7 @@ class IMFSource(DataSource):
             return pd.DataFrame(rows)
 
         except Exception as e:
-            print(f"  Error parsing IMF SDMX-JSON: {e}")
+            logger.error(f"Error parsing IMF SDMX-JSON: {e}")
             return pd.DataFrame()
 
 
@@ -572,9 +576,9 @@ class WorldBankSource(DataSource):
             # World Bank API format: /country/{countries}/indicator/{indicator}
             url = f"{self.BASE_URL}/{countries_str}/indicator/{indicator}?date={start_year}:{end_year}&format=json"
 
-            print(f"Fetching from World Bank: {indicator}")
-            print(f"  Countries: {countries_str}")
-            print(f"  Period: {start_year}-{end_year}")
+            logger.info(f"Fetching from World Bank: {indicator}")
+            logger.info(f"  Countries: {countries_str}")
+            logger.info(f"  Period: {start_year}-{end_year}")
 
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -583,15 +587,15 @@ class WorldBankSource(DataSource):
             df = self._parse_json(data)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from World Bank")
+                logger.info(f"Retrieved {len(df)} records from World Bank")
             else:
-                print(f"⚠ No data found for indicator {indicator}")
+                logger.warning(f"No data found for indicator {indicator}")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ World Bank API error: {e}")
-            print("  Falling back to template mode")
+            logger.error(f"World Bank API error: {e}")
+            logger.info("Falling back to template mode")
             return pd.DataFrame(columns=["country", "year", "value", "indicator"])
 
     def _parse_json(self, data: list) -> pd.DataFrame:
@@ -625,7 +629,7 @@ class WorldBankSource(DataSource):
             return pd.DataFrame(rows)
 
         except Exception as e:
-            print(f"  Error parsing World Bank JSON: {e}")
+            logger.error(f"Error parsing World Bank JSON: {e}")
             return pd.DataFrame()
 
 
@@ -661,9 +665,9 @@ class ECLACSource(DataSource):
             countries = ["ARG", "BRA", "CHL", "COL", "MEX", "PER", "URY"]
 
         try:
-            print(f"Fetching from ECLAC: {table}")
-            print(f"  Countries: {','.join(countries)}")
-            print(f"  Period: {start_year}-{end_year}")
+            logger.info(f"Fetching from ECLAC: {table}")
+            logger.info(f"  Countries: {','.join(countries)}")
+            logger.info(f"  Period: {start_year}-{end_year}")
 
             # ECLAC API format varies, this is a general endpoint
             url = f"{self.BASE_URL}/tables/{table}/countries/{','.join(countries)}?start_year={start_year}&end_year={end_year}"
@@ -675,15 +679,15 @@ class ECLACSource(DataSource):
             df = self._parse_json(data)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from ECLAC")
+                logger.info(f"Retrieved {len(df)} records from ECLAC")
             else:
-                print(f"⚠ No data found for table {table}")
+                logger.warning(f"No data found for table {table}")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ ECLAC API error: {e}")
-            print("  Falling back to template mode")
+            logger.error(f"ECLAC API error: {e}")
+            logger.info("Falling back to template mode")
             return pd.DataFrame(columns=["country", "year", "value", "indicator"])
 
     def _parse_json(self, data: dict) -> pd.DataFrame:
@@ -712,7 +716,7 @@ class ECLACSource(DataSource):
             return pd.DataFrame(rows)
 
         except Exception as e:
-            print(f"  Error parsing ECLAC JSON: {e}")
+            logger.error(f"Error parsing ECLAC JSON: {e}")
             return pd.DataFrame()
 
 
@@ -772,11 +776,11 @@ class OWIDSource(DataSource):
             elif end_year:
                 params["time"] = f"earliest..{end_year}"
 
-            print(f"Fetching from OWID: {slug}")
+            logger.info(f"Fetching from OWID: {slug}")
             if countries:
-                print(f"  Countries: {', '.join(countries)}")
+                logger.info(f"  Countries: {', '.join(countries)}")
             if start_year or end_year:
-                print(f"  Period: {params.get('time', 'all')}")
+                logger.info(f"  Period: {params.get('time', 'all')}")
 
             # Make request
             response = requests.get(url, params=params, timeout=30)
@@ -801,22 +805,22 @@ class OWIDSource(DataSource):
             self.save_raw(df, filename)
 
             if len(df) > 0:
-                print(f"✓ Retrieved {len(df)} records from OWID")
-                print(f"  Columns: {', '.join(df.columns.tolist()[:5])}...")
+                logger.info(f"Retrieved {len(df)} records from OWID")
+                logger.info(f"  Columns: {', '.join(df.columns.tolist()[:5])}...")
             else:
-                print(f"⚠ No data found for slug '{slug}'")
+                logger.warning(f"No data found for slug '{slug}'")
 
             return df
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ OWID API error: {e}")
-            print(f"  URL: {url}")
-            print(
+            logger.error(f"OWID API error: {e}")
+            logger.error(f"  URL: {url}")
+            logger.info(
                 "  Make sure the slug is correct. Check https://ourworldindata.org/charts"
             )
             return pd.DataFrame()
         except Exception as e:
-            print(f"⚠ Error parsing OWID data: {e}")
+            logger.error(f"Error parsing OWID data: {e}")
             return pd.DataFrame()
 
     def fetch_metadata(self, slug: str) -> Dict[str, Any]:
@@ -831,7 +835,7 @@ class OWIDSource(DataSource):
         """
         try:
             url = f"{self.BASE_URL}/{slug}.metadata.json"
-            print(f"Fetching OWID metadata: {slug}")
+            logger.info(f"Fetching OWID metadata: {slug}")
 
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -876,14 +880,14 @@ class OWIDSource(DataSource):
                 if "updatedAt" in dataset:
                     enriched["last_updated"] = dataset["updatedAt"]
 
-            print(f"✓ Retrieved metadata for {slug}")
+            logger.info(f"Retrieved metadata for {slug}")
             return enriched
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠ OWID metadata error: {e}")
+            logger.error(f"OWID metadata error: {e}")
             return {"slug": slug, "error": str(e)}
         except Exception as e:
-            print(f"⚠ Error parsing OWID metadata: {e}")
+            logger.error(f"Error parsing OWID metadata: {e}")
             return {"slug": slug, "error": str(e)}
 
     def fetch_with_metadata(

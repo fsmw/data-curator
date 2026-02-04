@@ -1,0 +1,3 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{n}{alt}\PYG{o}{.}\PYG{n}{Chart}\PYG{p}{(}\PYG{n}{df}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mark\PYGZus{}circle}\PYG{p}{()}\PYG{o}{.}\PYG{n}{encode}\PYG{p}{(}\PYG{n}{x}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Date\PYGZsq{}}\PYG{p}{,} \PYG{n}{y}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Temperature\PYGZsq{}}\PYG{p}{,} \PYG{n}{color}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}City\PYGZsq{}}\PYG{p}{)}
+\end{Verbatim}

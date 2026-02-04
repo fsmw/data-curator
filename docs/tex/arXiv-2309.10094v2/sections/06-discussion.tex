@@ -1,0 +1,35 @@
+\section{Discussion and Future Work}\label{sec:discussion}
+
+% \bpstart{Ideas from Participants}
+% Here are a list of ideas for how AI could help participants' work around data. Some of these are directly related to enhancements in Data Formulator. Some are altogether different tools.
+
+% AI to recommend charts based on data	7
+% AI to correct user mistakes / errors	4
+% Natural language to reshape data	4
+% Manage multiple datasets (e.g., delete, merge, catalog)	3
+% Showing statistics or chart for example tables	3
+% AI write skeleton code	3
+% AI to clean or munge data	3
+% AI suggest data transformations based on data	2
+% Describe code for people w/ no programming experience	2
+% Natural language to specify which data type	2
+% AI to generate prompts based on concept name or selected data	2
+% Recipe structure, stepped code and results	2
+% User refines recommendations from AI	1
+% Show rank/value of confidence for generated results	1
+
+
+\noindent \textbf{Unified Interaction with Multiple Modalities.} Data Formulator employs two different modalities for authors to specify different types of data transformation: natural language for concept derivation and examples for table reshaping (\cref{sec:design}). This design combines strengths of both modalities so that the authors can better communicate their intent with the AI agent, and the AI agent can provide precise solutions from a more expressive program space. However, choosing the right input modality when creating a new concept can be challenging for inexperienced authors. To address this challenge, we envision a stratified approach where the authors just initiate the interaction in natural language, and the AI agent will decide whether to ask the authors, for example relations for clarification or to directly generate derivation codes. This design will shift the effort of deciding which approach to start with from the authors to the AI agent, and ``by-example'' specification will become a followup interaction step to help the authors clarify their intent. We envision this mixed-initiative unified interaction will further reduce the authors' efforts in visualization authoring.
+
+\bpstart{Conversational Visualization Authoring with AI Agents} Conversational AI agents~\cite{ouyang2022training} have the strength of leveraging the interaction contexts to better interpret user intent. They also provide opportunities for users to refine the intent when the task is complex or ambiguous. However, conversation with only natural language is often insufficient for visualization authoring because (1) it does not provide users with precise control over the authoring details (e.g., exploring different encoding options, changing design styles) and (2) the results can be challenging to inspect and verify without concrete artifacts (e.g., programs, transformed data). It would be useful to research how conversational AI can be integrated with Data Formulator's concept-driven approach to improve the overall visualization experiences. First, with a conversational AI agent, the authors can incrementally specify and refine their intent for tasks that are difficult to solve in one shot. Second, a conversational agent complements Data Formulator by helping the authors explore and configure chart options. Because Data Formulator focuses on data transformation, it does not expose many chart options (e.g., axis labeling, legend style, visual mark styles) in its interface. A conversational AI agent can help the authors access and control these options without overwhelming them with complex menus. For example, when the authors describe chart styles they would like to change, Data Formulator can apply the options directly or dynamically generate editing panels for them to control. We envision the effective combination of conversational AI experiences, and the Data Formulator approach will let the authors confidently specify richer designs with less effort. 
+
+\bpstart{Concept-driven Visual Data Exploration} Visual data exploration tools~\cite{wongsuphasawat2015voyager,Wongsuphasawat2017voyager2,moritz2018formalizing,lee2021lux,lee2021deconstructing} help data scientists understand data and gain meaningful insights in their analysis process. 
+These tools support a rich visual visualization space, yet still require datasets to be in the appropriate shape and schema. While Data Formulator is designed for visualization authoring, its concept-driven approach can be used in visual data exploration to expand the design space. Beyond the current concept-driven features of Data Formulator, the AI agent could be enhanced to recommend data concepts of interest based on the data context or author interaction history. Building on this idea, the tool could recommend charts based on all potentially relevant data concepts. This expansive leap could overcome one of the limitations of chart recommendation systems: by enabling the authors to view charts beyond their input data columns without additional user intervention. 
+% Because visualization exploration requires considerations of multiple tables and table-level operators like filter and join, we envision a new natural language-based interface for the user to specify table-level transformations on top of derived tables which will then be transformed into filter or join predicates to process the data.
+
+\bpstart{Study Limitations}
+While our participants had varying levels of expertise in chart authoring, computer programming, and experience with LLMs, many of them had considerable knowledge about data transformation methodology and programming. It would be useful to investigate if and how people with limited expertise could learn and use Data Formulator.
+The main goal of Data Formulator was to reduce manual data transformation in visualization authoring efforts. As such, in our study, we focused on derivation and reshaping types of data transformations with simple datasets. While they are key types of transformation and our tasks covered multiple styles of derivations, the transformations we studied are by no means comprehensive. 
+It would be valuable to evaluate the broader combinations and complexities of data transformations.
+% Especially when we extend Data Formulator to support visual data exploration as mentioned above, it would be valuable to evaluate the broader combinations and complexities of data transformations.
+Our study adopted a chart reproduction study~\cite{ren2018reflecting}, which is commonly used for evaluating chart authoring systems (e.g., ~\cite{liu2018data,ren2019charticulator,satyanarayan2014lyra}). Therefore, our study shares its inherent limitations: because we prepared datasets and tasks, and provided target visualizations as a reference, we do not know if and how people would use Data Formulator to create visualizations with their own data.  

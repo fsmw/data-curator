@@ -1,0 +1,680 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{72}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Achiam et~al\mbox{.}(2023)]%
+        {achiam2023gpt}
+\bibfield{author}{\bibinfo{person}{Josh Achiam}, \bibinfo{person}{Steven Adler}, \bibinfo{person}{Sandhini Agarwal}, \bibinfo{person}{Lama Ahmad}, \bibinfo{person}{Ilge Akkaya}, \bibinfo{person}{Florencia~Leoni Aleman}, \bibinfo{person}{Diogo Almeida}, \bibinfo{person}{Janko Altenschmidt}, \bibinfo{person}{Sam Altman}, \bibinfo{person}{Shyamal Anadkat}, {et~al\mbox{.}}} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Gpt-4 technical report}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2303.08774}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Barke et~al\mbox{.}(2023)]%
+        {barke2023grounded}
+\bibfield{author}{\bibinfo{person}{Shraddha Barke}, \bibinfo{person}{Michael~B James}, {and} \bibinfo{person}{Nadia Polikarpova}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Grounded copilot: How programmers interact with code-generating models}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming Languages}} \bibinfo{volume}{7}, \bibinfo{number}{OOPSLA1} (\bibinfo{year}{2023}), \bibinfo{pages}{85--111}.
+\newblock
+
+
+\bibitem[Bostock et~al\mbox{.}(2011)]%
+        {bostock2011d3}
+\bibfield{author}{\bibinfo{person}{Michael Bostock}, \bibinfo{person}{Vadim Ogievetsky}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{D{\({^3}\)} Data-Driven Documents}.
+\newblock \bibinfo{journal}{\emph{{IEEE} Trans. Vis. Comput. Graph.}} \bibinfo{volume}{17}, \bibinfo{number}{12} (\bibinfo{year}{2011}), \bibinfo{pages}{2301--2309}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2011.185}
+\showDOI{\tempurl}
+
+
+\bibitem[Buneman et~al\mbox{.}(2001)]%
+        {buneman2001and}
+\bibfield{author}{\bibinfo{person}{Peter Buneman}, \bibinfo{person}{Sanjeev Khanna}, {and} \bibinfo{person}{Tan Wang-Chiew}.} \bibinfo{year}{2001}\natexlab{}.
+\newblock \showarticletitle{Why and where: A characterization of data provenance}. In \bibinfo{booktitle}{\emph{Database Theory—ICDT 2001: 8th International Conference London, UK, January 4--6, 2001 Proceedings 8}}. Springer, \bibinfo{pages}{316--330}.
+\newblock
+
+
+\bibitem[Chen et~al\mbox{.}(2021)]%
+        {chen2021evaluating}
+\bibfield{author}{\bibinfo{person}{Mark Chen}, \bibinfo{person}{Jerry Tworek}, \bibinfo{person}{Heewoo Jun}, \bibinfo{person}{Qiming Yuan}, \bibinfo{person}{Henrique~Pond{\'{e}} de Oliveira~Pinto}, \bibinfo{person}{Jared Kaplan}, \bibinfo{person}{Harrison Edwards}, \bibinfo{person}{Yuri Burda}, \bibinfo{person}{Nicholas Joseph}, \bibinfo{person}{Greg Brockman}, {et~al\mbox{.}}} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Evaluating Large Language Models Trained on Code}.
+\newblock \bibinfo{journal}{\emph{CoRR}}  \bibinfo{volume}{abs/2107.03374} (\bibinfo{year}{2021}).
+\newblock
+\showeprint[arXiv]{2107.03374}
+\urldef\tempurl%
+\url{https://arxiv.org/abs/2107.03374}
+\showURL{%
+\tempurl}
+
+
+\bibitem[Chen et~al\mbox{.}(2024)]%
+        {chen2024viseval}
+\bibfield{author}{\bibinfo{person}{Nan Chen}, \bibinfo{person}{Yuge Zhang}, \bibinfo{person}{Jiahang Xu}, \bibinfo{person}{Kan Ren}, {and} \bibinfo{person}{Yuqing Yang}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Viseval: A benchmark for data visualization in the era of large language models}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Chen et~al\mbox{.}(2022)]%
+        {chen2022type}
+\bibfield{author}{\bibinfo{person}{Qiaochu Chen}, \bibinfo{person}{Shankara Pailoor}, \bibinfo{person}{Celeste Barnaby}, \bibinfo{person}{Abby Criswell}, \bibinfo{person}{Chenglong Wang}, \bibinfo{person}{Greg Durrett}, {and} \bibinfo{person}{I{\c{s}}il Dillig}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Type-directed synthesis of visualizations from natural language queries}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming Languages}} \bibinfo{volume}{6}, \bibinfo{number}{OOPSLA2} (\bibinfo{year}{2022}), \bibinfo{pages}{532--559}.
+\newblock
+
+
+\bibitem[Chen et~al\mbox{.}(2020)]%
+        {chen2020multi}
+\bibfield{author}{\bibinfo{person}{Qiaochu Chen}, \bibinfo{person}{Xinyu Wang}, \bibinfo{person}{Xi Ye}, \bibinfo{person}{Greg Durrett}, {and} \bibinfo{person}{Isil Dillig}.} \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Multi-modal synthesis of regular expressions}. In \bibinfo{booktitle}{\emph{Proceedings of the 41st ACM SIGPLAN conference on programming language design and implementation}}. \bibinfo{pages}{487--502}.
+\newblock
+
+
+\bibitem[Chen et~al\mbox{.}(2023)]%
+        {chen2023teaching}
+\bibfield{author}{\bibinfo{person}{Xinyun Chen}, \bibinfo{person}{Maxwell Lin}, \bibinfo{person}{Nathanael Sch{\"a}rli}, {and} \bibinfo{person}{Denny Zhou}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Teaching large language models to self-debug}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2304.05128}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Dibia(2023)]%
+        {dibia2023lida}
+\bibfield{author}{\bibinfo{person}{Victor Dibia}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{LIDA: A Tool for Automatic Generation of Grammar-Agnostic Visualizations and Infographics using Large Language Models}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2303.02927}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Dibia and Demiralp(2019)]%
+        {dibia2019data2vis}
+\bibfield{author}{\bibinfo{person}{Victor Dibia} {and} \bibinfo{person}{{\c{C}}a{\u{g}}atay Demiralp}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Data2vis: Automatic generation of data visualizations using sequence-to-sequence recurrent neural networks}.
+\newblock \bibinfo{journal}{\emph{IEEE computer graphics and applications}} \bibinfo{volume}{39}, \bibinfo{number}{5} (\bibinfo{year}{2019}), \bibinfo{pages}{33--46}.
+\newblock
+
+
+\bibitem[Gao et~al\mbox{.}(2023)]%
+        {gao2023text}
+\bibfield{author}{\bibinfo{person}{Dawei Gao}, \bibinfo{person}{Haibin Wang}, \bibinfo{person}{Yaliang Li}, \bibinfo{person}{Xiuyu Sun}, \bibinfo{person}{Yichen Qian}, \bibinfo{person}{Bolin Ding}, {and} \bibinfo{person}{Jingren Zhou}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Text-to-sql empowered by large language models: A benchmark evaluation}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2308.15363}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Gao et~al\mbox{.}(2015)]%
+        {DBLP:conf/uist/GaoDALK15}
+\bibfield{author}{\bibinfo{person}{Tong Gao}, \bibinfo{person}{Mira Dontcheva}, \bibinfo{person}{Eytan Adar}, \bibinfo{person}{Zhicheng Liu}, {and} \bibinfo{person}{Karrie~G. Karahalios}.} \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{DataTone: Managing Ambiguity in Natural Language Interfaces for Data Visualization}. In \bibinfo{booktitle}{\emph{Proceedings of the 28th Annual {ACM} Symposium on User Interface Software {\&} Technology, {UIST} 2015, Charlotte, NC, USA, November 8-11, 2015}}, \bibfield{editor}{\bibinfo{person}{Celine Latulipe}, \bibinfo{person}{Bjoern Hartmann}, {and} \bibinfo{person}{Tovi Grossman}} (Eds.). \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{489--500}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2807442.2807478}
+\showDOI{\tempurl}
+
+
+\bibitem[Gu et~al\mbox{.}(2023)]%
+        {gu2023analysts}
+\bibfield{author}{\bibinfo{person}{Ken Gu}, \bibinfo{person}{Ruoxi Shang}, \bibinfo{person}{Tim Althoff}, \bibinfo{person}{Chenglong Wang}, {and} \bibinfo{person}{Steven~M Drucker}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{How Do Analysts Understand and Verify AI-Assisted Data Analyses?}
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2309.10947}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Head et~al\mbox{.}(2019)]%
+        {head2019managing}
+\bibfield{author}{\bibinfo{person}{Andrew Head}, \bibinfo{person}{Fred Hohman}, \bibinfo{person}{Titus Barik}, \bibinfo{person}{Steven~M Drucker}, {and} \bibinfo{person}{Robert DeLine}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Managing messes in computational notebooks}. In \bibinfo{booktitle}{\emph{Proceedings of the 2019 CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--12}.
+\newblock
+
+
+\bibitem[Heer et~al\mbox{.}(2008)]%
+        {heer2008graphical}
+\bibfield{author}{\bibinfo{person}{Jeffrey Heer}, \bibinfo{person}{Jock Mackinlay}, \bibinfo{person}{Chris Stolte}, {and} \bibinfo{person}{Maneesh Agrawala}.} \bibinfo{year}{2008}\natexlab{}.
+\newblock \showarticletitle{Graphical histories for visualization: Supporting analysis, communication, and evaluation}.
+\newblock \bibinfo{journal}{\emph{IEEE transactions on visualization and computer graphics}} \bibinfo{volume}{14}, \bibinfo{number}{6} (\bibinfo{year}{2008}), \bibinfo{pages}{1189--1196}.
+\newblock
+
+
+\bibitem[Hsieh et~al\mbox{.}(2024)]%
+        {hsieh2024ruler}
+\bibfield{author}{\bibinfo{person}{Cheng-Ping Hsieh}, \bibinfo{person}{Simeng Sun}, \bibinfo{person}{Samuel Kriman}, \bibinfo{person}{Shantanu Acharya}, \bibinfo{person}{Dima Rekesh}, \bibinfo{person}{Fei Jia}, {and} \bibinfo{person}{Boris Ginsburg}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{RULER: What's the Real Context Size of Your Long-Context Language Models?}
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2404.06654}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Huang et~al\mbox{.}(2023)]%
+        {huang2023interactive}
+\bibfield{author}{\bibinfo{person}{Yanwei Huang}, \bibinfo{person}{Yunfan Zhou}, \bibinfo{person}{Ran Chen}, \bibinfo{person}{Changhao Pan}, \bibinfo{person}{Xinhuan Shu}, \bibinfo{person}{Di Weng}, {and} \bibinfo{person}{Yingcai Wu}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Interactive table synthesis with natural language}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Jin et~al\mbox{.}(2017)]%
+        {jin2017foofah}
+\bibfield{author}{\bibinfo{person}{Zhongjun Jin}, \bibinfo{person}{Michael~R. Anderson}, \bibinfo{person}{Michael~J. Cafarella}, {and} \bibinfo{person}{H.~V. Jagadish}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Foofah: Transforming Data By Example}. In \bibinfo{booktitle}{\emph{{SIGMOD} Conference 2017, Chicago, IL, USA, May 14-19, 2017}}, \bibfield{editor}{\bibinfo{person}{Semih Salihoglu}, \bibinfo{person}{Wenchao Zhou}, \bibinfo{person}{Rada Chirkova}, \bibinfo{person}{Jun Yang}, {and} \bibinfo{person}{Dan Suciu}} (Eds.). \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{683--698}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3035918.3064034}
+\showDOI{\tempurl}
+
+
+\bibitem[Kandel et~al\mbox{.}(2011)]%
+        {kandel2011wrangler}
+\bibfield{author}{\bibinfo{person}{Sean Kandel}, \bibinfo{person}{Andreas Paepcke}, \bibinfo{person}{Joseph Hellerstein}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{Wrangler: Interactive visual specification of data transformation scripts}. In \bibinfo{booktitle}{\emph{Proceedings of the ACM Conference on Human Factors in Computing Systems (CHI)}}. \bibinfo{pages}{3363--3372}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1978942.1979444}
+\showDOI{\tempurl}
+
+
+\bibitem[Kery et~al\mbox{.}(2017)]%
+        {kery2017variolite}
+\bibfield{author}{\bibinfo{person}{Mary~Beth Kery}, \bibinfo{person}{Amber Horvath}, {and} \bibinfo{person}{Brad~A Myers}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Variolite: Supporting Exploratory Programming by Data Scientists.}. In \bibinfo{booktitle}{\emph{CHI}}, Vol.~\bibinfo{volume}{10}. \bibinfo{pages}{3025453--3025626}.
+\newblock
+
+
+\bibitem[Kery et~al\mbox{.}(2020)]%
+        {beth2020mage}
+\bibfield{author}{\bibinfo{person}{Mary~Beth Kery}, \bibinfo{person}{Donghao Ren}, \bibinfo{person}{Fred Hohman}, \bibinfo{person}{Dominik Moritz}, \bibinfo{person}{Kanit Wongsuphasawat}, {and} \bibinfo{person}{Kayur Patel}.} \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Mage: Fluid Moves Between Code and Graphical Work in Computational Notebooks}. In \bibinfo{booktitle}{\emph{Proceedings of the 33rd Annual ACM Symposium on User Interface Software and Technology}} (Virtual Event, USA) \emph{(\bibinfo{series}{UIST '20})}. \bibinfo{publisher}{Association for Computing Machinery}, \bibinfo{address}{New York, NY, USA}, \bibinfo{pages}{140–151}.
+\newblock
+\showISBNx{9781450375146}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3379337.3415842}
+\showDOI{\tempurl}
+
+
+\bibitem[Kim et~al\mbox{.}(2017)]%
+        {kim2017graphscape}
+\bibfield{author}{\bibinfo{person}{Younghoon Kim}, \bibinfo{person}{Kanit Wongsuphasawat}, \bibinfo{person}{Jessica Hullman}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Graphscape: A model for automated reasoning about visualization similarity and sequencing}. In \bibinfo{booktitle}{\emph{Proceedings of the 2017 CHI conference on human factors in computing systems}}. \bibinfo{pages}{2628--2638}.
+\newblock
+
+
+\bibitem[Lai et~al\mbox{.}(2023)]%
+        {lai2023ds}
+\bibfield{author}{\bibinfo{person}{Yuhang Lai}, \bibinfo{person}{Chengxi Li}, \bibinfo{person}{Yiming Wang}, \bibinfo{person}{Tianyi Zhang}, \bibinfo{person}{Ruiqi Zhong}, \bibinfo{person}{Luke Zettlemoyer}, \bibinfo{person}{Wen-tau Yih}, \bibinfo{person}{Daniel Fried}, \bibinfo{person}{Sida Wang}, {and} \bibinfo{person}{Tao Yu}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{DS-1000: A natural and reliable benchmark for data science code generation}. In \bibinfo{booktitle}{\emph{International Conference on Machine Learning}}. PMLR, \bibinfo{pages}{18319--18345}.
+\newblock
+
+
+\bibitem[Lee et~al\mbox{.}(2021)]%
+        {lee2021lux}
+\bibfield{author}{\bibinfo{person}{Doris Jung~Lin Lee}, \bibinfo{person}{Dixin Tang}, \bibinfo{person}{Kunal Agarwal}, \bibinfo{person}{Thyne Boonmark}, \bibinfo{person}{Caitlyn Chen}, \bibinfo{person}{Jake Kang}, \bibinfo{person}{Ujjaini Mukhopadhyay}, \bibinfo{person}{Jerry Song}, \bibinfo{person}{Micah Yong}, \bibinfo{person}{Marti~A. Hearst}, {and} \bibinfo{person}{Aditya~G. Parameswaran}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Lux: Always-on Visualization Recommendations for Exploratory Dataframe Workflows}.
+\newblock \bibinfo{journal}{\emph{Proc. {VLDB} Endow.}} \bibinfo{volume}{15}, \bibinfo{number}{3} (\bibinfo{year}{2021}), \bibinfo{pages}{727--738}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.14778/3494124.3494151}
+\showDOI{\tempurl}
+
+
+\bibitem[Liu et~al\mbox{.}(2024)]%
+        {liu2024lost}
+\bibfield{author}{\bibinfo{person}{Nelson~F Liu}, \bibinfo{person}{Kevin Lin}, \bibinfo{person}{John Hewitt}, \bibinfo{person}{Ashwin Paranjape}, \bibinfo{person}{Michele Bevilacqua}, \bibinfo{person}{Fabio Petroni}, {and} \bibinfo{person}{Percy Liang}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Lost in the middle: How language models use long contexts}.
+\newblock \bibinfo{journal}{\emph{Transactions of the Association for Computational Linguistics}}  \bibinfo{volume}{12} (\bibinfo{year}{2024}), \bibinfo{pages}{157--173}.
+\newblock
+
+
+\bibitem[Liu et~al\mbox{.}(2021)]%
+        {liu2021atlas}
+\bibfield{author}{\bibinfo{person}{Zhicheng Liu}, \bibinfo{person}{Chen Chen}, \bibinfo{person}{Francisco Morales}, {and} \bibinfo{person}{Yishan Zhao}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Atlas: Grammar-based Procedural Generation of Data Visualizations}. In \bibinfo{booktitle}{\emph{2021 {IEEE} Visualization Conference, 2021 - Short Papers, New Orleans, LA, USA, October 24-29, 2021}}. \bibinfo{publisher}{{IEEE}}, \bibinfo{pages}{171--175}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/VIS49827.2021.9623315}
+\showDOI{\tempurl}
+
+
+\bibitem[Liu et~al\mbox{.}(2018)]%
+        {liu2018data}
+\bibfield{author}{\bibinfo{person}{Zhicheng Liu}, \bibinfo{person}{John Thompson}, \bibinfo{person}{Alan Wilson}, \bibinfo{person}{Mira Dontcheva}, \bibinfo{person}{James Delorey}, \bibinfo{person}{Sam Grigg}, \bibinfo{person}{Bernard Kerr}, {and} \bibinfo{person}{John Stasko}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Data Illustrator}: Augmenting Vector Design Tools with Lazy Data Binding for Expressive Visualization Authoring}. In \bibinfo{booktitle}{\emph{Proceedings of the ACM Conference on Human Factors in Computing Systems (CHI)}}. \bibinfo{pages}{123:1--13}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3173574.3173697}
+\showDOI{\tempurl}
+
+
+\bibitem[Lozhkov et~al\mbox{.}(2024)]%
+        {lozhkov2024starcoder}
+\bibfield{author}{\bibinfo{person}{Anton Lozhkov}, \bibinfo{person}{Raymond Li}, \bibinfo{person}{Loubna~Ben Allal}, \bibinfo{person}{Federico Cassano}, \bibinfo{person}{Joel Lamy-Poirier}, \bibinfo{person}{Nouamane Tazi}, \bibinfo{person}{Ao Tang}, \bibinfo{person}{Dmytro Pykhtar}, \bibinfo{person}{Jiawei Liu}, \bibinfo{person}{Yuxiang Wei}, {et~al\mbox{.}}} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Starcoder 2 and the stack v2: The next generation}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2402.19173}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Luo et~al\mbox{.}(2022)]%
+        {luo2021natural}
+\bibfield{author}{\bibinfo{person}{Yuyu Luo}, \bibinfo{person}{Nan Tang}, \bibinfo{person}{Guoliang Li}, \bibinfo{person}{Jiawei Tang}, \bibinfo{person}{Chengliang Chai}, {and} \bibinfo{person}{Xuedi Qin}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Natural Language to Visualization by Neural Machine Translation}.
+\newblock \bibinfo{journal}{\emph{{IEEE} Trans. Vis. Comput. Graph.}} \bibinfo{volume}{28}, \bibinfo{number}{1} (\bibinfo{year}{2022}), \bibinfo{pages}{217--226}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2021.3114848}
+\showDOI{\tempurl}
+
+
+\bibitem[Maddigan and Susnjak(2023)]%
+        {maddigan2023chat2vis}
+\bibfield{author}{\bibinfo{person}{Paula Maddigan} {and} \bibinfo{person}{Teo Susnjak}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Chat2vis: Generating data visualisations via natural language using chatgpt, codex and gpt-3 large language models}.
+\newblock \bibinfo{journal}{\emph{Ieee Access}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Masson et~al\mbox{.}(2024)]%
+        {masson2024directgpt}
+\bibfield{author}{\bibinfo{person}{Damien Masson}, \bibinfo{person}{Sylvain Malacria}, \bibinfo{person}{G{\'e}ry Casiez}, {and} \bibinfo{person}{Daniel Vogel}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Directgpt: A direct manipulation interface to interact with large language models}. In \bibinfo{booktitle}{\emph{Proceedings of the CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--16}.
+\newblock
+
+
+\bibitem[McNutt et~al\mbox{.}(2023)]%
+        {mcnutt2023design}
+\bibfield{author}{\bibinfo{person}{Andrew~M McNutt}, \bibinfo{person}{Chenglong Wang}, \bibinfo{person}{Robert~A Deline}, {and} \bibinfo{person}{Steven~M Drucker}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{On the design of ai-powered code assistants for notebooks}. In \bibinfo{booktitle}{\emph{Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--16}.
+\newblock
+
+
+\bibitem[Mitra et~al\mbox{.}(2022)]%
+        {mitra2022facilitating}
+\bibfield{author}{\bibinfo{person}{Rishab Mitra}, \bibinfo{person}{Arpit Narechania}, \bibinfo{person}{Alex Endert}, {and} \bibinfo{person}{John Stasko}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Facilitating conversational interaction in natural language interfaces for visualization}. In \bibinfo{booktitle}{\emph{2022 IEEE Visualization and Visual Analytics (VIS)}}. IEEE, \bibinfo{pages}{6--10}.
+\newblock
+
+
+\bibitem[Moritz et~al\mbox{.}(2019)]%
+        {moritz2018formalizing}
+\bibfield{author}{\bibinfo{person}{Dominik Moritz}, \bibinfo{person}{Chenglong Wang}, \bibinfo{person}{Greg~L. Nelson}, \bibinfo{person}{Halden Lin}, \bibinfo{person}{Adam~M. Smith}, \bibinfo{person}{Bill Howe}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Formalizing Visualization Design Knowledge as Constraints: Actionable and Extensible Models in Draco}.
+\newblock \bibinfo{journal}{\emph{{IEEE} Trans. Vis. Comput. Graph.}} \bibinfo{volume}{25}, \bibinfo{number}{1} (\bibinfo{year}{2019}), \bibinfo{pages}{438--448}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2018.2865240}
+\showDOI{\tempurl}
+
+
+\bibitem[Narechania et~al\mbox{.}(2021)]%
+        {narechania2020nl4dv}
+\bibfield{author}{\bibinfo{person}{Arpit Narechania}, \bibinfo{person}{Arjun Srinivasan}, {and} \bibinfo{person}{John~T. Stasko}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{{NL4DV:} {A} Toolkit for Generating Analytic Specifications for Data Visualization from Natural Language Queries}.
+\newblock \bibinfo{journal}{\emph{{IEEE} Trans. Vis. Comput. Graph.}} \bibinfo{volume}{27}, \bibinfo{number}{2} (\bibinfo{year}{2021}), \bibinfo{pages}{369--379}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2020.3030378}
+\showDOI{\tempurl}
+
+
+\bibitem[Observable({[n.\,d.]})]%
+        {observable}
+\bibfield{author}{\bibinfo{person}{Observable}.} \bibinfo{year}{[n.\,d.]}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{https://observablehq.com/}}.
+\newblock
+
+
+\bibitem[Olausson et~al\mbox{.}(2023)]%
+        {olausson2023self}
+\bibfield{author}{\bibinfo{person}{Theo~X Olausson}, \bibinfo{person}{Jeevana~Priya Inala}, \bibinfo{person}{Chenglong Wang}, \bibinfo{person}{Jianfeng Gao}, {and} \bibinfo{person}{Armando Solar-Lezama}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Is Self-Repair a Silver Bullet for Code Generation?}. In \bibinfo{booktitle}{\emph{The Twelfth International Conference on Learning Representations}}.
+\newblock
+
+
+\bibitem[OpenAI et~al\mbox{.}(2024)]%
+        {openai2024gpt4technicalreport}
+\bibfield{author}{\bibinfo{person}{OpenAI}, \bibinfo{person}{Josh Achiam}, \bibinfo{person}{Steven Adler}, \bibinfo{person}{Sandhini Agarwal}, \bibinfo{person}{Lama Ahmad}, \bibinfo{person}{Ilge Akkaya}, \bibinfo{person}{Florencia~Leoni Aleman}, \bibinfo{person}{Diogo Almeida}, \bibinfo{person}{Janko Altenschmidt}, {and} \bibinfo{person}{Sam~Altman et al.}} \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{GPT-4 Technical Report}.
+\newblock
+\newblock
+\showeprint[arxiv]{2303.08774}~[cs.CL]
+\urldef\tempurl%
+\url{https://arxiv.org/abs/2303.08774}
+\showURL{%
+\tempurl}
+
+
+\bibitem[pandas~development team(2023)]%
+        {the_pandas_development_team_2023_7741580}
+\bibfield{author}{\bibinfo{person}{The pandas~development team}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{pandas-dev/pandas: Pandas}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.5281/zenodo.7741580}
+\showDOI{\tempurl}
+
+
+\bibitem[Polozov and Gulwani(2015)]%
+        {polozov2015flashmeta}
+\bibfield{author}{\bibinfo{person}{Oleksandr Polozov} {and} \bibinfo{person}{Sumit Gulwani}.} \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{FlashMeta: a framework for inductive program synthesis}. In \bibinfo{booktitle}{\emph{Object-Oriented Programming, Systems, Languages, and Applications, {OOPSLA} 2015, Pittsburgh, PA, USA, October 25-30, 2015}}, \bibfield{editor}{\bibinfo{person}{Jonathan Aldrich} {and} \bibinfo{person}{Patrick Eugster}} (Eds.). \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{107--126}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2814270.2814310}
+\showDOI{\tempurl}
+
+
+\bibitem[Raman and Hellerstein(2001)]%
+        {raman2001potter}
+\bibfield{author}{\bibinfo{person}{Vijayshankar Raman} {and} \bibinfo{person}{Joseph~M. Hellerstein}.} \bibinfo{year}{2001}\natexlab{}.
+\newblock \showarticletitle{Potter's Wheel: An Interactive Data Cleaning System}. In \bibinfo{booktitle}{\emph{{VLDB} 2001, Proceedings of 27th International Conference on Very Large Data Bases, September 11-14, 2001, Roma, Italy}}, \bibfield{editor}{\bibinfo{person}{Peter M.~G. Apers}, \bibinfo{person}{Paolo Atzeni}, \bibinfo{person}{Stefano Ceri}, \bibinfo{person}{Stefano Paraboschi}, \bibinfo{person}{Kotagiri Ramamohanarao}, {and} \bibinfo{person}{Richard~T. Snodgrass}} (Eds.). \bibinfo{publisher}{Morgan Kaufmann}, \bibinfo{pages}{381--390}.
+\newblock
+\urldef\tempurl%
+\url{http://www.vldb.org/conf/2001/P381.pdf}
+\showURL{%
+\tempurl}
+
+
+\bibitem[Reid et~al\mbox{.}(2024)]%
+        {reid2024gemini}
+\bibfield{author}{\bibinfo{person}{Machel Reid}, \bibinfo{person}{Nikolay Savinov}, \bibinfo{person}{Denis Teplyashin}, \bibinfo{person}{Dmitry Lepikhin}, \bibinfo{person}{Timothy Lillicrap}, \bibinfo{person}{Jean-baptiste Alayrac}, \bibinfo{person}{Radu Soricut}, \bibinfo{person}{Angeliki Lazaridou}, \bibinfo{person}{Orhan Firat}, \bibinfo{person}{Julian Schrittwieser}, {et~al\mbox{.}}} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Gemini 1.5: Unlocking multimodal understanding across millions of tokens of context}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2403.05530}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Ren et~al\mbox{.}(2017)]%
+        {ren2017chartaccent}
+\bibfield{author}{\bibinfo{person}{Donghao Ren}, \bibinfo{person}{Matthew Brehmer}, \bibinfo{person}{Bongshin Lee}, \bibinfo{person}{Tobias H{\"o}llerer}, {and} \bibinfo{person}{Eun~Kyoung Choe}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Chartaccent: Annotation for data-driven storytelling}. In \bibinfo{booktitle}{\emph{2017 IEEE Pacific Visualization Symposium (PacificVis)}}. Ieee, \bibinfo{pages}{230--239}.
+\newblock
+
+
+\bibitem[Ren et~al\mbox{.}(2019)]%
+        {ren2019charticulator}
+\bibfield{author}{\bibinfo{person}{Donghao Ren}, \bibinfo{person}{Bongshin Lee}, {and} \bibinfo{person}{Matthew Brehmer}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Charticulator: Interactive Construction of Bespoke Chart Layouts}.
+\newblock \bibinfo{journal}{\emph{{IEEE} Trans. Vis. Comput. Graph. (Proceedings of InfoVis)}} \bibinfo{volume}{25}, \bibinfo{number}{1} (\bibinfo{year}{2019}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2018.2865158}
+\showDOI{\tempurl}
+
+
+\bibitem[Ren et~al\mbox{.}(2018)]%
+        {ren2018reflecting}
+\bibfield{author}{\bibinfo{person}{Donghao Ren}, \bibinfo{person}{Bongshin Lee}, \bibinfo{person}{Matthew Brehmer}, {and} \bibinfo{person}{Nathalie~Henry Riche}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Reflecting on the Evaluation of Visualization Authoring Systems : Position Paper}. In \bibinfo{booktitle}{\emph{2018 {IEEE} Evaluation and Beyond - Methodological Approaches for Visualization, {BELIV} 2018, Berlin, Germany, October 21, 2018}}, \bibfield{editor}{\bibinfo{person}{Michael Sedlmair}, \bibinfo{person}{Petra Isenberg}, \bibinfo{person}{Miriah Meyer}, {and} \bibinfo{person}{Tobias Isenberg}} (Eds.). \bibinfo{publisher}{{IEEE} Computer Society}, \bibinfo{pages}{86--92}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/BELIV.2018.8634297}
+\showDOI{\tempurl}
+
+
+\bibitem[Rule et~al\mbox{.}(2018)]%
+        {rule2018exploration}
+\bibfield{author}{\bibinfo{person}{Adam Rule}, \bibinfo{person}{Aur{\'e}lien Tabard}, {and} \bibinfo{person}{James~D Hollan}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Exploration and explanation in computational notebooks}. In \bibinfo{booktitle}{\emph{Proceedings of the 2018 CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--12}.
+\newblock
+
+
+\bibitem[Satyanarayan and Heer(2014)]%
+        {satyanarayan2014lyra}
+\bibfield{author}{\bibinfo{person}{A. Satyanarayan} {and} \bibinfo{person}{J. Heer}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{{Lyra: An interactive visualization design environment}}.
+\newblock \bibinfo{journal}{\emph{Computer Graphics Forum (Proceedings of EuroVis)}} \bibinfo{volume}{33}, \bibinfo{number}{3} (\bibinfo{year}{2014}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1111/cgf.12391}
+\showDOI{\tempurl}
+
+
+\bibitem[Satyanarayan et~al\mbox{.}(2017)]%
+        {satyanarayan2017vegalite}
+\bibfield{author}{\bibinfo{person}{Arvind Satyanarayan}, \bibinfo{person}{Dominik Moritz}, \bibinfo{person}{Kanit Wongsuphasawat}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{{Vega-Lite}: A grammar of interactive graphics}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics (Proceedings of InfoVis)}} \bibinfo{volume}{23}, \bibinfo{number}{1} (\bibinfo{year}{2017}), \bibinfo{pages}{341--350}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/TVCG.2016.2599030}
+\showDOI{\tempurl}
+
+
+\bibitem[Shi et~al\mbox{.}(2019)]%
+        {shi2019task}
+\bibfield{author}{\bibinfo{person}{Danqing Shi}, \bibinfo{person}{Yang Shi}, \bibinfo{person}{Xinyue Xu}, \bibinfo{person}{Nan Chen}, \bibinfo{person}{Siwei Fu}, \bibinfo{person}{Hongjin Wu}, {and} \bibinfo{person}{Nan Cao}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Task-oriented optimal sequencing of visualization charts}. In \bibinfo{booktitle}{\emph{2019 IEEE Visualization in Data Science (VDS)}}. IEEE, \bibinfo{pages}{58--66}.
+\newblock
+
+
+\bibitem[Stolte et~al\mbox{.}(2002)]%
+        {stolte2002query}
+\bibfield{author}{\bibinfo{person}{Chris Stolte}, \bibinfo{person}{Diane Tang}, {and} \bibinfo{person}{Pat Hanrahan}.} \bibinfo{year}{2002}\natexlab{}.
+\newblock \showarticletitle{Query, analysis, and visualization of hierarchically structured data using Polaris}. In \bibinfo{booktitle}{\emph{Proceedings of the Eighth {ACM} {SIGKDD} International Conference on Knowledge Discovery and Data Mining, July 23-26, 2002, Edmonton, Alberta, Canada}}. \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{112--122}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/775047.775064}
+\showDOI{\tempurl}
+
+
+\bibitem[Tankelevitch et~al\mbox{.}(2024)]%
+        {DBLP:conf/chi/TankelevitchKSS24}
+\bibfield{author}{\bibinfo{person}{Lev Tankelevitch}, \bibinfo{person}{Viktor Kewenig}, \bibinfo{person}{Auste Simkute}, \bibinfo{person}{Ava~Elizabeth Scott}, \bibinfo{person}{Advait Sarkar}, \bibinfo{person}{Abigail Sellen}, {and} \bibinfo{person}{Sean Rintel}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{The Metacognitive Demands and Opportunities of Generative {AI}}. In \bibinfo{booktitle}{\emph{Proceedings of the {CHI} Conference on Human Factors in Computing Systems, {CHI} 2024, Honolulu, HI, USA, May 11-16, 2024}}, \bibfield{editor}{\bibinfo{person}{Florian~'Floyd' Mueller}, \bibinfo{person}{Penny Kyburz}, \bibinfo{person}{Julie~R. Williamson}, \bibinfo{person}{Corina Sas}, \bibinfo{person}{Max~L. Wilson}, \bibinfo{person}{Phoebe O.~Toups Dugas}, {and} \bibinfo{person}{Irina Shklovski}} (Eds.). \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{680:1--680:24}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3613904.3642902}
+\showDOI{\tempurl}
+
+
+\bibitem[Tian et~al\mbox{.}(2024)]%
+        {tian2024chartgpt}
+\bibfield{author}{\bibinfo{person}{Yuan Tian}, \bibinfo{person}{Weiwei Cui}, \bibinfo{person}{Dazhen Deng}, \bibinfo{person}{Xinjing Yi}, \bibinfo{person}{Yurun Yang}, \bibinfo{person}{Haidong Zhang}, {and} \bibinfo{person}{Yingcai Wu}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Chartgpt: Leveraging llms to generate charts from abstract natural language}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Touvron et~al\mbox{.}(2023)]%
+        {touvron2023llama}
+\bibfield{author}{\bibinfo{person}{Hugo Touvron}, \bibinfo{person}{Thibaut Lavril}, \bibinfo{person}{Gautier Izacard}, \bibinfo{person}{Xavier Martinet}, \bibinfo{person}{Marie-Anne Lachaux}, \bibinfo{person}{Timoth{\'e}e Lacroix}, \bibinfo{person}{Baptiste Rozi{\`e}re}, \bibinfo{person}{Naman Goyal}, \bibinfo{person}{Eric Hambro}, \bibinfo{person}{Faisal Azhar}, {et~al\mbox{.}}} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Llama: Open and efficient foundation language models}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2302.13971}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Vaithilingam et~al\mbox{.}(2024)]%
+        {vaithilingam2024dynavis}
+\bibfield{author}{\bibinfo{person}{Priyan Vaithilingam}, \bibinfo{person}{Elena~L Glassman}, \bibinfo{person}{Jeevana~Priya Inala}, {and} \bibinfo{person}{Chenglong Wang}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{DynaVis: Dynamically Synthesized UI Widgets for Visualization Editing}. In \bibinfo{booktitle}{\emph{Proceedings of the CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--17}.
+\newblock
+
+
+\bibitem[VanderPlas et~al\mbox{.}(2018)]%
+        {vanderplas2018altair}
+\bibfield{author}{\bibinfo{person}{Jacob VanderPlas}, \bibinfo{person}{Brian~E. Granger}, \bibinfo{person}{Jeffrey Heer}, \bibinfo{person}{Dominik Moritz}, \bibinfo{person}{Kanit Wongsuphasawat}, \bibinfo{person}{Arvind Satyanarayan}, \bibinfo{person}{Eitan Lees}, \bibinfo{person}{Ilia Timofeev}, \bibinfo{person}{Ben Welsh}, {and} \bibinfo{person}{Scott Sievert}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Altair: Interactive Statistical Visualizations for Python}.
+\newblock \bibinfo{journal}{\emph{J. Open Source Softw.}} \bibinfo{volume}{3}, \bibinfo{number}{32}, \bibinfo{pages}{1057}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.21105/joss.01057}
+\showDOI{\tempurl}
+
+
+\bibitem[Wang et~al\mbox{.}(2021)]%
+        {wang2021falx}
+\bibfield{author}{\bibinfo{person}{Chenglong Wang}, \bibinfo{person}{Yu Feng}, \bibinfo{person}{Rastislav Bod{\'{\i}}k}, \bibinfo{person}{Isil Dillig}, \bibinfo{person}{Alvin Cheung}, {and} \bibinfo{person}{Amy~J. Ko}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Falx: Synthesis-Powered Visualization Authoring}. In \bibinfo{booktitle}{\emph{{CHI} '21: {CHI} Conference on Human Factors in Computing Systems, Virtual Event / Yokohama, Japan, May 8-13, 2021}}, \bibfield{editor}{\bibinfo{person}{Yoshifumi Kitamura}, \bibinfo{person}{Aaron Quigley}, \bibinfo{person}{Katherine Isbister}, \bibinfo{person}{Takeo Igarashi}, \bibinfo{person}{Pernille Bj{\o}rn}, {and} \bibinfo{person}{Steven~Mark Drucker}} (Eds.). \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{106:1--106:15}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3411764.3445249}
+\showDOI{\tempurl}
+
+
+\bibitem[Wang et~al\mbox{.}(2023)]%
+        {wang2023data}
+\bibfield{author}{\bibinfo{person}{Chenglong Wang}, \bibinfo{person}{John Thompson}, {and} \bibinfo{person}{Bongshin Lee}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Data Formulator: Ai-powered concept-driven visualization authoring}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Wei et~al\mbox{.}(2022)]%
+        {wei2022chain}
+\bibfield{author}{\bibinfo{person}{Jason Wei}, \bibinfo{person}{Xuezhi Wang}, \bibinfo{person}{Dale Schuurmans}, \bibinfo{person}{Maarten Bosma}, \bibinfo{person}{Fei Xia}, \bibinfo{person}{Ed Chi}, \bibinfo{person}{Quoc~V Le}, \bibinfo{person}{Denny Zhou}, {et~al\mbox{.}}} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Chain-of-thought prompting elicits reasoning in large language models}.
+\newblock \bibinfo{journal}{\emph{Advances in neural information processing systems}}  \bibinfo{volume}{35} (\bibinfo{year}{2022}), \bibinfo{pages}{24824--24837}.
+\newblock
+
+
+\bibitem[White and Drucker(2007)]%
+        {white2007investigating}
+\bibfield{author}{\bibinfo{person}{Ryen~W White} {and} \bibinfo{person}{Steven~M Drucker}.} \bibinfo{year}{2007}\natexlab{}.
+\newblock \showarticletitle{Investigating behavioral variability in web search}. In \bibinfo{booktitle}{\emph{Proceedings of the 16th international conference on World Wide Web}}. \bibinfo{pages}{21--30}.
+\newblock
+
+
+\bibitem[Wickham(2009)]%
+        {wickham2009ggplot2}
+\bibfield{author}{\bibinfo{person}{Hadley Wickham}.} \bibinfo{year}{2009}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{ggplot2 - Elegant Graphics for Data Analysis}}.
+\newblock \bibinfo{publisher}{Springer}.
+\newblock
+\showISBNx{978-0-387-98140-6}
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-0-387-98141-3}
+\showDOI{\tempurl}
+
+
+\bibitem[Wickham(2014)]%
+        {wickham2014tidy-data}
+\bibfield{author}{\bibinfo{person}{Hadley Wickham}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{Tidy data}.
+\newblock \bibinfo{journal}{\emph{The Journal of Statistical Software}}  \bibinfo{volume}{59} (\bibinfo{year}{2014}).
+\newblock
+Issue 10.
+\urldef\tempurl%
+\url{http://www.jstatsoft.org/v59/i10/}
+\showURL{%
+\tempurl}
+
+
+\bibitem[Wickham et~al\mbox{.}(2019)]%
+        {wickham2019tidyverse}
+\bibfield{author}{\bibinfo{person}{Hadley Wickham}, \bibinfo{person}{Mara Averick}, \bibinfo{person}{Jennifer Bryan}, \bibinfo{person}{Winston Chang}, \bibinfo{person}{Lucy McGowan}, \bibinfo{person}{Romain Fran{\c c}ois}, \bibinfo{person}{Garrett Grolemund}, \bibinfo{person}{Alex Hayes}, \bibinfo{person}{Lionel Henry}, \bibinfo{person}{Jim Hester}, \bibinfo{person}{Max Kuhn}, \bibinfo{person}{Thomas Pedersen}, \bibinfo{person}{Evan Miller}, \bibinfo{person}{Stephan Bache}, \bibinfo{person}{Kirill M{\"u}ller}, \bibinfo{person}{Jeroen Ooms}, \bibinfo{person}{David Robinson}, \bibinfo{person}{Dana Seidel}, \bibinfo{person}{Vitalie Spinu}, \bibinfo{person}{Kohske Takahashi}, \bibinfo{person}{Davis Vaughan}, \bibinfo{person}{Claus Wilke}, \bibinfo{person}{Kara Woo}, {and} \bibinfo{person}{Hiroaki Yutani}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Welcome to the tidyverse}.
+\newblock \bibinfo{journal}{\emph{J. Open Source Softw.}} \bibinfo{volume}{4}, \bibinfo{number}{43} (\bibinfo{date}{Nov.} \bibinfo{year}{2019}), \bibinfo{pages}{1686}.
+\newblock
+\showISSN{2475-9066}
+\urldef\tempurl%
+\url{https://doi.org/10.21105/joss.01686}
+\showDOI{\tempurl}
+
+
+\bibitem[Wilkinson(2005)]%
+        {DBLP:books/daglib/0024564}
+\bibfield{author}{\bibinfo{person}{Leland Wilkinson}.} \bibinfo{year}{2005}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{The Grammar of Graphics, Second Edition}}.
+\newblock \bibinfo{publisher}{Springer}.
+\newblock
+\showISBNx{978-0-387-24544-7}
+
+
+\bibitem[Wongsuphasawat et~al\mbox{.}(2017)]%
+        {Wongsuphasawat2017voyager2}
+\bibfield{author}{\bibinfo{person}{Kanit Wongsuphasawat}, \bibinfo{person}{Zening Qu}, \bibinfo{person}{Dominik Moritz}, \bibinfo{person}{Riley Chang}, \bibinfo{person}{Felix Ouk}, \bibinfo{person}{Anushka Anand}, \bibinfo{person}{Jock Mackinlay}, \bibinfo{person}{Bill Howe}, {and} \bibinfo{person}{Jeffrey Heer}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Voyager 2: Augmenting Visual Analysis with Partial View Specifications}. In \bibinfo{booktitle}{\emph{Proceedings of the 2017 CHI Conference on Human Factors in Computing Systems}} (Denver, Colorado, USA) \emph{(\bibinfo{series}{CHI '17})}. \bibinfo{publisher}{Association for Computing Machinery}, \bibinfo{address}{New York, NY, USA}, \bibinfo{pages}{2648–2659}.
+\newblock
+\showISBNx{9781450346559}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3025453.3025768}
+\showDOI{\tempurl}
+
+
+\bibitem[Wu et~al\mbox{.}(2023)]%
+        {wu2023autogen}
+\bibfield{author}{\bibinfo{person}{Qingyun Wu}, \bibinfo{person}{Gagan Bansal}, \bibinfo{person}{Jieyu Zhang}, \bibinfo{person}{Yiran Wu}, \bibinfo{person}{Shaokun Zhang}, \bibinfo{person}{Erkang Zhu}, \bibinfo{person}{Beibin Li}, \bibinfo{person}{Li Jiang}, \bibinfo{person}{Xiaoyun Zhang}, {and} \bibinfo{person}{Chi Wang}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Autogen: Enabling next-gen llm applications via multi-agent conversation framework}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2308.08155}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Wu et~al\mbox{.}(2022)]%
+        {wu2022nl2viz}
+\bibfield{author}{\bibinfo{person}{Zhengkai Wu}, \bibinfo{person}{Vu Le}, \bibinfo{person}{Ashish Tiwari}, \bibinfo{person}{Sumit Gulwani}, \bibinfo{person}{Arjun Radhakrishna}, \bibinfo{person}{Ivan Radi{\v{c}}ek}, \bibinfo{person}{Gustavo Soares}, \bibinfo{person}{Xinyu Wang}, \bibinfo{person}{Zhenwen Li}, {and} \bibinfo{person}{Tao Xie}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{NL2Viz: natural language to visualization via constrained syntax-guided synthesis}. In \bibinfo{booktitle}{\emph{Proceedings of the 30th ACM Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering}}. \bibinfo{pages}{972--983}.
+\newblock
+
+
+\bibitem[Xiong et~al\mbox{.}(2022)]%
+        {xiong2022visualizing}
+\bibfield{author}{\bibinfo{person}{Kai Xiong}, \bibinfo{person}{Siwei Fu}, \bibinfo{person}{Guoming Ding}, \bibinfo{person}{Zhongsu Luo}, \bibinfo{person}{Rong Yu}, \bibinfo{person}{Wei Chen}, \bibinfo{person}{Hujun Bao}, {and} \bibinfo{person}{Yingcai Wu}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Visualizing the scripts of data wrangling with SOMNUS}.
+\newblock \bibinfo{journal}{\emph{IEEE Transactions on Visualization and Computer Graphics}} (\bibinfo{year}{2022}).
+\newblock
+
+
+\bibitem[Zamfirescu-Pereira et~al\mbox{.}(2023)]%
+        {zamfirescu2023johnny}
+\bibfield{author}{\bibinfo{person}{JD Zamfirescu-Pereira}, \bibinfo{person}{Richmond~Y Wong}, \bibinfo{person}{Bjoern Hartmann}, {and} \bibinfo{person}{Qian Yang}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Why Johnny can’t prompt: how non-AI experts try (and fail) to design LLM prompts}. In \bibinfo{booktitle}{\emph{Proceedings of the 2023 CHI Conference on Human Factors in Computing Systems}}. \bibinfo{pages}{1--21}.
+\newblock
+
+
+\bibitem[Zhang et~al\mbox{.}(2023)]%
+        {zhang2023tell}
+\bibfield{author}{\bibinfo{person}{Qingru Zhang}, \bibinfo{person}{Chandan Singh}, \bibinfo{person}{Liyuan Liu}, \bibinfo{person}{Xiaodong Liu}, \bibinfo{person}{Bin Yu}, \bibinfo{person}{Jianfeng Gao}, {and} \bibinfo{person}{Tuo Zhao}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Tell your model where to attend: Post-hoc attention steering for llms}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2311.02262}} (\bibinfo{year}{2023}).
+\newblock
+
+
+\bibitem[Zhang et~al\mbox{.}(2024)]%
+        {zhang2024training}
+\bibfield{author}{\bibinfo{person}{Shaokun Zhang}, \bibinfo{person}{Jieyu Zhang}, \bibinfo{person}{Jiale Liu}, \bibinfo{person}{Linxin Song}, \bibinfo{person}{Chi Wang}, \bibinfo{person}{Ranjay Krishna}, {and} \bibinfo{person}{Qingyun Wu}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Training Language Model Agents without Modifying Language Models}.
+\newblock \bibinfo{journal}{\emph{ICML'24}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Zheng et~al\mbox{.}(2024)]%
+        {zheng2024opencodeinterpreter}
+\bibfield{author}{\bibinfo{person}{Tianyu Zheng}, \bibinfo{person}{Ge Zhang}, \bibinfo{person}{Tianhao Shen}, \bibinfo{person}{Xueling Liu}, \bibinfo{person}{Bill~Yuchen Lin}, \bibinfo{person}{Jie Fu}, \bibinfo{person}{Wenhu Chen}, {and} \bibinfo{person}{Xiang Yue}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{OpenCodeInterpreter: Integrating Code Generation with Execution and Refinement}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2402.14658}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\end{thebibliography}

@@ -734,28 +734,145 @@ pre {
 /* ============================================
    RESPONSIVE ADJUSTMENTS
    ============================================ */
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
 @media (max-width: 991.98px) {
+  .app-container {
+    display: block;
+    /* Stack main layout */
+  }
+
   .sidebar {
     position: fixed;
-    left: -100%;
+    left: -280px;
+    /* Hide off-canvas */
     top: 0;
     width: 280px;
-    z-index: 1100;
-    transition: left var(--transition-normal);
+    height: 100vh;
+    z-index: 1050;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out;
   }
 
   .sidebar.show {
-    left: 0;
+    transform: translateX(280px);
   }
 
-  .mobile-nav-toggle {
-    display: block;
+  .main-content {
+    padding: 20px;
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  /* Dashboard Grid Adjustments for Tablet */
+  .col-span-3 {
+    grid-column: span 6;
+  }
+
+  .col-span-4 {
+    grid-column: span 6;
+  }
+
+  .col-span-6 {
+    grid-column: span 12;
+  }
+
+  .col-span-8 {
+    grid-column: span 12;
   }
 }
 
 @media (max-width: 767.98px) {
-  body {
-    font-size: 14px;
+
+  /* GLOBAL LAYOUT */
+  .bento-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .col-span-3,
+  .col-span-4,
+  .col-span-6,
+  .col-span-8,
+  .col-span-12 {
+    width: 100%;
+    grid-column: span 12 !important;
+  }
+
+  /* DASHBOARD: WELCOME CARD */
+  .card-action .d-flex.justify-content-between {
+    flex-direction: column;
+    position: relative;
+  }
+
+  .card-action i.bi-bar-chart-line-fill {
+    font-size: 5rem !important;
+    /* Smaller icon */
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin: 0 !important;
+    opacity: 0.15;
+  }
+
+  .card-action p {
+    max-width: 100% !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* DASHBOARD: STATS */
+  .stat-card .d-flex {
+    flex-wrap: wrap;
+  }
+
+  /* BROWSE / SEARCH FILTERS */
+  .card .row.g-2>div {
+    margin-bottom: 8px;
+  }
+
+  .card .row.g-2 {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card .row.g-2 .col-md-6,
+  .card .row.g-2 .col-md-2 {
+    width: 100%;
+  }
+
+  /* TYPOGRAPHY & SPACING */
+  h1.h2 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  .btn {
+    width: 100%;
+    /* Full width buttons on mobile */
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  /* Buttons in action card */
+  .card-action .d-flex.gap-3 {
+    flex-direction: column;
+    gap: 0.5rem !important;
+    width: 100%;
+  }
+
+  /* Table Actions */
+  .action-buttons {
+    justify-content: flex-start;
+  }
+
+  /* Modal adjustments */
+  .modal-dialog {
+    margin: 10px;
   }
 
   .header-bar {
@@ -769,6 +886,41 @@ pre {
   .stat-card .stat-value {
     font-size: 1.5rem;
   }
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 1040;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-overlay.show {
+  display: block;
+  opacity: 1;
+}
+
+/* Hamburger Toggle */
+.btn-toggle-sidebar {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  padding: 0;
 }
 
 /* ============================================

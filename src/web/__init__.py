@@ -2,6 +2,7 @@ import os
 from flask import Flask
 
 from .routes import ui_bp
+from .api import api_bp  # New API Blueprint
 
 
 def create_app() -> Flask:
@@ -23,7 +24,10 @@ def create_app() -> Flask:
             app.secret_key = "dev-secret"
             print("Warning: FLASK_SECRET_KEY not set and secrets unavailable. Using weak fallback key.")
 
+    # Register blueprints
     app.register_blueprint(ui_bp)
+    app.register_blueprint(api_bp)  # New: API routes under /api/*
+    
     app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
     return app
 

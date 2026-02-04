@@ -9,13 +9,8 @@
           <label class="form-label">Search Indicators</label>
           <div class="search-wrapper">
             <i class="bi bi-search"></i>
-            <input
-              x-model="query"
-              class="form-control search-input"
-              id="search-query"
-              placeholder="Search by keyword (e.g., GDP, inflation, unemployment)"
-              @keyup.enter="performSearch()"
-            />
+            <input x-model="query" class="form-control search-input" id="search-query"
+              placeholder="Search by keyword (e.g., GDP, inflation, unemployment)" @keyup.enter="performSearch()" />
           </div>
         </div>
         <div class="col-lg-3 col-md-4">
@@ -31,16 +26,35 @@
           </select>
         </div>
         <div class="col-lg-2 col-md-2">
-          <button
-            @click="performSearch()"
-            class="btn btn-primary w-100"
-            :disabled="loading"
-          >
+          <button @click="performSearch()" class="btn btn-primary w-100" :disabled="loading">
             <span x-show="!loading"><i class="bi bi-search"></i> Search</span>
             <span x-show="loading"><span class="spinner-border spinner-border-sm me-1"></span> Searching...</span>
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- Quick Filters -->
+  <div class="mb-4">
+    <small class="text-uppercase text-muted fw-bold ms-1" style="font-size: 0.7rem;">Filtros Rápidos</small>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <button @click="applyQuickFilter('latam')" class="btn btn-sm btn-outline-secondary rounded-pill">
+        🌎 LATAM + España
+      </button>
+      <button @click="applyQuickFilter('oecd')" class="btn btn-sm btn-outline-secondary rounded-pill">
+        📊 OECD
+      </button>
+      <button @click="applyQuickFilter('g20')" class="btn btn-sm btn-outline-secondary rounded-pill">
+        🌍 G20
+      </button>
+      <button @click="applyQuickFilter('inflation')" class="btn btn-sm btn-outline-danger rounded-pill">
+        📈 Inflación > 10%
+      </button>
+      <button @click="applyQuickFilter('poverty')" class="btn btn-sm btn-outline-warning rounded-pill">
+        📉 Pobreza
+      </button>
     </div>
   </div>
 
@@ -68,7 +82,7 @@
         </span>
       </div>
     </div>
-    
+
     <div class="card-body p-0">
       <!-- Success/Error Messages -->
       <div x-show="successMessage" class="alert alert-success m-3" role="alert">
@@ -79,113 +93,110 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <span x-text="error"></span>
       </div>
-      
-      <!-- Results Table -->
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th style="width: 30%">Indicator</th>
-            <th style="width: 35%">Description</th>
-            <th style="width: 15%">Source</th>
-            <th style="width: 20%" class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template x-for="(result, index) in results" :key="result.id || index">
-            <tr>
-              <td>
-                <div class="fw-semibold" x-text="result.indicator || 'N/A'"></div>
-                <div class="small text-muted" x-show="result.tags">
-                  <i class="bi bi-tags me-1"></i><span x-text="result.tags"></span>
-                </div>
-              </td>
-              <td class="small text-secondary" x-text="result.description || ''"></td>
-              <td>
-                <span 
-                  class="badge badge-pill"
-                  :class="{
-                    'badge-bcch': result.source?.toLowerCase() === 'bcch',
-                    'badge-oecd': result.source?.toLowerCase() === 'oecd',
-                    'badge-worldbank': result.source?.toLowerCase() === 'worldbank',
-                    'badge-fred': result.source?.toLowerCase() === 'fred',
-                    'badge-info': !['bcch','oecd','worldbank','fred'].includes(result.source?.toLowerCase())
-                  }"
-                  x-text="result.source || 'N/A'"
-                ></span>
-                <template x-if="result.remote">
-                  <span class="badge badge-secondary badge-pill ms-1" title="From external API">
-                    <i class="bi bi-cloud-arrow-down"></i>
-                  </span>
-                </template>
-              </td>
-              <td class="text-end">
-                <div class="action-buttons">
-                  <!-- Downloaded badge -->
-                  <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
-                    <i class="bi bi-check-circle-fill"></i> Downloaded
-                  </span>
-                  
-                  <!-- Remote OWID: Preview button -->
-                  <button
-                    x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                    @click.prevent="previewRemote(result)"
-                    class="btn btn-outline-light btn-sm btn-icon"
-                    type="button"
-                    title="Preview chart"
-                  >
-                    <i class="bi bi-eye"></i>
-                  </button>
 
-                  <!-- Download button (all types) -->
-                  <button 
-                    @click.prevent="startDownload(result)" 
-                    class="btn btn-outline-primary btn-sm"
-                    type="button"
-                    :disabled="downloading[result.id] === true"
-                    title="Download CSV data"
-                  >
-                    <i x-show="!downloading[result.id]" class="bi bi-download"></i>
-                    <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
-                  </button>
-                  
-                  <!-- Remote OWID: Link to website -->
-                  <a 
-                    x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                    :href="'https://ourworldindata.org/grapher/' + (result.slug || '')"
-                    target="_blank"
-                    class="btn btn-outline-light btn-sm btn-icon"
-                    title="View on Our World in Data"
-                  >
-                    <i class="bi bi-box-arrow-up-right"></i>
-                  </a>
-                  
-                  <!-- View versions in Browse Local -->
-                  <button
-                    class="btn btn-outline-light btn-sm btn-icon"
-                    @click.prevent="openBrowseVersions(result)"
-                    title="View version history"
-                  >
-                    <i class="bi bi-clock-history"></i>
-                  </button>
+      <!-- Results Table -->
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 30%">Indicator</th>
+              <th style="width: 35%">Description</th>
+              <th style="width: 15%">Source</th>
+              <th style="width: 20%" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(result, index) in results" :key="result.id || index">
+              <tr>
+                <td>
+                  <div class="fw-semibold" x-text="result.indicator || 'N/A'"></div>
+                  <div class="small text-muted" x-show="result.tags">
+                    <i class="bi bi-tags me-1"></i><span x-text="result.tags"></span>
+                  </div>
+                </td>
+                <td class="small text-secondary" x-text="result.description || ''"></td>
+                <td>
+                  <span class="badge badge-pill" :class="{
+                      'badge-bcch': result.source?.toLowerCase() === 'bcch',
+                      'badge-oecd': result.source?.toLowerCase() === 'oecd',
+                      'badge-worldbank': result.source?.toLowerCase() === 'worldbank',
+                      'badge-fred': result.source?.toLowerCase() === 'fred',
+                      'badge-info': !['bcch','oecd','worldbank','fred'].includes(result.source?.toLowerCase())
+                    }" x-text="result.source || 'N/A'"></span>
+                  <template x-if="result.remote">
+                    <span class="badge badge-secondary badge-pill ms-1" title="From external API">
+                      <i class="bi bi-cloud-arrow-down"></i>
+                    </span>
+                  </template>
+                </td>
+                <td class="text-end">
+                  <div class="action-buttons">
+                    <!-- Downloaded badge -->
+                    <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
+                      <i class="bi bi-check-circle-fill"></i> Downloaded
+                    </span>
+
+                    <!-- Remote OWID: Preview button -->
+                    <button x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                      @click.prevent="previewRemote(result)" class="btn btn-outline-light btn-sm btn-icon" type="button"
+                      title="Preview chart">
+                      <i class="bi bi-eye"></i>
+                    </button>
+
+                    <!-- Download button (all types) -->
+                    <!-- Download/Update button -->
+                    <button @click.prevent="startDownload(result)" class="btn btn-sm"
+                      :class="result.downloaded ? 'btn-outline-success' : 'btn-outline-primary'"
+                      :disabled="downloading[result.id] === true"
+                      :title="result.downloaded ? 'Update dataset (re-download)' : 'Download CSV data'">
+
+                      <!-- Spinner -->
+                      <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
+
+                      <!-- Icons/Text -->
+                      <template x-if="!downloading[result.id]">
+                        <span>
+                          <i x-show="!result.downloaded" class="bi bi-download"></i>
+                          <span x-show="result.downloaded">
+                            <i class="bi bi-arrow-repeat"></i> Update
+                          </span>
+                        </span>
+                      </template>
+                    </button>
+
+                    <!-- Remote OWID: Link to website -->
+                    <a x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                      :href="'https://ourworldindata.org/grapher/' + (result.slug || '')" target="_blank"
+                      class="btn btn-outline-light btn-sm btn-icon" title="View on Our World in Data">
+                      <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+
+                    <!-- View versions in Browse Local -->
+                    <button class="btn btn-outline-light btn-sm btn-icon" @click.prevent="openBrowseVersions(result)"
+                      title="View version history">
+                      <i class="bi bi-clock-history"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+
+            <!-- Empty State -->
+            <tr x-show="results.length === 0 && !loading">
+              <td colspan="4" class="text-center py-5">
+                <div class="empty-state">
+                  <i class="bi bi-search"></i>
+                  <h5 x-show="!query && !source">Start your search</h5>
+                  <p x-show="!query && !source">Enter keywords to search for economic indicators across multiple data
+                    sources.</p>
+                  <h5 x-show="(query || source)">No results found</h5>
+                  <p x-show="(query || source)">Try different keywords or select a different data source.</p>
                 </div>
               </td>
             </tr>
-          </template>
-          
-          <!-- Empty State -->
-          <tr x-show="results.length === 0 && !loading">
-            <td colspan="4" class="text-center py-5">
-              <div class="empty-state">
-                <i class="bi bi-search"></i>
-                <h5 x-show="!query && !source">Start your search</h5>
-                <p x-show="!query && !source">Enter keywords to search for economic indicators across multiple data sources.</p>
-                <h5 x-show="(query || source)">No results found</h5>
-                <p x-show="(query || source)">Try different keywords or select a different data source.</p>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -201,24 +212,25 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      
+
       <div class="modal-body text-center" style="min-height: 300px;">
         <!-- Loading spinner -->
         <div id="owidPreviewSpinner" class="py-5">
           <div class="spinner text-center mx-auto mb-3"></div>
           <div class="text-secondary small">Loading chart from Our World in Data...</div>
         </div>
-        
+
         <!-- Error message -->
         <div id="owidPreviewError" class="alert alert-warning d-none" role="alert">
           <i class="bi bi-exclamation-triangle me-2"></i>
           <span></span>
         </div>
-        
+
         <!-- PNG Image -->
-        <img id="owidPreviewImage" src="" alt="OWID Chart" class="rounded-lg" style="max-width: 100%; height: auto; display: none;" />
+        <img id="owidPreviewImage" src="" alt="OWID Chart" class="rounded-lg"
+          style="max-width: 100%; height: auto; display: none;" />
       </div>
-      
+
       <div class="modal-footer">
         <button class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
         <a id="downloadChartLink" href="#" class="btn btn-primary" download>
@@ -230,177 +242,221 @@
 </div>
 
 
+</div>
+</div>
 
 <script>
-function searchForm() {
-  return {
-    query: '',
-    source: '',
-    results: [],
-    searchMetadata: null,
-    loading: false,
-    error: '',
-    downloading: {},
-    successMessage: '',
-    currentSlug: '',
+  function searchForm() {
+    return {
+      query: '',
+      source: '',
+      results: [],
+      searchMetadata: null,
+      loading: false,
+      error: '',
+      downloading: {},
+      successMessage: '',
+      currentSlug: '',
 
-    async performSearch() {
-      if (!this.query && !this.source) {
-        this.results = [];
-        this.searchMetadata = null;
-        return;
-      }
-      this.loading = true;
-      this.error = '';
-      this.successMessage = '';
-      try {
-        const params = new URLSearchParams();
-        if (this.query) params.append('q', this.query);
-        if (this.source) params.append('source', this.source);
-        
-        const res = await fetch(`/api/search?${params}`);
-        if (!res.ok) throw new Error(`Error ${res.status}`);
-        const data = await res.json();
-        this.results = data.results || [];
-        
-        // DEBUG: Log first 3 results to see structure
-        console.log('First 3 results:', this.results.slice(0, 3).map(r => ({
-          id: r.id,
-          indicator: r.indicator,
-          source: r.source,
-          remote: r.remote,
-          slug: r.slug
-        })));
-        
-        this.searchMetadata = {
-          total: data.total,
-          query: data.query,
-          sources: data.sources || {}
-        };
-        console.log('Search complete:', this.searchMetadata);
-      } catch (err) {
-        this.error = `Búsqueda falló: ${err.message}`;
-        this.results = [];
-        this.searchMetadata = null;
-      } finally {
-        this.loading = false;
-      }
-    },
+      init() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialQ = urlParams.get('q');
+        const initialSource = urlParams.get('source');
 
-    async previewRemote(result) {
-      const modalEl = document.getElementById('owidPreviewModal');
-      const modal = new bootstrap.Modal(modalEl);
-      
-      // Show spinner, hide content
-      document.getElementById('owidPreviewSpinner').classList.remove('d-none');
-      document.getElementById('owidPreviewError').classList.add('d-none');
-      document.getElementById('owidPreviewImage').style.display = 'none';
-      document.getElementById('owidPreviewTitle').textContent = result.slug || result.indicator || 'Gráfico';
-      
-      modal.show();
+        if (initialQ) this.query = initialQ;
+        if (initialSource) this.source = initialSource;
 
-      try {
-        const slug = result.slug || result.id;
-        if (!slug) throw new Error('No slug disponible');
+        if (this.query || this.source) {
+          this.performSearch();
+        } else {
+          // Default: Load recent results from OWID
+          this.loadDefaults();
+        }
+      },
 
-        // Load PNG directly
-        const pngUrl = `/api/chart/export-png?slug=${encodeURIComponent(slug)}`;
-        
-        // Verify the image loads
-        const img = new Image();
-        img.onload = () => {
-          document.getElementById('owidPreviewSpinner').classList.add('d-none');
-          document.getElementById('owidPreviewImage').src = pngUrl;
-          document.getElementById('owidPreviewImage').style.display = 'block';
-          
-          // Set download link
-          const downloadBtn = document.getElementById('downloadChartLink');
-          downloadBtn.href = pngUrl;
-          downloadBtn.download = `${slug}.png`;
-        };
-        
-        img.onerror = () => {
-          throw new Error('No se pudo cargar el gráfico');
-        };
-        
-        img.src = pngUrl;
-        this.currentSlug = slug;
-        
-      } catch (err) {
-        console.error('Preview error', err);
-        document.getElementById('owidPreviewSpinner').classList.add('d-none');
-        const errEl = document.getElementById('owidPreviewError');
-        errEl.textContent = err.message || String(err);
-        errEl.classList.remove('d-none');
-      }
-    },
+      async loadDefaults() {
+        this.source = 'owid';
+        this.query = '2024'; // Search for current year to get recent data
+        await this.performSearch();
+      },
 
-    async startDownload(result) {
-      console.log('=== DOWNLOAD STARTED ===');
-      this.downloading = { ...this.downloading, [result.id]: true };
-      this.error = '';
-      this.successMessage = '';
-
-      try {
-        const res = await fetch('/api/download/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id: result.id, 
-            source: result.source.toLowerCase(), 
-            indicator: result.indicator, 
-            description: result.description, 
-            remote: result.remote || false, 
-            slug: result.slug, 
-            url: result.url 
-          })
-        });
-
-        let data;
-        try {
-          data = await res.json();
-        } catch (parseErr) {
-          const text = await res.text().catch(() => null);
-          if (text) {
-            this.error = text;
-          } else {
-            this.error = 'Invalid response from server';
-          }
+      async performSearch() {
+        if (!this.query && !this.source) {
+          this.results = [];
+          this.searchMetadata = null;
           return;
         }
+        this.loading = true;
+        this.error = '';
+        this.successMessage = '';
+        try {
+          const params = new URLSearchParams();
+          if (this.query) params.append('q', this.query);
+          if (this.source) params.append('source', this.source);
 
-        // Rely on consistent backend JSON: status = success|enqueued|already_queued|error
-        if (data.status === 'success') {
-          this.successMessage = data.message || `✓ Descarga completada: ${result.indicator}`;
-          const resultIndex = this.results.findIndex(r => r.id === result.id);
-          if (resultIndex !== -1) { this.results[resultIndex].downloaded = true; }
-          setTimeout(() => { this.successMessage = ''; }, 5000);
-        } else if (data.status === 'enqueued') {
-          this.successMessage = data.message || `✓ Descarga en cola para "${result.indicator}".`;
-          setTimeout(() => { this.successMessage = ''; }, 5000);
-        } else if (data.status === 'already_queued') {
-          this.error = data.message || 'Este indicador ya está en la cola de descargas.';
-        } else {
-          this.error = data.message || data.error || `Error desconocido (status: ${data.status})`;
+          const res = await fetch(`/api/search?${params}`);
+          if (!res.ok) throw new Error(`Error ${res.status}`);
+          const data = await res.json();
+          this.results = data.results || [];
+
+          // DEBUG: Log first 3 results to see structure
+          console.log('First 3 results:', this.results.slice(0, 3).map(r => ({
+            id: r.id,
+            indicator: r.indicator,
+            source: r.source,
+            remote: r.remote,
+            slug: r.slug
+          })));
+
+          this.searchMetadata = {
+            total: data.total,
+            query: data.query,
+            sources: data.sources || {}
+          };
+          console.log('Search complete:', this.searchMetadata);
+        } catch (err) {
+          this.error = `Búsqueda falló: ${err.message}`;
+          this.results = [];
+          this.searchMetadata = null;
+        } finally {
+          this.loading = false;
         }
+      },
 
-      } catch (err) {
-        this.error = `Error al iniciar descarga: ${err.message}`;
-        console.error('Download error:', err);
-      } finally {
-        this.downloading = { ...this.downloading, [result.id]: false };
+      async previewRemote(result) {
+        const modalEl = document.getElementById('owidPreviewModal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        // Show spinner, hide content
+        document.getElementById('owidPreviewSpinner').classList.remove('d-none');
+        document.getElementById('owidPreviewError').classList.add('d-none');
+        document.getElementById('owidPreviewImage').style.display = 'none';
+        document.getElementById('owidPreviewTitle').textContent = result.slug || result.indicator || 'Gráfico';
+
+        modal.show();
+
+        try {
+          const slug = result.slug || result.id;
+          if (!slug) throw new Error('No slug disponible');
+
+          // Load PNG directly
+          const pngUrl = `/api/chart/export-png?slug=${encodeURIComponent(slug)}`;
+
+          // Verify the image loads
+          const img = new Image();
+          img.onload = () => {
+            document.getElementById('owidPreviewSpinner').classList.add('d-none');
+            document.getElementById('owidPreviewImage').src = pngUrl;
+            document.getElementById('owidPreviewImage').style.display = 'block';
+
+            // Set download link
+            const downloadBtn = document.getElementById('downloadChartLink');
+            downloadBtn.href = pngUrl;
+            downloadBtn.download = `${slug}.png`;
+          };
+
+          img.onerror = () => {
+            throw new Error('No se pudo cargar el gráfico');
+          };
+
+          img.src = pngUrl;
+          this.currentSlug = slug;
+
+        } catch (err) {
+          console.error('Preview error', err);
+          document.getElementById('owidPreviewSpinner').classList.add('d-none');
+          const errEl = document.getElementById('owidPreviewError');
+          errEl.textContent = err.message || String(err);
+          errEl.classList.remove('d-none');
+        }
+      },
+
+      async startDownload(result) {
+        console.log('=== DOWNLOAD STARTED ===');
+        this.downloading = { ...this.downloading, [result.id]: true };
+        this.error = '';
+        this.successMessage = '';
+
+        try {
+          const res = await fetch('/api/download/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: result.id,
+              source: result.source.toLowerCase(),
+              indicator: result.indicator,
+              description: result.description,
+              remote: result.remote || false,
+              slug: result.slug,
+              url: result.url
+            })
+          });
+
+          let data;
+          try {
+            data = await res.json();
+          } catch (parseErr) {
+            const text = await res.text().catch(() => null);
+            if (text) {
+              this.error = text;
+            } else {
+              this.error = 'Invalid response from server';
+            }
+            return;
+          }
+
+          // Rely on consistent backend JSON: status = success|enqueued|already_queued|error
+          if (data.status === 'success') {
+            this.successMessage = data.message || `✓ Descarga completada: ${result.indicator}`;
+            const resultIndex = this.results.findIndex(r => r.id === result.id);
+            if (resultIndex !== -1) { this.results[resultIndex].downloaded = true; }
+            setTimeout(() => { this.successMessage = ''; }, 5000);
+          } else if (data.status === 'enqueued') {
+            this.successMessage = data.message || `✓ Descarga en cola para "${result.indicator}".`;
+            setTimeout(() => { this.successMessage = ''; }, 5000);
+          } else if (data.status === 'already_queued') {
+            this.error = data.message || 'Este indicador ya está en la cola de descargas.';
+          } else {
+            this.error = data.message || data.error || `Error desconocido (status: ${data.status})`;
+          }
+
+        } catch (err) {
+          this.error = `Error al iniciar descarga: ${err.message}`;
+          console.error('Download error:', err);
+        } finally {
+          this.downloading = { ...this.downloading, [result.id]: false };
+        }
+      },
+
+      openBrowseVersions(result) {
+        // Prefer passing slug/id to browse local
+        const identifier = result.slug || result.id || result.indicator;
+        const source = (result.source || '').toLowerCase();
+        // Open browse local with query params to show latest and prefill search
+        const url = `/browse/local?q=${encodeURIComponent(identifier)}&latest=true&source=${encodeURIComponent(source)}`;
+        window.location.href = url;
+      },
+
+      applyQuickFilter(type) {
+        if (type === 'latam') {
+          this.query = "Argentina Chile Colombia Peru Mexico Brasil";
+          this.source = "owid";
+        } else if (type === 'oecd') {
+          this.source = "oecd";
+          this.query = "";
+        } else if (type === 'g20') {
+          this.query = "G20 GDP growth";
+          this.source = "imf";
+        } else if (type === 'inflation') {
+          this.query = "inflation rate";
+          this.source = "owid";
+        } else if (type === 'poverty') {
+          this.query = "poverty headcount";
+          this.source = "owid";
+        }
+        this.performSearch();
       }
-    },
-
-    openBrowseVersions(result) {
-      // Prefer passing slug/id to browse local
-      const identifier = result.slug || result.id || result.indicator;
-      const source = (result.source || '').toLowerCase();
-      // Open browse local with query params to show latest and prefill search
-      const url = `/browse/local?q=${encodeURIComponent(identifier)}&latest=true&source=${encodeURIComponent(source)}`;
-      window.location.href = url;
-    }
-  };
-}
+    };
+  }
 </script>
 {% endblock %}

@@ -254,8 +254,18 @@ class DatasetCatalog:
 
         # Build a human-friendly indicator_name
         if id_part:
-            # Use identifier (slug-like) as primary label
-            indicator_name = str(id_part).replace('-', ' ').replace('_', ' ').title()
+            # IMPROVEMENT: Combine topic and identifier for better context if id_part is generic keywords like "latam"
+            if str(id_part).lower() in ['latam', 'global', 'world', 'total']:
+                indicator_name = f"{topic.replace('_', ' ').title()} - {str(id_part).title()}"
+            else:
+                # Use identifier (slug-like) as primary label
+                indicator_name = str(id_part).replace('-', ' ').replace('_', ' ').title()
+                
+            # Add source if ambiguous? changing logic to be strictly Topic - ID seems better for browsing
+            # If indicator name is too short, prepend topic
+            if len(indicator_name) < 5 and topic:
+                 indicator_name = f"{topic.replace('_', ' ').title()} - {indicator_name}"
+
         else:
             # Fall back to combining topic and source for a readable name
             indicator_name = f"{topic.replace('_', ' ').title()} ({source.upper()})" if source != 'unknown' else topic.replace('_', ' ').title()
@@ -304,6 +314,16 @@ class DatasetCatalog:
             stat = file_path.stat()
             modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat()
 
+            # Generate description
+            description = (
+                f"{filename_info['indicator_name']} dataset from {filename_info['source'].upper()}. "
+                f"Contains {metadata.get('row_count', 0):,} rows and {metadata.get('column_count', 0)} columns"
+            )
+            if metadata.get('min_year') and metadata.get('max_year'):
+                description += f" covering available years {metadata['min_year']} to {metadata['max_year']}."
+            else:
+                description += "."
+
             # Prepare data
             dataset_data = {
                 'file_path': str(file_path),
@@ -311,6 +331,7 @@ class DatasetCatalog:
                 'source': filename_info['source'],
                 'indicator_name': filename_info['indicator_name'],
                 'topic': filename_info['topic'],
+                'description': description, # Computed field
                 'file_size_bytes': stat.st_size,
                 'file_hash': file_hash,
                 'modified_at': modified_at,
@@ -332,7 +353,7 @@ class DatasetCatalog:
                 dataset_id = existing[0]
                 update_sql = """
                     UPDATE datasets SET 
-                        file_name = ?, source = ?, indicator_id = ?, indicator_name = ?, topic = ?,
+                        file_name = ?, source = ?, indicator_id = ?, indicator_name = ?, topic = ?, description = ?,
                         file_size_bytes = ?, file_hash = ?, modified_at = ?, indexed_at = ?,
                         row_count = ?, column_count = ?, columns_json = ?,
                         min_year = ?, max_year = ?,
@@ -342,7 +363,7 @@ class DatasetCatalog:
                 """
                 cursor.execute(update_sql, (
                     dataset_data['file_name'], dataset_data['source'], dataset_data['indicator_id'],
-                    dataset_data['indicator_name'], dataset_data['topic'],
+                    dataset_data['indicator_name'], dataset_data['topic'], dataset_data['description'],
                     dataset_data['file_size_bytes'], dataset_data['file_hash'],
                     dataset_data['modified_at'], dataset_data['indexed_at'],
                     dataset_data['row_count'], dataset_data['column_count'],
@@ -358,17 +379,18 @@ class DatasetCatalog:
             else:
                 insert_sql = """
                     INSERT INTO datasets (
-                        file_path, file_name, source, indicator_id, indicator_name, topic,
+                        file_path, file_name, source, indicator_id, indicator_name, topic, description,
                         file_size_bytes, file_hash, modified_at, indexed_at,
                         row_count, column_count, columns_json,
                         min_year, max_year,
                         countries_json, country_count,
                         null_percentage, completeness_score
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(insert_sql, (
                     dataset_data['file_path'], dataset_data['file_name'],
-                    dataset_data['source'], dataset_data['indicator_id'], dataset_data['indicator_name'], dataset_data['topic'],
+                    dataset_data['source'], dataset_data['indicator_id'], dataset_data['indicator_name'], 
+                    dataset_data['topic'], dataset_data['description'],
                     dataset_data['file_size_bytes'], dataset_data['file_hash'],
                     dataset_data['modified_at'], dataset_data['indexed_at'],
                     dataset_data['row_count'], dataset_data['column_count'],

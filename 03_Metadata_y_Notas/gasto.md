@@ -1,6 +1,6 @@
 # Metadatos: gasto
 
-**Fecha de generación**: 2026-01-11
+**Fecha de generación**: 2026-02-04
 
 ## 1. Fuente Original
 

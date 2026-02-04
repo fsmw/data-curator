@@ -1,0 +1,822 @@
+\begin{thebibliography}{10}
+
+\bibitem{barke2022grounded}
+S.~Barke, M.~B. James, and N.~Polikarpova.
+\newblock Grounded copilot: How programmers interact with code-generating
+  models.
+\newblock {\em Proc. {ACM} Program. Lang.}, 7({OOPSLA1}):85--111, 2023.
+  \href{https://doi.org/10.1145/3586030}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3586030}}}
+
+
+\bibitem{barman2016ringer}
+S.~Barman, S.~E. Chasins, R.~Bod{\'{\i}}k, and S.~Gulwani.
+\newblock Ringer: web automation by demonstration.
+\newblock In E.~Visser and Y.~Smaragdakis, eds., {\em {OOPSLA} 2016, part of
+  {SPLASH} 2016, Amsterdam, The Netherlands, October 30 - November 4, 2016},
+  pp. 748--764. {ACM}, 2016. \href{https://doi.org/10.1145/2983990.2984020}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}2983990\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2984020}}}
+
+
+\bibitem{bartram2021untidy}
+L.~Bartram, M.~Correll, and M.~Tory.
+\newblock Untidy data: The unreasonable effectiveness of tables.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 28(1):686--696, 2022.
+  \href{https://doi.org/10.1109/TVCG.2021.3114830}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2021\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3114830}}}
+
+
+\bibitem{bostock2009protovis}
+M.~Bostock and J.~Heer.
+\newblock Protovis: {A} graphical toolkit for visualization.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 15(6):1121--1128, 2009.
+  \href{https://doi.org/10.1109/TVCG.2009.174}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2009\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}174}}}
+
+
+\bibitem{bostock2011d3}
+M.~Bostock, V.~Ogievetsky, and J.~Heer.
+\newblock D{\({^3}\)} data-driven documents.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 17(12):2301--2309, 2011.
+  \href{https://doi.org/10.1109/TVCG.2011.185}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2011\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}185}}}
+
+
+\bibitem{chaudhuri2021neurosymbolic}
+S.~Chaudhuri, K.~Ellis, O.~Polozov, R.~Singh, A.~Solar{-}Lezama, and Y.~Yue.
+\newblock Neurosymbolic programming.
+\newblock {\em Found. Trends Program. Lang.}, 7(3):158--243, 2021.
+  \href{https://doi.org/10.1561/2500000049}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1561\discretionary{/}{%
+}{/}2500000049}}}
+
+
+\bibitem{chen2021evaluating}
+M.~Chen, J.~Tworek, H.~Jun, Q.~Yuan, H.~P. de~Oliveira~Pinto, J.~Kaplan,
+  H.~Edwards, Y.~Burda, N.~Joseph, G.~Brockman, et~al.
+\newblock Evaluating large language models trained on code.
+\newblock {\em CoRR}, abs/2107.03374, 2021.
+
+\bibitem{chen2022type}
+Q.~Chen, S.~Pailoor, C.~Barnaby, A.~Criswell, C.~Wang, G.~Durrett, and
+  I.~Dillig.
+\newblock Type-directed synthesis of visualizations from natural language
+  queries.
+\newblock {\em Proc. {ACM} Program. Lang.}, 6({OOPSLA2}):532--559, 2022.
+  \href{https://doi.org/10.1145/3563307}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3563307}}}
+
+
+\bibitem{chowdhery2022palm}
+A.~Chowdhery, S.~Narang, J.~Devlin, M.~Bosma, G.~Mishra, A.~Roberts, P.~Barham,
+  H.~W. Chung, and more.
+\newblock Palm: Scaling language modeling with pathways.
+\newblock {\em CoRR}, abs/2204.02311, 2022.
+  \href{https://doi.org/10.48550/arXiv.2204.02311}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}48550\discretionary{/}{%
+}{/}arXiv\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2204\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}02311}}}
+
+
+\bibitem{dibia2023lida}
+V.~Dibia.
+\newblock Lida: A tool for automatic generation of grammar-agnostic
+  visualizations and infographics using large language models.
+\newblock {\em arXiv preprint arXiv:2303.02927}, 2023.
+
+\bibitem{dibia2019data2vis}
+V.~Dibia and {\c{C}}.~Demiralp.
+\newblock Data2vis: Automatic generation of data visualizations using
+  sequence-to-sequence recurrent neural networks.
+\newblock {\em IEEE computer graphics and applications}, 39(5):33--46, 2019.
+
+\bibitem{fried2022incoder}
+D.~Fried, A.~Aghajanyan, J.~Lin, S.~Wang, E.~Wallace, F.~Shi, R.~Zhong, W.~Yih,
+  L.~Zettlemoyer, and M.~Lewis.
+\newblock Incoder: {A} generative model for code infilling and synthesis.
+\newblock {\em CoRR}, abs/2204.05999, 2022.
+  \href{https://doi.org/10.48550/arXiv.2204.05999}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}48550\discretionary{/}{%
+}{/}arXiv\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2204\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}05999}}}
+
+
+\bibitem{DBLP:conf/uist/GaoDALK15}
+T.~Gao, M.~Dontcheva, E.~Adar, Z.~Liu, and K.~G. Karahalios.
+\newblock Datatone: Managing ambiguity in natural language interfaces for data
+  visualization.
+\newblock In C.~Latulipe, B.~Hartmann, and T.~Grossman, eds., {\em Proceedings
+  of the 28th Annual {ACM} Symposium on User Interface Software {\&}
+  Technology, {UIST} 2015, Charlotte, NC, USA, November 8-11, 2015}, pp.
+  489--500. {ACM}, 2015. \href{https://doi.org/10.1145/2807442.2807478}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}2807442\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2807478}}}
+
+
+\bibitem{gulwani2017program}
+S.~Gulwani, O.~Polozov, and R.~Singh.
+\newblock Program synthesis.
+\newblock {\em Found. Trends Program. Lang.}, 4(1-2):1--119, 2017.
+  \href{https://doi.org/10.1561/2500000010}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1561\discretionary{/}{%
+}{/}2500000010}}}
+
+
+\bibitem{jin2020auto}
+Y.~He, Z.~Jin, and S.~Chaudhuri.
+\newblock Auto-transform: Learning-to-transform by patterns.
+\newblock {\em Proc. {VLDB} Endow.}, 13(11):2368--2381, 2020.
+
+\bibitem{hendrycks2021measuring}
+D.~Hendrycks, S.~Basart, S.~Kadavath, M.~Mazeika, A.~Arora, E.~Guo, C.~Burns,
+  S.~Puranik, H.~He, D.~Song, and J.~Steinhardt.
+\newblock Measuring coding challenge competence with {APPS}.
+\newblock In J.~Vanschoren and S.~Yeung, eds., {\em Proceedings of the Neural
+  Information Processing Systems Track on Datasets and Benchmarks 1, NeurIPS
+  Datasets and Benchmarks 2021, December 2021, virtual}, 2021.
+
+\bibitem{ji2020question}
+R.~Ji, J.~Liang, Y.~Xiong, L.~Zhang, and Z.~Hu.
+\newblock Question selection for interactive program synthesis.
+\newblock In A.~F. Donaldson and E.~Torlak, eds., {\em Proc. of the 41st {ACM}
+  {SIGPLAN} International Conference on Programming Language Design and
+  Implementation, {PLDI} 2020, London, UK, June 15-20, 2020}, pp. 1143--1158.
+  {ACM}. \href{https://doi.org/10.1145/3385412.3386025}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3385412\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3386025}}}
+
+
+\bibitem{jin2017foofah}
+Z.~Jin, M.~R. Anderson, M.~J. Cafarella, and H.~V. Jagadish.
+\newblock Foofah: Transforming data by example.
+\newblock In S.~Salihoglu, W.~Zhou, R.~Chirkova, J.~Yang, and D.~Suciu, eds.,
+  {\em {SIGMOD} Conference 2017, Chicago, IL, USA, May 14-19, 2017}, pp.
+  683--698. {ACM}, 2017. \href{https://doi.org/10.1145/3035918.3064034}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3035918\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3064034}}}
+
+
+\bibitem{kandel2011wrangler}
+S.~Kandel, A.~Paepcke, J.~Hellerstein, and J.~Heer.
+\newblock Wrangler: Interactive visual specification of data transformation
+  scripts.
+\newblock In {\em Proceedings of the ACM Conference on Human Factors in
+  Computing Systems (CHI)}, pp. 3363--3372, 2011.
+  \href{https://doi.org/10.1145/1978942.1979444}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}1978942\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1979444}}}
+
+
+\bibitem{beth2020mage}
+M.~B. Kery, D.~Ren, F.~Hohman, D.~Moritz, K.~Wongsuphasawat, and K.~Patel.
+\newblock Mage: Fluid moves between code and graphical work in computational
+  notebooks.
+\newblock In {\em Proceedings of the 33rd Annual ACM Symposium on User
+  Interface Software and Technology}, UIST '20, p. 140–151. Association for
+  Computing Machinery, New York, NY, USA, 2020.
+  \href{https://doi.org/10.1145/3379337.3415842}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3379337\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3415842}}}
+
+
+\bibitem{DBLP:conf/chi/KimHA20}
+D.~H. Kim, E.~Hoque, and M.~Agrawala.
+\newblock Answering questions about charts and generating visual explanations.
+\newblock In R.~Bernhaupt, F.~F. Mueller, D.~Verweij, J.~Andres, J.~McGrenere,
+  A.~Cockburn, I.~Avellino, A.~Goguey, P.~Bj{\o}n, S.~Zhao, B.~P. Samson, and
+  R.~Kocielnik, eds., {\em {CHI} '20: Honolulu, HI, USA, April 25-30, 2020},
+  pp. 1--13. {ACM}. \href{https://doi.org/10.1145/3313831.3376467}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3313831\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3376467}}}
+
+
+\bibitem{lai2022ds}
+Y.~Lai, C.~Li, Y.~Wang, T.~Zhang, R.~Zhong, L.~Zettlemoyer, S.~W. Yih,
+  D.~Fried, S.~I. Wang, and T.~Yu.
+\newblock {DS-1000:} {A} natural and reliable benchmark for data science code
+  generation.
+\newblock {\em CoRR}, abs/2211.11501, 2022.
+  \href{https://doi.org/10.48550/arXiv.2211.11501}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}48550\discretionary{/}{%
+}{/}arXiv\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2211\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}11501}}}
+
+
+\bibitem{lee2021deconstructing}
+D.~J.~L. Lee, V.~Setlur, M.~Tory, K.~Karahalios, and A.~G. Parameswaran.
+\newblock Deconstructing categorization in visualization recommendation: {A}
+  taxonomy and comparative study.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 28(12):4225--4239, 2022.
+  \href{https://doi.org/10.1109/TVCG.2021.3085751}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2021\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3085751}}}
+
+
+\bibitem{lee2021lux}
+D.~J.~L. Lee, D.~Tang, K.~Agarwal, T.~Boonmark, C.~Chen, J.~Kang,
+  U.~Mukhopadhyay, J.~Song, M.~Yong, M.~A. Hearst, and A.~G. Parameswaran.
+\newblock Lux: Always-on visualization recommendations for exploratory
+  dataframe workflows.
+\newblock {\em Proc. {VLDB} Endow.}, 15(3):727--738, 2021.
+  \href{https://doi.org/10.14778/3494124.3494151}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}14778\discretionary{/}{%
+}{/}3494124\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3494151}}}
+
+
+\bibitem{DBLP:conf/uist/LiRJSMM19pumice}
+T.~J. Li, M.~Radensky, J.~Jia, K.~Singarajah, T.~M. Mitchell, and B.~A. Myers.
+\newblock {PUMICE:} {A} multi-modal agent that learns concepts and conditionals
+  from natural language and demonstrations.
+\newblock In F.~Guimbreti{\`{e}}re, M.~S. Bernstein, and K.~Reinecke, eds.,
+  {\em Proceedings of the 32nd Annual {ACM} Symposium on User Interface
+  Software and Technology, {UIST} 2019, New Orleans, LA, USA, October 20-23,
+  2019}, pp. 577--589. {ACM}, 2019.
+  \href{https://doi.org/10.1145/3332165.3347899}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3332165\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3347899}}}
+
+
+\bibitem{li2022competition}
+Y.~Li, D.~Choi, J.~Chung, N.~Kushman, J.~Schrittwieser, R.~Leblond, T.~Eccles,
+  J.~Keeling, F.~Gimeno, A.~Dal~Lago, et~al.
+\newblock Competition-level code generation with alphacode.
+\newblock {\em Science}, 378(6624):1092--1097, 2022.
+
+\bibitem{DBLP:conf/apvis/0004HJY21}
+C.~Liu, Y.~Han, R.~Jiang, and X.~Yuan.
+\newblock Advisor: Automatic visualization answer for natural-language question
+  on tabular data.
+\newblock In {\em 14th {IEEE} Pacific Visualization Symposium, PacificVis 2021,
+  Tianjin, China, April 19-21, 2021}, pp. 11--20. {IEEE}.
+  \href{https://doi.org/10.1109/PacificVis52677.2021.00010}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}PacificVis52677\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2021\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}00010}}}
+
+
+\bibitem{liu2021atlas}
+Z.~Liu, C.~Chen, F.~Morales, and Y.~Zhao.
+\newblock Atlas: Grammar-based procedural generation of data visualizations.
+\newblock In {\em 2021 {IEEE} Visualization Conference, 2021 - Short Papers,
+  New Orleans, LA, USA, October 24-29, 2021}, pp. 171--175. {IEEE}, 2021.
+  \href{https://doi.org/10.1109/VIS49827.2021.9623315}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}VIS49827\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2021\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}9623315}}}
+
+
+\bibitem{liu2018data}
+Z.~Liu, J.~Thompson, A.~Wilson, M.~Dontcheva, J.~Delorey, S.~Grigg, B.~Kerr,
+  and J.~Stasko.
+\newblock {Data Illustrator}: Augmenting vector design tools with lazy data
+  binding for expressive visualization authoring.
+\newblock In {\em Proceedings of the ACM Conference on Human Factors in
+  Computing Systems (CHI)}, pp. 123:1--13, 2018.
+  \href{https://doi.org/10.1145/3173574.3173697}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3173574\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3173697}}}
+
+
+\bibitem{luo2021natural}
+Y.~Luo, N.~Tang, G.~Li, J.~Tang, C.~Chai, and X.~Qin.
+\newblock Natural language to visualization by neural machine translation.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 28(1):217--226, 2022.
+  \href{https://doi.org/10.1109/TVCG.2021.3114848}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2021\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3114848}}}
+
+
+\bibitem{moritz2019falcon}
+D.~Moritz, B.~Howe, and J.~Heer.
+\newblock Falcon: Balancing interactive latency and resolution sensitivity for
+  scalable linked visualizations.
+\newblock In S.~A. Brewster, G.~Fitzpatrick, A.~L. Cox, and V.~Kostakos, eds.,
+  {\em Proceedings of the 2019 {CHI} Conference on Human Factors in Computing
+  Systems, {CHI} 2019, Glasgow, Scotland, UK, May 04-09, 2019}, p. 694. {ACM},
+  2019. \href{https://doi.org/10.1145/3290605.3300924}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3290605\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3300924}}}
+
+
+\bibitem{moritz2018formalizing}
+D.~Moritz, C.~Wang, G.~L. Nelson, H.~Lin, A.~M. Smith, B.~Howe, and J.~Heer.
+\newblock Formalizing visualization design knowledge as constraints: Actionable
+  and extensible models in draco.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 25(1):438--448, 2019.
+  \href{https://doi.org/10.1109/TVCG.2018.2865240}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2018\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2865240}}}
+
+
+\bibitem{narechania2020nl4dv}
+A.~Narechania, A.~Srinivasan, and J.~T. Stasko.
+\newblock {NL4DV:} {A} toolkit for generating analytic specifications for data
+  visualization from natural language queries.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 27(2):369--379, 2021.
+  \href{https://doi.org/10.1109/TVCG.2020.3030378}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2020\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3030378}}}
+
+
+\bibitem{ouyang2022training}
+L.~Ouyang, J.~Wu, X.~Jiang, D.~Almeida, C.~Wainwright, P.~Mishkin, C.~Zhang,
+  S.~Agarwal, K.~Slama, A.~Ray, et~al.
+\newblock Training language models to follow instructions with human feedback.
+\newblock {\em Advances in Neural Information Processing Systems},
+  35:27730--27744, 2022.
+
+\bibitem{the_pandas_development_team_2023_7741580}
+T.~pandas~development team.
+\newblock pandas-dev/pandas: Pandas, Mar. 2023.
+  \href{https://doi.org/10.5281/zenodo.7741580}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}5281\discretionary{/}{%
+}{/}zenodo\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}7741580}}}
+
+
+\bibitem{DBLP:conf/acl/PasupatL15}
+P.~Pasupat and P.~Liang.
+\newblock Compositional semantic parsing on semi-structured tables.
+\newblock In {\em {ACL} 2015, July 26-31, 2015, Beijing, China, Volume 1: Long
+  Papers}, pp. 1470--1480. The Association for Computer Linguistics, 2015.
+  \href{https://doi.org/10.3115/v1/p15-1142}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3115\discretionary{/}{%
+}{/}v1\discretionary{/}{%
+}{/}p15\discretionary{%
+}{-}{-}1142}}}
+
+
+\bibitem{poesia2022synchromesh}
+G.~Poesia, A.~Polozov, V.~Le, A.~Tiwari, G.~Soares, C.~Meek, and S.~Gulwani.
+\newblock Synchromesh: Reliable code generation from pre-trained language
+  models.
+\newblock In {\em The Tenth International Conference on Learning
+  Representations, {ICLR} 2022, Virtual Event, April 25-29, 2022}, 2022.
+
+\bibitem{polozov2015flashmeta}
+O.~Polozov and S.~Gulwani.
+\newblock Flashmeta: a framework for inductive program synthesis.
+\newblock In J.~Aldrich and P.~Eugster, eds., {\em Object-Oriented Programming,
+  Systems, Languages, and Applications, {OOPSLA} 2015, Pittsburgh, PA, USA,
+  October 25-30, 2015}, pp. 107--126. {ACM}, 2015.
+  \href{https://doi.org/10.1145/2814270.2814310}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}2814270\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2814310}}}
+
+
+\bibitem{pu2022semanticon}
+K.~Pu, R.~Fu, R.~Dong, X.~Wang, Y.~Chen, and T.~Grossman.
+\newblock Semanticon: Specifying content-based semantic conditions for web
+  automation programs.
+\newblock In M.~Agrawala, J.~O. Wobbrock, E.~Adar, and V.~Setlur, eds., {\em
+  The 35th Annual {ACM} Symposium on User Interface Software and Technology,
+  {UIST} 2022, Bend, OR, USA, 29 October 2022 - 2 November 2022}, pp.
+  63:1--63:16. {ACM}, 2022. \href{https://doi.org/10.1145/3526113.3545691}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3526113\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3545691}}}
+
+
+\bibitem{raman2001potter}
+V.~Raman and J.~M. Hellerstein.
+\newblock Potter's wheel: An interactive data cleaning system.
+\newblock In P.~M.~G. Apers, P.~Atzeni, S.~Ceri, S.~Paraboschi,
+  K.~Ramamohanarao, and R.~T. Snodgrass, eds., {\em {VLDB} 2001, Proceedings of
+  27th International Conference on Very Large Data Bases, September 11-14,
+  2001, Roma, Italy}, pp. 381--390. Morgan Kaufmann, 2001.
+
+\bibitem{ren2019charticulator}
+D.~Ren, B.~Lee, and M.~Brehmer.
+\newblock Charticulator: Interactive construction of bespoke chart layouts.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph. (Proceedings of InfoVis)},
+  25(1), 2019. \href{https://doi.org/10.1109/TVCG.2018.2865158}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2018\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2865158}}}
+
+
+\bibitem{ren2018reflecting}
+D.~Ren, B.~Lee, M.~Brehmer, and N.~H. Riche.
+\newblock Reflecting on the evaluation of visualization authoring systems :
+  Position paper.
+\newblock In M.~Sedlmair, P.~Isenberg, M.~Meyer, and T.~Isenberg, eds., {\em
+  2018 {IEEE} Evaluation and Beyond - Methodological Approaches for
+  Visualization, {BELIV} 2018, Berlin, Germany, October 21, 2018}, pp. 86--92.
+  {IEEE} Computer Society, 2018.
+  \href{https://doi.org/10.1109/BELIV.2018.8634297}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}BELIV\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2018\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}8634297}}}
+
+
+\bibitem{saket2016visualization}
+B.~Saket, H.~Kim, E.~T. Brown, and A.~Endert.
+\newblock Visualization by demonstration: An interaction paradigm for visual
+  data exploration.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 23(1):331--340, 2017.
+  \href{https://doi.org/10.1109/TVCG.2016.2598839}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2016\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2598839}}}
+
+
+\bibitem{satyanarayan2014lyra}
+A.~Satyanarayan and J.~Heer.
+\newblock {Lyra: An interactive visualization design environment}.
+\newblock {\em Computer Graphics Forum (Proceedings of EuroVis)}, 33(3), 2014.
+  \href{https://doi.org/10.1111/cgf.12391}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1111\discretionary{/}{%
+}{/}cgf\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}12391}}}
+
+
+\bibitem{satyanarayan2019critical}
+A.~Satyanarayan, B.~Lee, D.~Ren, J.~Heer, J.~T. Stasko, J.~Thompson,
+  M.~Brehmer, and Z.~Liu.
+\newblock Critical reflections on visualization authoring systems.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 26(1):461--471, 2020.
+  \href{https://doi.org/10.1109/TVCG.2019.2934281}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2019\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2934281}}}
+
+
+\bibitem{satyanarayan2017vegalite}
+A.~Satyanarayan, D.~Moritz, K.~Wongsuphasawat, and J.~Heer.
+\newblock {Vega-Lite}: A grammar of interactive graphics.
+\newblock {\em IEEE Transactions on Visualization and Computer Graphics
+  (Proceedings of InfoVis)}, 23(1):341--350, 2017.
+  \href{https://doi.org/10.1109/TVCG.2016.2599030}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2016\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2599030}}}
+
+
+\bibitem{shen2022galvis}
+L.~Shen, E.~Shen, Z.~Tai, Y.~Wang, Y.~Luo, and J.~Wang.
+\newblock {GALVIS:} visualization construction through example-powered
+  declarative programming.
+\newblock In M.~A. Hasan and L.~Xiong, eds., {\em Proceedings of the 31st {ACM}
+  International Conference on Information {\&} Knowledge Management, Atlanta,
+  GA, USA, October 17-21, 2022}, pp. 4975--4979. {ACM}, 2022.
+  \href{https://doi.org/10.1145/3511808.3557159}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3511808\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3557159}}}
+
+
+\bibitem{srinivasan2021collecting}
+A.~Srinivasan, N.~Nyapathy, B.~Lee, S.~M. Drucker, and J.~T. Stasko.
+\newblock Collecting and characterizing natural language utterances for
+  specifying data visualizations.
+\newblock In Y.~Kitamura, A.~Quigley, K.~Isbister, T.~Igarashi, P.~Bj{\o}rn,
+  and S.~M. Drucker, eds., {\em {CHI} '21: {CHI} Conference on Human Factors in
+  Computing Systems, Virtual Event / Yokohama, Japan, May 8-13, 2021}, pp.
+  464:1--10. {ACM}, 2021. \href{https://doi.org/10.1145/3411764.3445400}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3411764\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3445400}}}
+
+
+\bibitem{stolte2002query}
+C.~Stolte, D.~Tang, and P.~Hanrahan.
+\newblock Query, analysis, and visualization of hierarchically structured data
+  using polaris.
+\newblock In {\em Proceedings of the Eighth {ACM} {SIGKDD} International
+  Conference on Knowledge Discovery and Data Mining, July 23-26, 2002,
+  Edmonton, Alberta, Canada}, pp. 112--122. {ACM}, 2002.
+  \href{https://doi.org/10.1145/775047.775064}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}775047\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}775064}}}
+
+
+\bibitem{tsandilas2020structgraphics}
+T.~Tsandilas.
+\newblock Structgraphics: Flexible visualization design through data-agnostic
+  and reusable graphical structures.
+\newblock vol.~27, pp. 315--325, 2021.
+  \href{https://doi.org/10.1109/TVCG.2020.3030476}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2020\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3030476}}}
+
+
+\bibitem{vanderplas2018altair}
+J.~VanderPlas, B.~E. Granger, J.~Heer, D.~Moritz, K.~Wongsuphasawat,
+  A.~Satyanarayan, E.~Lees, I.~Timofeev, B.~Welsh, and S.~Sievert.
+\newblock Altair: Interactive statistical visualizations for python.
+\newblock vol.~3, p. 1057, 2018. \href{https://doi.org/10.21105/joss.01057}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}21105\discretionary{/}{%
+}{/}joss\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}01057}}}
+
+
+\bibitem{wang2017synthesizing}
+C.~Wang, A.~Cheung, and R.~Bod{\'{\i}}k.
+\newblock Synthesizing highly expressive {SQL} queries from input-output
+  examples.
+\newblock In A.~Cohen and M.~T. Vechev, eds., {\em Proceedings of the 38th
+  {ACM} {SIGPLAN} Conference on Programming Language Design and Implementation,
+  {PLDI} 2017, Barcelona, Spain, June 18-23, 2017}, pp. 452--466. {ACM}, 2017.
+  \href{https://doi.org/10.1145/3062341.3062365}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3062341\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3062365}}}
+
+
+\bibitem{wang2019visualization}
+C.~Wang, Y.~Feng, R.~Bod{\'{\i}}k, A.~Cheung, and I.~Dillig.
+\newblock Visualization by example.
+\newblock {\em Proc. {ACM} Program. Lang.}, 4({POPL}):49:1--49:28, 2020.
+  \href{https://doi.org/10.1145/3371117}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3371117}}}
+
+
+\bibitem{wang2021falx}
+C.~Wang, Y.~Feng, R.~Bod{\'{\i}}k, I.~Dillig, A.~Cheung, and A.~J. Ko.
+\newblock Falx: Synthesis-powered visualization authoring.
+\newblock In Y.~Kitamura, A.~Quigley, K.~Isbister, T.~Igarashi, P.~Bj{\o}rn,
+  and S.~M. Drucker, eds., {\em {CHI} '21: {CHI} Conference on Human Factors in
+  Computing Systems, Virtual Event / Yokohama, Japan, May 8-13, 2021}, pp.
+  106:1--106:15. {ACM}, 2021. \href{https://doi.org/10.1145/3411764.3445249}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3411764\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3445249}}}
+
+
+\bibitem{wickham2009ggplot2}
+H.~Wickham.
+\newblock {\em ggplot2 - Elegant Graphics for Data Analysis}.
+\newblock Use {R}. Springer, 2009.
+  \href{https://doi.org/10.1007/978-0-387-98141-3}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1007\discretionary{/}{%
+}{/}978\discretionary{%
+}{-}{-}0\discretionary{%
+}{-}{-}387\discretionary{%
+}{-}{-}98141\discretionary{%
+}{-}{-}3}}}
+
+
+\bibitem{wickham2014tidy-data}
+H.~Wickham.
+\newblock Tidy data.
+\newblock {\em The Journal of Statistical Software}, 59, 2014.
+
+\bibitem{wickham2019tidyverse}
+H.~Wickham, M.~Averick, J.~Bryan, W.~Chang, L.~McGowan, R.~Fran{\c c}ois,
+  G.~Grolemund, A.~Hayes, L.~Henry, J.~Hester, M.~Kuhn, T.~Pedersen, E.~Miller,
+  S.~Bache, K.~M{\"u}ller, J.~Ooms, D.~Robinson, D.~Seidel, V.~Spinu,
+  K.~Takahashi, D.~Vaughan, C.~Wilke, K.~Woo, and H.~Yutani.
+\newblock Welcome to the tidyverse.
+\newblock {\em J. Open Source Softw.}, 4(43):1686, Nov. 2019.
+  \href{https://doi.org/10.21105/joss.01686}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}21105\discretionary{/}{%
+}{/}joss\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}01686}}}
+
+
+\bibitem{DBLP:books/daglib/0024564}
+L.~Wilkinson.
+\newblock {\em The Grammar of Graphics, Second Edition}.
+\newblock Statistics and computing. Springer, 2005.
+
+\bibitem{wongsuphasawat2015voyager}
+K.~Wongsuphasawat, D.~Moritz, A.~Anand, J.~D. Mackinlay, B.~Howe, and J.~Heer.
+\newblock Voyager: Exploratory analysis via faceted browsing of visualization
+  recommendations.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 22(1):649--658, 2016.
+  \href{https://doi.org/10.1109/TVCG.2015.2467191}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2015\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2467191}}}
+
+
+\bibitem{Wongsuphasawat2017voyager2}
+K.~Wongsuphasawat, Z.~Qu, D.~Moritz, R.~Chang, F.~Ouk, A.~Anand, J.~Mackinlay,
+  B.~Howe, and J.~Heer.
+\newblock Voyager 2: Augmenting visual analysis with partial view
+  specifications.
+\newblock In {\em Proceedings of the 2017 CHI Conference on Human Factors in
+  Computing Systems}, CHI '17, p. 2648–2659. Association for Computing
+  Machinery, New York, NY, USA, 2017.
+  \href{https://doi.org/10.1145/3025453.3025768}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3025453\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3025768}}}
+
+
+\bibitem{xiong1912revealing}
+K.~Xiong, Z.~Luo, S.~Fu, Y.~Wang, M.~Xu, and Y.~Wu.
+\newblock Revealing the semantics of data wrangling scripts with comantics.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 29(1), 2023.
+  \href{https://doi.org/10.1109/TVCG.2022.3209470}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2022\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3209470}}}
+
+
+\bibitem{yan2020auto}
+C.~Yan and Y.~He.
+\newblock Auto-suggest: Learning-to-recommend data preparation steps using data
+  science notebooks.
+\newblock In D.~Maier, R.~Pottinger, A.~Doan, W.~Tan, A.~Alawini, and H.~Q.
+  Ngo, eds., {\em Proceedings of the 2020 International Conference on
+  Management of Data, {SIGMOD} Conference 2020, online conference Portland, OR,
+  USA, June 14-19, 2020}, pp. 1539--1554. {ACM}.
+  \href{https://doi.org/10.1145/3318464.3389738}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3318464\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3389738}}}
+
+
+\bibitem{zhang2021interpretable}
+T.~Zhang, Z.~Chen, Y.~Zhu, P.~Vaithilingam, X.~Wang, and E.~L. Glassman.
+\newblock Interpretable program synthesis.
+\newblock In Y.~Kitamura, A.~Quigley, K.~Isbister, T.~Igarashi, P.~Bj{\o}rn,
+  and S.~M. Drucker, eds., {\em {CHI} '21: {CHI} Conference on Human Factors in
+  Computing Systems, Virtual Event / Yokohama, Japan, May 8-13, 2021}, pp.
+  105:1--16. {ACM}. \href{https://doi.org/10.1145/3411764.3445646}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1145\discretionary{/}{%
+}{/}3411764\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3445646}}}
+
+
+\bibitem{zong2020lyra}
+J.~Zong, D.~Barnwal, R.~Neogy, and A.~Satyanarayan.
+\newblock Lyra 2: Designing interactive visualizations by demonstration.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 27(2):304--314, 2021.
+  \href{https://doi.org/10.1109/TVCG.2020.3030367}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2020\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3030367}}}
+
+
+\bibitem{zong2022animated}
+J.~Zong, J.~Pollock, D.~Wootton, and A.~Satyanarayan.
+\newblock Animated vega-lite: Unifying animation with a grammar of interactive
+  graphics.
+\newblock {\em {IEEE} Trans. Vis. Comput. Graph.}, 29(1):149--159, 2023.
+  \href{https://doi.org/10.1109/TVCG.2022.3209369}
+{doi: {{%
+10\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}1109\discretionary{/}{%
+}{/}TVCG\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}2022\hspace{.1pt}\discretionary{.}{%
+}{.}\hspace{.4pt}3209369}}}
+
+
+\end{thebibliography}

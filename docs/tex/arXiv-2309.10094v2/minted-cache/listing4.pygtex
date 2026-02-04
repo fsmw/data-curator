@@ -1,0 +1,4 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Seattle 7\PYGZhy{}day Moving Avg\PYGZsq{}}\PYG{p}{]} \PYG{o}{=} \PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Seattle\PYGZsq{}}\PYG{p}{]}\PYG{o}{.}\PYG{n}{rolling}\PYG{p}{(}\PYG{n}{window}\PYG{o}{=}\PYG{l+m+mi}{7}\PYG{p}{,} \PYG{n}{center}\PYG{o}{=}\PYG{k+kc}{True}\PYG{p}{)}
+\PYG{n}{alt}\PYG{o}{.}\PYG{n}{Chart}\PYG{p}{(}\PYG{n}{df2}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mark\PYGZus{}line}\PYG{p}{()}\PYG{o}{.}\PYG{n}{encode}\PYG{p}{(}\PYG{n}{x}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Date\PYGZsq{}}\PYG{p}{,} \PYG{n}{y}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Seattle 7\PYGZhy{}day Moving Avg\PYGZsq{}}\PYG{p}{)}
+\end{Verbatim}

@@ -1,0 +1,6 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{// calculate 7\PYGZhy{}day moving avg}
+\PYG{c+c1}{// @param seattleTemp examples: 51, 45, 48}
+\PYG{c+c1}{// @param seattleTempList: the list of all seattleTemp}
+\PYG{p}{(}\PYG{n+nx}{seattleTemp}: \PYG{k+kt}{number}\PYG{p}{,} \PYG{n+nx}{index}: \PYG{k+kt}{number}\PYG{p}{,} \PYG{n+nx}{seattleTempList}: \PYG{k+kt}{number}\PYG{p}{[])} \PYG{p}{=\PYGZgt{}} \PYG{p}{\PYGZob{}}
+\end{Verbatim}

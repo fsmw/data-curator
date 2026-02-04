@@ -1,6 +1,6 @@
 # Metadatos: inflation
 
-**Fecha de generación**: 2026-01-11
+**Fecha de generación**: 2026-02-04
 
 ## 1. Fuente Original
 
@@ -28,7 +28,7 @@
 
 ### Cobertura Temporal
 
-- **Años disponibles**: 2018 - 2024
+- **Años disponibles**: 2015 - 2024
 - **Número total de observaciones**: 372
 
 ### Cobertura Geográfica
@@ -60,9 +60,9 @@
 
 ### Valores Faltantes
 
-- `country_code`: 38 valores faltantes
-- `year`: 38 valores faltantes
-- `Inflation, consumer prices (annual %)`: 16 valores faltantes
+- `country_code`: 33 valores faltantes
+- `year`: 33 valores faltantes
+- `Inflation, consumer prices (annual %)`: 14 valores faltantes
 
 ## 6. Información Adicional
 

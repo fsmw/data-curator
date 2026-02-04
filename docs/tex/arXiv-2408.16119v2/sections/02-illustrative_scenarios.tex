@@ -1,0 +1,141 @@
+
+
+
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=0.5\linewidth]{figures/global-energy-data.png}
+%     \caption{ We refer to this table as \code{df} in this section.}
+%     \label{fig:global-energy-datatable}
+% \end{figure}
+
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=0.5\linewidth]{figures/global-energy-basics.png}
+%     \caption{Basic charts from \autoref{fig:global-energy-datatable} show the distributions of Electricity from renewables and CO$_2$ emissions from each country over time}
+%     \label{fig:global-energy-basics}
+% \end{figure}
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=0.5\linewidth]{figures/global-energy-facets.png}
+%     \caption{A faceted line charts comparing Electricity from three sources. We need to unpivot \code{df} in \autoref{fig:global-energy-datatable} to surface \code{Energy Source} and \code{Electricity}.}
+%     \label{fig:global-energy-facets}
+% \end{figure}
+
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=0.95\linewidth]{figures/global-energy-renewable-percentage.png}
+%     \caption{The creation and refinements of the visualizations about renewable energy percentage trends. Despite these charts are closely related, challenging data transformations involving aggregation, filtering, table merge and calculation are required in these refinement steps (tables 1-3).}
+%     \label{fig:global-energy-renewable-percentage}
+% \end{figure*}
+
+
+% \begin{figure*}[t]
+%     \centering
+%     \includegraphics[width=\linewidth]{figures/data-anvil-overview.png}
+%     \caption{Data Anvil overview. The user creates visualizations by providing fields (drag-and-drop from \textbf{Data Fields} or type in new fields) and NL instructions to \textbf{Chart Builder} and asks AI agents to formulate. \textbf{Data View} and \textbf{Data Threads}  show the derived data and the derivation history. Next, the user can revise, refine or create new charts from existing ones by providing follow-up instructions in \textbf{Local Threads} and \textbf{Chart Builder}.}
+%     \label{fig:data-anvil-overview}
+% \end{figure*}
+
+\begin{figure*}[t]
+\includegraphics[width=\linewidth]{figures/example-renewable-energy.png}
+    \caption{An analyst explores electricity from different energy sources, renewable percentage trends, and country rankings by renewable percentages using a dataset on CO$_2$ and electricity for 20 countries (2000-2020, table 1). The analyst creates five data versions in three branches to support different chart designs. \df allows users to manage iteration directions and create rich visualizations using a blended UI and natural language inputs.}
+    \label{fig:example-analysis-session}
+\end{figure*}
+
+\section{Illustrative Scenarios}
+\label{sec:illustartive-scenarios}
+
+In this section, we describe scenarios to illustrate users’ experiences for creating a series of visualizations to explore global sustainability from a dataset of 20 countries' energy generation from 2000 to 2020. The initial dataset, shown in \autoref{fig:example-analysis-session}-\circled{1}, includes each country's energy produced from three sources (fossil fuel, renewables, and nuclear) each year and annual CO$_2$ emission value (the CO$_2$ emission data only ranges from 2000 to 2019). 
+We compare different experiences and skills required for a data analyst, Megan, to complete the analysis session shown in \autoref{fig:example-analysis-session} with different tools, computational notebooks versus \df.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/data-anvil-UI.png}
+    \caption{\df overview. Users create visualizations by providing fields (drag-and-drop or type) and NL instructions to the Chart Builder, delegating data transformation to AI. \textbf{Data View} shows derived data. Users navigate data history and select contexts for the next iteration using (the thread in use is displayed as \textbf{local data threads}). They refine or create new charts by providing instructions in \textbf{Chart Builder}. The main panel provides pop-up windows to inspect code, explanations, and chat history.}
+    \label{fig:data-anvil-overview}
+\end{figure*}
+
+
+\bpstart{Exploration with computational notebooks}
+To complete the analysis in a computation notebook, Megan can use R libraries \textsf{ggplot2} and \textsf{tidyverse}. To use \textsf{ggplot2} to create charts, Megan needs to make sure that all data fields to be visualized on visual channels (e.g., $x,y$-axes, color, facet) are columns in the input data, thus, Megan uses \textsf{tidyverse} to transform data when needed.
+
+\autoref{fig:example-analysis-session} shows Megan's data analysis session with three branches. She starts with two basic line charts (chart \circled{1}-A,B) showing renewable energy and CO2 emission trends. Megan observes that many countries' CO2 emissions have increased despite increased renewable energy use, prompting her to create a faceted line chart (chart \circled{2}) and visualize renewable energy percentage trends (chart \circled{3}). Discovering that renewable percentage is a better indicator for global sustainability trends, Megan explores two directions: creating a line chart of countries' renewable percentage ranks (chart \circled{4}) and highlighting the top 5 CO2 emitters' trends (chart \circled{5}) compared to global median values (chart \circled{6}). Throughout the process, Megan backtracks several times to fork new branches from a previous version of data (e.g., charts \circled{2} to \circled{3}, and \circled{4} to \circled{5}) and reuses existing results to create new charts (e.g., chart \circled{6} from \circled{5}).
+
+Implementing these charts requires considerable data preparation efforts. While basic charts can be created by mapping existing data fields to visual channels (e.g., \code{Year}$\rightarrow x$, \code{Electricity from renewables (Twh)}$\rightarrow y$, \code{Entity}$\rightarrow$\code{color} for chart \circled{1}-A), more complex charts (\circled{3}-\circled{6}) require different data transformations. For example, Megan needs to reshape the table with \code{pivot\_longer} to merge energy sources into a new field \code{Electricity} for the $y$-axis (chart \circled{2}); to rank countries by renewable percentage (chart \circled{4}), she partitions the data by year and uses \code{rank}; for charts \circled{5} and \circled{6}, she computes the global median using aggregation and merges the results with the previous table to surface all necessary fields.
+
+
+\begin{comment}
+\subsection{Exploration with computational notebooks}
+
+Heather is an analyst who is proficient with a computational notebook and R libraries, \textsf{ggplot2} and \textsf{tidyverse}. Because \textsf{ggplot2} expects all data fields to be visualized on visual channels (e.g., $x,y$-axes, color, facet) to be columns in the input data, Heather uses \textsf{tidyverse} for data transformation.
+
+\bpstart{Basic charts} To start, Heather wants to visualize the amount of electricity produced from renewables per country over the years with a line chart to see ``{if our planet is operating in a sustainable fashion.}'' Since the input data (table-\circled{1}) includes all required fields, Heather creates the line chart with ease, by mapping columns \code{Year}$\rightarrow x$, \code{Electricity from renewables (Twh)}$\rightarrow y$ and \code{Entity} $\rightarrow$\code{color} (chart \circled{1}-A). She then creates another line chart for CO$_2$ emission trends, mapping \code{CO$_2$ emissions (kt)} to the $y$ axis (chart \circled{1}-B). Heather is puzzled that China, the country with considerably increased use of renewable energy, also has the biggest increase in CO$_2$ emissions. This is counterintuitive because renewables themselves would not cause CO$_2$ emission increases. Thus, Heather decides to delve deeper. 
+
+\bpstart{Renewable energy versus other sources} Heather suspects the CO$_2$ emission increase is caused by a surge of fossil fuel consumption. To compare fossil fuel usage against renewables, she wants a faceted line chart that shows electricity from each energy source side by side (chart \circled{2}). To create the chart, Heather needs to have a data table with columns--\code{Year}, \code{Electricity}, \code{Entity}, and \code{Energy Source}--and map the columns to $x,y$, \textsf{color}, and \textsf{facet}, respectively so that the chart is divided into subplots based on values from the \code{Energy Source} column. Because table \circled{1} stores electricity values across three columns in the wide format, Heather unpivots table \circled{1} into the long format, to fold specified column names into values in the \code{Energy Source} field and corresponding values into the \code{Electricity} field. She then creates the desired chart \circled{2} with the transformed data \circled{2}, and verifies her assumption: despite the increase in renewables usage, the usage of fossil fuel also grows significantly, leading to CO$_2$ emission increase. This motivates Heather to explore renewable trends by visualizing trends of the \emph{percentage} of electricity from renewables over all three resources. %as opposed to the basic chart.
+
+\bpstart{Renewable energy percentage and ranks} To visualize renewable energy percentage, Heather goes back to table \circled{1} to derive a new column \code{Renewable Percentage}, by dividing \code{Electricity from renewables (TWh)} from the total produced electricity for each country per year. With the new data \circled{3}, Heather visualizes the renewable percentage trends in chart \circled{3}, which shows that the percentage increase is slower than their absolute value increase (as shown in chart \circled{1}). 
+
+Because many countries share similar renewable percentage, it is quite difficult to compare different countries' trends. Heather thus decides to create a visualization of countries' renewable percentage ranks to complement the existing charts. To calculate ranks for each country among others per year, Heather uses a window function on table \circled{3} to partition the table based on \code{Year}, and apply the \textsf{rank()} function to \code{Renewable Percentage} to derive a new column \code{Rank}. With \code{Rank} mapped to $y$-axis, chart \circled{4} allows Heather to clearly examine how different countries' ranks change in the last two decades; for example, Germany and UK are the two top ranked countries emerge from the bottom pack in 2000.
+
+\bpstart{Renewable trends from top CO2 emitters} Finally, Heather wants to focus on renewable percentage trends from top CO$_2$ emission countries, which make most influences to global sustainability. Despite table~\circled{3} contains all columns to be visualized, Heather needs to filter it based on the countries' CO2 emission. To do so, Heather goes back to table \circled{1} to aggregate each country's total CO$_2$ emission, sort it and find top five. Heather then uses this intermediate result to filter table~\circled{3} to obtain renewable percentage from top five CO2 emitters (shown as table~\circled{5}) and creates chart~\circled{5}.
+
+From this chart, it is clear that top CO$_2$ emitters are indeed heading in the right direction towards sustainability, despite total CO$_2$ emissions still increasing with total energy produced also increasing each year. To publish this visualization, Heather decides to add an annotation to the plot with the median global renewable percentage. On top of table~\circled{5}, Heather appends the median renewable percentage each year calculated from table~\circled{3} and includes a new column \code{Global Median?}, used as a flag to assist plotting so that global median can be colored in a different opacity. Chart~\circled{6} shows the final result, by including \code{Global Median} as an \code{Entity} and mapping \code{Global Median?}$\rightarrow$\textsf{opacity}, median renewable percentage is visualized along other countries in a different opacity. Heather is satisfied with the results and concludes the session. 
+\end{comment}
+
+%Since Heather is programming in Jupyter notebook, she could manage iterations between data and charts in the same context: she could sidetrack to create a faceted line chart (\autoref{fig:global-energy-facets}) and edit code incrementally to refine the design (\autoref{fig:global-energy-renewable-percentage}) while retaining all versions of data and charts.  Second, data transformation would be a significant barrier if Heather is not an experienced data scientist. Even though many of iteration steps are semantically close, they follow challenging and diverse data transformations, including filtering, reshaping, aggregation and table merge. Heather further needs proficiency with implementation details like \code{reset\_index(), ignore\_index} to piece together these transformations.
+
+
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=\linewidth]{figures/data-anvil-explanation.png}
+%     \caption{Data Anvil's AI agent generates a NL explanation from the code to explain the data transformation. Users can also view code directly.}
+%     \label{fig:data-anvil-explanation}
+% \end{figure}
+
+
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=0.95\linewidth]{figures/data-anvil-correct-errors.png}
+%     \caption{Unclear instructions can lead to undesired results, the user can (1) provide a followup instruction to instruct AI to correct the error, or (2) backtrack to the previous step, revise  and re-run data formulation.}
+%     \label{fig:data-anvil-handle-errors}
+% \end{figure}
+
+
+
+\bpstart{Exploration with \df}
+Using \df to complete the same analysis session, Megan's experience is quite different. Instead of transforming data and creating visualizations with code, Megan's main task is to describe visualization goals with UI interactions and NL inputs and ask the AI model to realize them.
+
+Megan starts with basic line charts to visualize trends of electricity from renewables (\autoref{fig:example-analysis-session}-\circled{1}A). Since all three required fields are available from the input data, Megan simply selects the chart type ``line chart'' in the encoding shelf and drags and drops fields to their corresponding visual channels (\autoref{fig:data-anvil-basics-facets}-\circled{1}). \df then generates the desired visualization. To visualize the CO$_2$ emission trends, Megan swaps the $y$-axis encoding with \code{CO2 emissions (kt)}$\rightarrow y$.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/data-anvil-basics-facets.png}
+    \caption{Experiences with \df: (1) creating the basic renewable energy chart using drag-and-drop to encode fields;  (2 and 3) creating charts requiring new fields by providing field names and optional natural language instructions to derive new data.}
+    \label{fig:data-anvil-basics-facets}
+\end{figure*}
+
+Megan now needs to create the faceted line chart to compare electricity from all energy sources, which requires new fields \code{Electricity} and \code{Energy Source}. With \df, Megan can specify the chart using new data fields and NL instructions in the chart builder (\autoref{fig:data-anvil-overview}-2) and ask the AI to transform the data. 
+As \autoref{fig:data-anvil-basics-facets}-\circled{2} shows, Megan first drags and drops existing fields \code{Year} and \code{Entity} to the $x$-axis and \textsf{color}, respectively. Then, she types in the names of new fields \code{Electricity} and \code{Energy Source} in the $y$-axis and \textsf{column}, respectively, to indicate to the AI agent that she expects two new fields to be derived for these properties. Finally, Megan provides an instruction, ``compare electricity from all three sources,'' to further clarify the intent and clicks the formulate button.
+To create the chart, \df first generates a Vega-Lite spec skeleton from the encoding (to be completed based on information from the transformed data). It then summarizes the data, encodings, and NL instructions into a prompt to ask an AI model to generate data transformation code to prepare the data that fulfills all necessary fields, which is then used to instantiate the chart skeleton. After reviewing the generated chart and data, Megan is satisfied and moves to the next task. 
+\df also updates data threads (\autoref{fig:data-anvil-overview}-\circled{5}) with the newly derived data and chart. With data threads, Megan can switch the iteration contexts to instruct the AI model to create a new chart either from scratch or reusing a previous result. 
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/data-anvil-refinement.png}
+    \caption{Iteration with \df: (1) provide an instruction to filter the renewable energy percentage chart by top CO$_2$ countries, (2) update the chart with \code{Global Median?} and instruct \df to add the global median alongside the top 5 CO$_2$ countries' trends, and (3) move \code{Global Median?} from \textsf{column} to \textsf{opacity} to update the chart design without deriving new data.}
+    \label{fig:data-anvil-refinement}
+\end{figure*}
+
+Megan proceeds to visualize renewable energy percentage. Although it requires a different data transformation, Megan's experience is similar to the previous one: she drags-and-drops \code{Year} and \code{Entity} to $x$-axis and \textsf{color} (\autoref{fig:data-anvil-basics-facets}-\circled{3}), and enters the name of the new field ``\code{Renewable Energy Percentage}'' on the $y$-axis. Since Megan believes the field names are self-explanatory, she formulates the new data without an additional NL instruction. \df generates the desired visualization (\autoref{fig:data-anvil-refinement}-\circled{1}). To visualize the countries' renewable percentage ranks, building on the previous data, Megan adds a new field ``Rank'' to the $y$-axis and provides a short instruction. Because Megan builds the new chart on top of the previous data (note that in \autoref{fig:data-anvil-basics-facets}-\circled{3}, the chart builder box is positioned under the previous \textsf{table-42} as opposed to \textsf{energy.csv}), the AI model has more contextual information to correctly derive the renewable percentage rank (\autoref{fig:example-analysis-session}-\circled{4}) despite Megan's simple inputs.
+
+Next, to visualize the renewable percentage trends of the top five CO$_2$ emitting countries, Megan decides to build on a previous chart to avoid creating a verbose prompt from scratch.
+Megan first uses data threads (\autoref{fig:data-anvil-overview}-\circled{5}) to locate renewable percentage chart and opens it in the main panel. On top of that, Megan provides a new instruction below the local data thread, {``show only top 5 CO2 emission countries' trends,''} and clicks the ``derive'' button (\autoref{fig:data-anvil-refinement}-\circled{1}). \df updates the previous code to include a filter clause to produce the new data and visualization (\autoref{fig:data-anvil-refinement}-\circled{2}). Finally, to annotate the chart with global median trends, Megan forks a branch by copying the previous chart, as the new chart requires different encodings (and she wants to keep both visualizations available). Megan updates the visual encoding by (1) typing in a new field name \code{Global Median?} for \textsf{column} and (2) providing the edit instruction ``include global median as an entity'' (\autoref{fig:data-anvil-refinement}-\circled{2}). Once she clicks the derive button, \df generates the new chart (\autoref{fig:data-anvil-refinement}-\circled{3}). Upon inspection, Megan prefers to change the visualization type, with global average rendered in a different opacity as opposed to a different subplot. Since these two charts require the same data fields, Megan doesn't need to interact with the AI model --- she can directly update the design through the UI:  first selecting a new chart type ``custom line'' (which exposes more chart properties than the basic line chart) and moving \code{Global Median?} to the \textsf{opacity} channel. With all desired charts created, Megan concludes the analysis session. \autoref{fig:data-anvil-overview}-\circled{3} shows all the data threads from Megan.
+
+\bpstart{Comparison of experiences}  These two tools offer different experiences and skill requirements for Megan to execute the analysis. However, both enable her to iteratively refine exploration goals and explore different branches to uncover insights.
+
+The main difference between the two experiences is data transformation. In computation notebooks, Megan needs to prepare data for design updates, even seemingly small ones (e.g., charts-\circled{3} and \circled{5}). She must understand the data shape required and apply the correct transformations (e.g., unpivot for table~\circled{2}, join and union for table~\circled{6}). Proficiency in data transformation is essential for creating rich visualizations. In \df, Megan specifies high-level chart designs, and the AI implements the transformations. Regardless of the underlying data transformations, she conveys her intents uniformly through visual encodings (UI) and natural language inputs. Because Megan can use the shelf-configuration UI to specify chart design, the supplementary NL instruction is straightforward. Though Megan doesn't write code, \df provides artifacts like generated data, charts, and code with natural language explanations for her to review. By lowering the implementation skill barrier, \df allows users to focus more on analysis planning and reasoning.
+
+Computation notebooks naturally support reuse. Megan can copy-edit previous code snippets or reuse variables to build new charts.  In \df, Megan directs the analysis using data threads. Megan can easily review the history and select previous results to instruct the AI model to create new charts from those contexts. This simplifies instructions to incremental updates, and the AI reuses previous outputs to avoid mistakes. If undesired results occur, she can backtrack and revise inputs using data threads (\autoref{fig:data-anvil-overview}-\circled{3}). Iteration isn't as easy with a chat-based tool. Iteration isn't as easy with a chat-based tool, where verbose prompts are needed to guide the AI and avoid unrelated histories.

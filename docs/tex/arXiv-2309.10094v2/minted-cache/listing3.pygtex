@@ -1,0 +1,11 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{c+c1}{\PYGZsh{} extend df2 with new columns \PYGZsq{}Difference\PYGZsq{} and \PYGZsq{}Warmer\PYGZsq{}}
+\PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Difference\PYGZsq{}}\PYG{p}{]} \PYG{o}{=} \PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Seattle\PYGZsq{}}\PYG{p}{]} \PYG{o}{\PYGZhy{}} \PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Atlanta\PYGZsq{}}\PYG{p}{]}
+\PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Warmer\PYGZsq{}}\PYG{p}{]} \PYG{o}{=} \PYG{n}{df2}\PYG{p}{[}\PYG{l+s+s1}{\PYGZsq{}Difference\PYGZsq{}}\PYG{p}{]}\PYG{o}{.}\PYG{n}{apply}\PYG{p}{(}
+    \PYG{k}{lambda} \PYG{n}{x}\PYG{p}{:} \PYG{l+s+s1}{\PYGZsq{}Seattle\PYGZsq{}} \PYG{k}{if} \PYG{n}{x} \PYG{o}{\PYGZgt{}} \PYG{l+m+mi}{0} \PYG{k}{else} \PYG{p}{(}\PYG{l+s+s1}{\PYGZsq{}Atlanta\PYGZsq{}} \PYG{k}{if} \PYG{n}{x} \PYG{o}{\PYGZlt{}} \PYG{l+m+mi}{0} \PYG{k}{else} \PYG{l+s+s1}{\PYGZsq{}Same\PYGZsq{}}\PYG{p}{))}
+
+\PYG{c+c1}{\PYGZsh{} create the bar chart}
+\PYG{n}{alt}\PYG{o}{.}\PYG{n}{Chart}\PYG{p}{(}\PYG{n}{df2}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mark\PYGZus{}bar}\PYG{p}{()}\PYG{o}{.}\PYG{n}{encode}\PYG{p}{(}\PYG{n}{x}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Date\PYGZsq{}}\PYG{p}{,} \PYG{n}{y}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Difference\PYGZsq{}}\PYG{p}{,} \PYG{n}{color}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Warmer\PYGZsq{}}\PYG{p}{)}
+\PYG{c+c1}{\PYGZsh{} create the histogram}
+\PYG{n}{alt}\PYG{o}{.}\PYG{n}{Chart}\PYG{p}{(}\PYG{n}{df2}\PYG{p}{)}\PYG{o}{.}\PYG{n}{mark\PYGZus{}bar}\PYG{p}{()}\PYG{o}{.}\PYG{n}{encode}\PYG{p}{(}\PYG{n}{x}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Warmer\PYGZsq{}}\PYG{p}{,} \PYG{n}{y}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}count()\PYGZsq{}}\PYG{p}{,} \PYG{n}{color}\PYG{o}{=}\PYG{l+s+s1}{\PYGZsq{}Warmer\PYGZsq{}}\PYG{p}{)}
+\end{Verbatim}

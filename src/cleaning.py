@@ -17,37 +17,10 @@ except ImportError:
     pyarrow = None
 
 
+from src.const import COUNTRY_CODES
+
 class DataCleaner:
     """Handles data cleaning and standardization operations."""
-
-    # ISO 3166-1 alpha-3 country code mappings (sample - extend as needed)
-    COUNTRY_CODES = {
-        "Argentina": "ARG",
-        "Brasil": "BRA",
-        "Brazil": "BRA",
-        "Chile": "CHL",
-        "Colombia": "COL",
-        "México": "MEX",
-        "Mexico": "MEX",
-        "Perú": "PER",
-        "Peru": "PER",
-        "Uruguay": "URY",
-        "Venezuela": "VEN",
-        "España": "ESP",
-        "Spain": "ESP",
-        "Estados Unidos": "USA",
-        "United States": "USA",
-        "USA": "USA",
-        "Alemania": "DEU",
-        "Germany": "DEU",
-        "Francia": "FRA",
-        "France": "FRA",
-        "Reino Unido": "GBR",
-        "United Kingdom": "GBR",
-        "China": "CHN",
-        "Japón": "JPN",
-        "Japan": "JPN",
-    }
 
     def __init__(self, config):
         """
@@ -112,6 +85,51 @@ class DataCleaner:
 
         return df
 
+    def filter_by_region(self, df: pd.DataFrame, region: str) -> pd.DataFrame:
+        """
+        Filter dataset by region (e.g., 'latam').
+        Requires standardized country codes (ISO3).
+        """
+        if not region or region.lower() == 'global':
+            return df
+            
+        region = region.lower()
+        target_codes = []
+        
+        if region == 'latam':
+            try:
+                from src.utils.regions import LATAM_ISO_CODES
+                target_codes = LATAM_ISO_CODES
+            except ImportError:
+                print("Could not import LATAM_ISO_CODES")
+                return df
+        
+        if not target_codes:
+            return df
+            
+        # Find country column
+        country_cols = [
+            col
+            for col in df.columns
+            if "country" in col.lower() or "pais" in col.lower() or "code" in col.lower()
+        ]
+
+        if not country_cols:
+            return df
+
+        country_col = country_cols[0]
+        
+        # Filter
+        original_len = len(df)
+        df_filtered = df[df[country_col].isin(target_codes)].copy()
+        
+        if len(df_filtered) < original_len:
+             self.transformations.append(
+                f"Filtered data to {region.upper()} region. Kept {len(df_filtered)}/{original_len} rows."
+            )
+            
+        return df_filtered
+
     def _validate_schema(self, df: pd.DataFrame) -> pd.DataFrame:
         """Validate dataframe against economic data schema."""
         try:
@@ -158,10 +176,10 @@ class DataCleaner:
             if pd.isna(name):
                 return name
             # Try exact match
-            if name in self.COUNTRY_CODES:
-                return self.COUNTRY_CODES[name]
+            if name in COUNTRY_CODES:
+                return COUNTRY_CODES[name]
             # Try case-insensitive match
-            for key, value in self.COUNTRY_CODES.items():
+            for key, value in COUNTRY_CODES.items():
                 if str(name).lower() == key.lower():
                     return value
             # Return original if no match
@@ -195,26 +213,23 @@ class DataCleaner:
 
         for col in date_cols:
             try:
-                # If column contains only years (numeric), keep as integer year
-                if (
-                    pd.api.types.is_integer_dtype(df[col])
-                    or pd.api.types.is_float_dtype(df[col])
-                ) and df[col].notna().any():
-                    try:
-                        maxv = pd.to_numeric(df[col], errors="coerce").max()
-                        minv = pd.to_numeric(df[col], errors="coerce").min()
-                        if (
-                            pd.notna(maxv)
-                            and pd.notna(minv)
-                            and maxv < 3000
-                            and minv > 1900
-                        ):
-                            df[col] = pd.to_numeric(df[col], errors="coerce").astype(
-                                "Int64"
-                            )
-                            continue
-                    except Exception:
-                        pass
+                # If column name looks like year, try to treat as numeric year even if current dtype is object/string
+                if any(keyword in col.lower() for keyword in ["year", "año", "ano"]):
+                    temp_numeric = pd.to_numeric(df[col], errors="coerce")
+                    if temp_numeric.notna().any():
+                        try:
+                            maxv = temp_numeric.max()
+                            minv = temp_numeric.min()
+                            if (
+                                pd.notna(maxv)
+                                and pd.notna(minv)
+                                and maxv < 3000
+                                and minv > 1900
+                            ):
+                                df[col] = temp_numeric.astype("Int64")
+                                continue
+                        except Exception:
+                            pass
 
                 # Try to parse as datetime
                 df[col] = pd.to_datetime(df[col], errors="coerce")

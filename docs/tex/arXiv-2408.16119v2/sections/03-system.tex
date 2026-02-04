@@ -1,0 +1,118 @@
+\section{System Design}
+\label{sec:system_design}
+In this section, we present \df's system design.
+First, to enable users to specify their intent using multiple paradigms (shelf-configuration UI and NL inputs) \df \textbf{decouples chart specification from data transformation}, solving them with template instantiation and AI code generation respectively.
+Second, to support reuse, \df organizes \textbf{the iteration history as data threads with data as first-class objects}.
+ This enables users to either locate a chart from a different branch and follow up or quickly revise and rerun the most recent instructions leading to the current chart. 
+We will next detail how we implement these designs and explain how additional features help users understand AI-generated results.
+
+\subsection{Composing charts from multi-modal inputs}
+\autoref{fig:multi-modal-ui-approach} shows how \df decouples chart design and data transformation to support blended input methods. Given a user specification, \df generates the desired chart in three steps: (1) generate a Vega-Lite specification from the selected chart type, (2) compile a prompt and delegate data transformation to the AI, and (3) instantiate the Vega-Lite specification with the generated data.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/architecture-multi-modal-UI.png}
+    \caption{\df's workflow: (1) \df generates a Vega-Lite spec skeleton based on user specifications and chart type. (2) If new fields (e.g., \code{Rank}) are required, \df prompts its AI model to generate data transformation code. (3) The Vega-Lite skeleton is then instantiated with the new data to produce the desired chart.}
+    \label{fig:multi-modal-ui-approach}
+\end{figure*}
+
+\bpstart{Chart specification generation} \df adopts a chart type-based approach to represent visualizations, supporting five categories of charts: scatter (scatter plot, ranged dot plot), line (line chart, dotted line chart), bar (bar chart, stacked bar chart, grouped bar chart), statistics (histogram, heatmap, linear regression, boxplot) and custom (custom scatter, line, bar area, rectangle where all available visual channels are exposed). Each chart type is represented as a Vega-Lite template with a set of predefined visual channels, including position ($x$, $y$), legends (\textsf{color}, \textsf{size}, \textsf{shape}, \textsf{opacity}), and facet (\textsf{column}, \textsf{row}) that are shown to the user in the chart builder. For example, a line chart is represented as a Vega-Lite template \textsf{\{ "mark": "line", "encoding" : \{ "x": null, "y": null, "color": null, "column": null, "row": null\}\}}, and when the user selects line chart, channels $x$, $y$, \textsf{color}, \textsf{column}, and \textsf{row} are displayed in the chart builder. Chart type-based design enable \df to support predefined layered charts (e.g., ranged dot plot composed from line and scatter, \autoref{fig:template-instantiation}). Additional chart types (e.g., bullet chart) can be supported by adding Vega-Lite templates with respective channels to the library.
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1\linewidth]{figures/template-instantiation.png}
+    \caption{\df converts user encodings into a Vega-Lite specification, which is combined with AI-transformed data to visualize country ranks in 2000 and 2020.}
+    \label{fig:template-instantiation}
+\end{figure*}
+    
+
+As the user inputs fields into the chart builder, either by dragging and dropping it from existing data fields or by typing in new fields they wish to visualize, \df instantiates the Vega-Lite template with provided fields. For example, as shown in \autoref{fig:multi-modal-ui-approach}-\filled{1}, when the user drags \code{Year}$\rightarrow x$, \code{Entity}$\rightarrow y$ and types \code{Rank} in $y$, the line chart template mentioned above is instantiated with provided fields: if the field is available in the current data table, both field name and encoding type are instantiated (e.g., \code{Year} with the temporal type), otherwise the encoding type is left as a ``<placeholder>'' to be instantiated later when data transformation completes. 
+The shelf-configuration saves users efforts from writing prompts to explain complex chart designs. For example, to create a ranged dot plot--layered chart composed of scatter and line charts--the user only needs to fill the required fields in the UI. \df then populates corresponding fields in the predefined chart template (\autoref{fig:template-instantiation}). 
+
+\bpstart{Data transformation with AI} From the chart builder, \df assembles a prompt and queries an LLM to generate python code to transform data. The data transformation prompt contains three segments: the system prompt, the data transformation context and the goal (illustrated \autoref{fig:multi-modal-ui-approach}-\filled{2}).
+
+The \textbf{system prompt} describes the role of the LLM and the output format. Besides generic role descriptions (i.e., LLM as a data scientist for data transformation), the system prompt guides the LLM to solve the data transformation task in two steps. First, the LLM should refine the user's goal and output as a JSON object that elaborates intermediate and final fields to be computed from the original data. Then, the LLM should generate a python snippet following a provided template. The system prompt ends with an input-output example that illustrates the process. The design rationale behind the ``goal refinement'' step is to allow the LLM to reason about any potential discrepancy between users' provided fields and their instruction (e.g., users may ask about color by energy type but didn't put ``energy type'' on the color encoding) and determine the final list of fields to be computed.
+\df then assembles \textbf{context prompts} that illustrate the data to be transformed, explaining the data fields by showing the data type and example values for each field, along with sample table rows. The data context provides valuable information related to data formats (such as data types, string formats, and whether columns contain null values) to the LLM, ensuring that the generated transformation code is executable on the given data. When a chart is specified based on previous results, the dialog history between \df and the LLM, including user instructions and previously generated code, is appended in context. This way, even if users' follow-up prompts is short, the grounded contexts help the model understand user intent and reuse previously generated code.
+Finally, \df assembles a \textbf{goal prompt}, combining the NL instruction provided in the text box and field names used in the encodings. When users skip an NL instruction (\autoref{fig:data-anvil-basics-facets}-\filled{3}), the instruction part is left blank. This goal will be refined by the LLM (i.e., based on the system prompt) before attempting to generate the data transformation code.
+With the full input, \df prompts the LLM to generate a response. Below shows the LLM's refined goal for the task in \autoref{fig:multi-modal-ui-approach}, and the generated code is shown in \autoref{fig:multi-modal-ui-approach}-\filled{2}.
+
+\begin{imageonly}
+\begin{center}
+\begin{smpage}{0.95\linewidth}
+\begin{lstlisting}[language=json]  
+{ "detailed_instruction": "Calculate the percentage of electricity generated from renewables for each country per year. Then, rank the countries by their renewable percentage for each year.",
+ "output_fields": ["Year", "Entity", "Renewable_Percentage", "Rank"],
+ "visualization_fields": ["Year", "Rank", "Entity"],
+ "reason": "To rank countries by their renewable percentage, we need to calculate the renewable percentage for each country per year and then determine the rank based on this percentage." }
+\end{lstlisting}
+\end{smpage}
+\end{center}
+\end{imageonly}
+
+\smallskip
+
+\df then runs the code on the input data. If the code executes without errors, the output data is used to instantiate the Vega-Lite script generated in the previous step. This is done by first inferring semantic types of newly generated columns (to determine their encoding type), and then assembling the data with the script to render the visualization (\autoref{fig:multi-modal-ui-approach}-\filled{3}). The generated code sometimes causes runtime errors due to an attempt to use libraries that are not imported, references to invalid columns names, or incorrect handling of \code{undefined} or \code{NaN} values. When such errors occur, \df tries to correct the errors by querying the LLM with the error message and a follow-up instruction to repair its mistakes~\cite{olausson2023self,chen2023teaching}. The visualization is generated when repair completes. \df updates the data threads upon creating the chart.
+
+% , the user first specifies chart encoding with a shelf-configuration UI; then, they provide an NL instruction to elaborate the intent. These inputs are grounded in the contexts (input data, and authoring history) into a prompt that delegates the implementation task to the data agent. As demonstrated in \autoref{fig:data-anvil-basics-facets}, in the encoding shelf, the user can refer to \emph{future} fields by providing their names besides existing data fields, and this interaction provide both the schema of the expected output data and a precise specification of the chart. Using NL inputs, the user has the freedom to provide either a declarative description that illustrate the relation/semantics of the expected visualization (e.g., ``compare electricity from all sources'' as demonstrated in \autoref{fig:data-anvil-basics-facets}-\circled{2}), or an imperative instruction that explains how the computation should be done (e.g., ``pivot the table'' for the same task). 
+
+%With the user specification, Data Anvil first generates a Vega-Lite specification with placeholder data that reflects users' chart design; it then compiles a grounded prompt consisting of (1) system prompt that describes Data Agent's objective (i.e., to fill a Python template with pandas library based), (2) few-shot examples that demonstrate the code generation tasks~\cite{brown2020language}, (3) a summary of the input data that the code should operate on, (4) information of previous visualization iterations (if the new task is iterated from an existing one), and (5) the expected output data schema (extracted from UI input) and NL instructions. 
+%For example, given the user specification in \autoref{fig:data-anvil-basics-facets}-\circled{2}, the following Vega-Lite spec and prompt are generated:
+% \begin{center}
+% \begin{smpage}{0.95\linewidth}
+% \begin{minted}[fontfamily=helvetica,fontsize=\small]{json}
+% { "mark": "line", "encoding" : { "x": {"field": "Year", "type": "quantitative"}, "y": {"field": "Electricity"},  "color": {"field": "Entity", "type": "nominal"}, "column": {"field": "Energy Source"}, } }
+% \end{minted}
+% \begin{minted}[fontfamily=helvetica,fontsize=\small]{python}
+% # You are a data scientist to help user to transform data. Create a python function based off the [CONTEXT], [TEMPLATE] and [GOAL]...
+% #... (more prompt, summary of data and dialog, and examples are omitted)
+% import pandas as pd
+% def transform_data(df):
+%     # complete the template here
+%     return transformed_df
+% # [GOAL] Expected fields ["Year", "Electricity", "Entity", "Energy Source"]
+% # [INSTRUCTION] compare electricity from all sources
+% \end{minted}
+% \end{smpage}
+% \end{center}
+
+%The prompt is then provided to the data agent to generate the data transformation code, which produces an output data to instantiate the Vega-Lite spec to render the visualization. Benefiting from the expressiveness of Vega-Lite, Data Anvil supports bespoke charts that can be composed from Vega-Lite marks (point, line, bar, area, etc.), encodings ($x$, $y$, color, shape, size, column, row) and layering. With a generic data function template, the data agent supports a wide range of transformation idioms including table join, union, reshaping, aggregation, moving average, and ranking. Data Anvil can support such expressive language without compromising reliability thanks to LLMs' code generation capability and the user's rich inputs collected via the multi-modal UI.
+
+%The multi-modal interface has the following benefits. First, the shelf-configuration UI allows precise specification of the chart intent with user-familiar experience and naturally supports visualizations types that can be represented as Vega-Lite templates (Data Anvil supports charts composed from point, line, bar and area marks as supported by Vega-Lite). Without it, users need to specify in much more verbose NL instructions. Then, NL instructions provide an opportunity for users to clarify their intent that cannot be conveyed in chart encoding, without which the data agent would compromise its reliability since it has to guess unspecified user intent. Because the user can specify the task more precisely, data agent can employ a more generic template (as opposed to a more constrained template that limits data transformation to a smaller set of operators like prior work~\todo{cite}). This enable Data Anvil to handle a wide range of data transformation idioms including table join, union, reshaping, aggregation, moving average, ranking and more, as demonstrated in \autoref{sec:illustartive-scenarios}. The supports of diverse data transformation operators and bespoke charts are essential to enable Data Anvil create rich visualizations.
+
+% Without the UI input, the user would have to provide a much more verbose instruction in NL about the visual encoding and data schema to achieve the same level of control; and without the opportunity for users to explain their task with NL input, AI would have to guess meanings of new fields, which would compromise system's reliability. For example, given the table \autoref{fig:global-energy-datatable}, the user can create a bar chart with \code{Entity} $\mapsto x$ and \code{Difference} $\mapsto y$ with the instruction ``show me the difference of CO$_2$ emission between 2019 and 2000 for each country'', here, the UI input provides chart specification, the output table schema \code{[Entity, Difference]}, and NL instruction is essential to elaborate the semantics.
+
+\subsection{Data threads}
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=1\linewidth]{figures/data-threads-design.png}
+    \caption{Data threads and local data threads (right). Users can select previous data or charts to create new branches, and the AI reuses code for new transformations based on user instructions. The local data thread offers shortcuts to (1) rerun the previous instruction, (2) issue a follow-up instruction, or (3) expand the previous card to revise and rerun the instruction.}
+    \label{fig:data-threads-design}
+\end{figure*}
+
+Data threads visualize the analyst's interaction history with AI, allowing the analyst to control the iteration direction by selecting which data or chart the AI model should use to generate new charts.
+In data threads, each node represents a version of the data, and these nodes are connected by edges that represent the user's instructions provided to the AI model for data transformation. Visualizations are attached to the data from which they were created. Centering the iteration history around data benefits user navigation because it reflects the sequence of user actions in creating these new data. 
+
+When a user issues a follow-up instruction from an existing data or chart, \df provides the previous conversation history to the AI and instructs it to rewrite the code towards new goals. Each time the user forks a new branch using data threads, the authoring context switches automatically and is highlighted in the main panel for the user's awareness. This way, the AI model minimizes the risk of incorrectly using information from other branches for data transformation. As shown in \autoref{fig:data-threads-design}, the code and the conversation history are attached to each data node. In our design, when the user issues a follow-up instruction, the AI model generates new code by updating the previous code (which may involve additions, deletions, or both) to achieve the user's goal. This ensures that the code always takes the original data as the input, with all information accessible. This way, whether the user wants to update the data (e.g., {``now, calculate the average rank for each country''}), revise the previous computation (e.g., {``also consider nuclear as renewable energy''}) or create alternatives (e.g., {``rank by CO2 instead''}), the AI model can achieve these tasks as it has access to the full dialog history and the complete dataset. Note that an alternative design where we only pass current data to the AI model and ask it to write a new code to further transform it (i.e., reusing the data as opposed to reusing the computation leading to the data) would not be ideal. With  access to only the current data, this approach cannot handle ``backtracking'' or ``generating an alternative design'' styles of instructions effectively.
+
+During iteration, analysts need to both (1) switch to different data or a chart far from the current one to explore a different direction and (2) perform quick follow-ups or revisions of the latest instruction based on the latest data. To accommodate these different needs, \df presents both global data threads and local data threads.
+For global navigation, the key challenge is to help the user distinguish the desired content from others. To address this, data threads are located in a separate panel with previews of data, instructions, and charts to assist navigation (\autoref{fig:data-anvil-overview}). This supports users' differing navigation styles, whether they want to navigate by provenance (i.e., using instruction cards to locate desired data) or by artifacts (i.e., using visualization snapshots to recall data semantics). Once the user locates the desired data, they can click and open a previous chart, displaying it in the main panel. Additionally, they can create a new chart directly from the data~\autoref{fig:data-threads-design}-\filled{1}. In contrast, the local data thread is designed as part of the main authoring panel (\autoref{fig:data-anvil-overview}). It features a much-simplified view (i.e., hiding other visualizations created in this thread) to display a copy of the current thread in use. The main goals of the local data thread are to provide users with awareness of the current iteration context (so they don't need to cross-reference between the chart builder and the data threads panels) and to offer shortcuts for quick revisions of recently created charts.
+As shown in \autoref{fig:data-threads-design}, the user can perform three types of revision tasks with local data threads: rerun the previous instruction (e.g., when the AI produces an incorrect result and they would like to quickly retry, \filled{2}), provide a follow-up instruction to refine the data (\filled{3}), and quickly open the previous instruction to modify and rerun the command (\filled{4}).
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/code-explanation.png}
+    \caption{\df provides explanations of the code generated by AI to assist users understand the data transformation. This example is the explanation of the code behind table-56 in \autoref{fig:data-threads-design}.}
+    \label{fig:code-explanation}
+\end{figure*}
+
+\subsection{Assisting user to inspect and style charts} 
+
+As an AI-powered tool, \df allows users to verify AI-generated results and resolve AI's mistakes. It displays the transformed data and the visualization in the main panel and enables users to inspect generated code, its explanation, and the raw chat history through pop-up windows (\autoref{fig:data-anvil-overview}). This design accommodates various user verification styles~\cite{wang2021falx,gu2023analysts} such as viewing high-level correctness from the chart, inspecting corner cases in the data, examining the transformation output, and understanding the transformation process through the code. \df utilizes a code explanation module to help users understand the code, querying the AI model to translate code into step-by-step explanations. \autoref{fig:code-explanation} shows the explanation for the code behind table-56 in \autoref{fig:data-threads-design}. Expert users who would like to directly view the raw chat history between \df and the AI model (e.g., to inspect the LLM's raw reasoning process) can access this information from the ``view chat history'' pop-up window.
+Note that despite that data transformations generated in the later iteration stages can be complex, users can verify its correctness against its predecessor because \df users create visualizations incrementally. This lowers users' verification efforts, as found in our study in \autoref{sec:evaluation}. To fix errors, users can take advantage of the data thread's iterative mechanism to rerun, follow up, or revise instructions. 
+
+Benefiting from the decoupled chart specification and data transformation processes, when users want to update visualization styles (e.g., change color scheme, change sort order of an axis, or swap encodings) that do not require additional data transformation, they can directly perform edits in the chart builder. By updating channel properties or swapping encoded fields, these updates are directly reflected in the Vega-Lite script and rendered in the main panel. Unlike interactions with AI, which may have a slightly delayed response time, this approach allows users to achieve quick and precise edits with immediate visual feedback to refine the design.
+
+
+
+\subsection{Implementation} \df is a React application with a python server for data transformation. \df has been tested with OpenAI models including GPT-3.5-turbo, GPT-4, GPT-4o, and GPT-4o-mini. We used GPT-3.5-turbo in our user study, and all but GPT-4 can generally response within 10 seconds. \df can sometimes be slow due to Vega-Lite rendering overhead (e.g., large datasets with more than 20,000 rows, long data threads with more than 20 charts). We envision that on-demand re-rendering of charts can improve its performance. 

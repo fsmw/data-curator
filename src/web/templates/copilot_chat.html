@@ -1,55 +1,91 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="copilotChat()" x-init="init()" class="h-100 d-flex flex-column">
-  <!-- Header -->
-  <div class="card mb-3">
-    <div class="card-body d-flex justify-content-between align-items-center">
-      <div>
-        <h5 class="mb-0">
-          <i class="bi bi-robot text-primary"></i> 
-          AI Data Assistant
-          {% if not copilot_available %}
-            <span class="badge bg-warning text-dark ms-2">Unavailable</span>
-          {% endif %}
-        </h5>
-        <small class="text-secondary">Powered by GitHub Copilot SDK</small>
+<div x-data="copilotChat()" x-init="init()" class="h-100 d-flex flex-row overflow-hidden">
+
+  <!-- Sidebar: Data Threads -->
+  <div class="d-flex flex-column border-end bg-light" style="width: 250px; min-width: 250px;" x-show="showThreads"
+    x-transition>
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+      <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-3"></i> Data Threads</h6>
+      <button class="btn btn-sm btn-link text-secondary" @click="showThreads = false">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="flex-grow-1 overflow-auto p-2">
+      <!-- New Thread Button -->
+      <button class="btn btn-outline-primary btn-sm w-100 mb-3" @click="startNewThread()">
+        <i class="bi bi-plus-lg"></i> New Thread
+      </button>
+
+      <!-- Thread List -->
+      <template x-for="thread in threads" :key="thread.id">
+        <div class="card mb-2 cursor-pointer thread-card"
+          :class="activeThreadId === thread.id ? 'border-primary bg-white shadow-sm' : 'border-0 bg-transparent'"
+          @click="switchThread(thread.id)">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between">
+              <span class="small fw-bold text-truncate" x-text="thread.title || 'New Analysis'"></span>
+              <small class="text-muted" x-text="formatTime(thread.timestamp)"></small>
+            </div>
+            <p class="small text-secondary mb-0 text-truncate" x-text="thread.lastMessage || 'Empty thread'"></p>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Main Chat Area -->
+  <div class="flex-grow-1 d-flex flex-column h-100 position-relative">
+
+    <!-- Top Bar -->
+    <div class="card border-0 border-bottom rounded-0">
+      <div class="card-body py-2 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="showThreads = !showThreads">
+            <i class="bi" :class="showThreads ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'"></i>
+          </button>
+          <h5 class="mb-0 text-truncate">
+            <i class="bi bi-robot text-primary"></i>
+            Data Workbench
+          </h5>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="showConcepts = !showConcepts">
+            <i class="bi" :class="showConcepts ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-reverse'"></i>
+            Concepts
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" @click="clearChat()" :disabled="messages.length === 0">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
       </div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary btn-sm" @click="clearChat()" :disabled="messages.length === 0">
-          <i class="bi bi-trash"></i> Clear
-        </button>
-        <button class="btn btn-outline-info btn-sm" @click="checkHealth()">
-          <i class="bi bi-heart-pulse"></i> Health
-        </button>
+    </div>
+
+    <!-- Alerts -->
+    <div class="px-3 pt-3">
+      <div x-show="!copilot_available" class="alert alert-warning mb-0">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>GitHub Copilot SDK not available.</strong> Install with: <code>pip install github-copilot-sdk</code>
+      </div>
+
+      <div x-show="health_status" class="alert mt-2 mb-0"
+        :class="health_status?.status === 'healthy' ? 'alert-success' : 'alert-warning'">
+        <div class="d-flex justify-content-between">
+          <span>
+            <i class="bi"
+              :class="health_status?.status === 'healthy' ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+            Status: <strong x-text="health_status?.status"></strong>
+          </span>
+          <button class="btn-close" @click="health_status = null"></button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Not Available Warning -->
-  <div x-show="!copilot_available" class="alert alert-warning mb-3">
-    <i class="bi bi-exclamation-triangle"></i>
-    <strong>GitHub Copilot SDK not available.</strong>
-    Install with: <code>pip install github-copilot-sdk</code>
-  </div>
-
-  <!-- Health Status -->
-  <div x-show="health_status" class="alert mb-3" :class="health_status?.status === 'healthy' ? 'alert-success' : 'alert-warning'">
-    <div class="d-flex justify-content-between">
-      <span>
-        <i class="bi" :class="health_status?.status === 'healthy' ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
-        Status: <strong x-text="health_status?.status"></strong>
-      </span>
-      <button class="btn-close" @click="health_status = null"></button>
-    </div>
-    <div x-show="health_status?.tools_registered" class="mt-2 small">
-      Tools registered: <span x-text="health_status?.tools_registered"></span>
-    </div>
-  </div>
-
-  <!-- Chat Messages -->
-  <div class="card flex-grow-1 mb-3" style="overflow-y: auto; max-height: 60vh;">
-    <div class="card-body" id="chat-messages">
-      <!-- Welcome Message -->
+    <!-- Chat Messages -->
+    <div class="flex-grow-1 p-3 overflow-auto" id="chat-messages">
+      <!-- Welcome State -->
       <div x-show="messages.length === 0" class="text-center text-secondary py-5">
         <i class="bi bi-robot fs-1"></i>
         <h6 class="mt-3">Welcome to AI Data Assistant</h6>
@@ -57,249 +93,552 @@
           I can help you explore datasets, analyze data, and download from OWID.<br>
           Try asking: "Show me GDP data for Brazil" or "What datasets do we have about health?"
         </p>
-        <!-- Quick Actions -->
-        <div class="mt-3 d-flex flex-wrap justify-content-center gap-2">
-          <button class="btn btn-outline-primary btn-sm" @click="sendQuick('What datasets are available?')">
-            List datasets
-          </button>
-          <button class="btn btn-outline-primary btn-sm" @click="sendQuick('Download GDP per capita for LATAM')">
-            Get GDP data
-          </button>
-          <button class="btn btn-outline-primary btn-sm" @click="sendQuick('Analyze trends in population growth')">
-            Analyze trends
-          </button>
-        </div>
       </div>
 
-      <!-- Message List -->
+      <!-- Messages -->
       <template x-for="(msg, index) in messages" :key="index">
         <div class="mb-3" :class="msg.role === 'user' ? 'text-end' : ''">
           <div class="d-flex align-items-start gap-2" :class="msg.role === 'user' ? 'flex-row-reverse' : ''">
-            <!-- Avatar -->
             <div class="flex-shrink-0">
               <span class="badge rounded-pill" :class="msg.role === 'user' ? 'bg-primary' : 'bg-success'">
                 <i class="bi" :class="msg.role === 'user' ? 'bi-person' : 'bi-robot'"></i>
               </span>
             </div>
-            
-            <!-- Message Content -->
+
             <div class="flex-grow-1" style="max-width: 80%;">
-              <div class="card" :class="msg.role === 'user' ? 'bg-primary text-white' : 'bg-light'">
+              <div class="card shadow-sm" :class="msg.role === 'user' ? 'bg-primary text-white' : 'bg-light border-0'">
                 <div class="card-body py-2 px-3">
-                  <!-- Loading Indicator -->
                   <div x-show="msg.loading" class="d-flex align-items-center gap-2">
                     <span class="spinner-border spinner-border-sm"></span>
                     <span>Thinking...</span>
                   </div>
-                  
-                  <!-- Message Text -->
-                  <div x-show="!msg.loading" x-html="formatMessage(msg.content)"></div>
-                  
-                  <!-- Tool Calls -->
-                  <div x-show="msg.tools && msg.tools.length > 0" class="mt-2 pt-2 border-top">
-                    <small class="text-secondary">
-                      <i class="bi bi-tools"></i> Tools used:
-                    </small>
-                    <div class="d-flex flex-wrap gap-1 mt-1">
-                      <template x-for="tool in msg.tools" :key="tool">
-                        <span class="badge bg-info text-dark" x-text="tool"></span>
+
+                  <div x-show="!msg.loading" class="markdown-body" x-html="formatMessage(msg.content)"></div>
+
+                  <!-- Tool Usage Badge -->
+                  <div x-show="msg.tools && msg.tools.length > 0"
+                    class="mt-2 pt-2 border-top border-secondary opacity-50">
+                    <small class="d-block mb-1"><i class="bi bi-tools"></i> Tools Used:</small>
+                    <div class="d-flex flex-wrap gap-1">
+                      <template x-for="tool in msg.tools">
+                        <span class="badge bg-dark bg-opacity-25" x-text="tool"></span>
                       </template>
                     </div>
                   </div>
                 </div>
               </div>
-              <small class="text-secondary" x-text="formatTime(msg.timestamp)"></small>
+              <small class="text-secondary mt-1 d-block" x-text="formatTime(msg.timestamp)"></small>
             </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Suggestions Chips -->
+      <div x-show="suggestions.length > 0 && !loading" class="mt-4 animate__animated animate__fadeIn">
+        <small class="text-secondary text-uppercase fw-bold ms-1" style="font-size: 0.7rem;">Suggested Actions</small>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <template x-for="suggestion in suggestions" :key="suggestion.question">
+            <button class="btn btn-sm btn-outline-info rounded-pill d-flex align-items-center gap-2"
+              @click="sendQuick(suggestion.question)">
+              <i class="bi" :class="getSuggestionIcon(suggestion.type)"></i>
+              <span x-text="suggestion.question"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <!-- Encoding Shelf (Visual Builder) -->
+    <div class="bg-light border-top p-2" x-show="showEncoding" x-transition>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <small class="fw-bold text-secondary text-uppercase" style="font-size: 0.7rem;">Visual Encoding</small>
+      </div>
+      <div class="d-flex gap-2 overflow-auto pb-1">
+        <!-- X Axis Dropzone -->
+        <div class="encoding-zone border rounded bg-white p-2 d-flex align-items-center gap-2" @dragover.prevent
+          @drop="dropField($event, 'x')">
+          <span class="badge bg-secondary">X-Axis</span>
+          <span x-text="encodings.x || 'Drop Key'"
+            :class="encodings.x ? 'text-primary fw-bold' : 'text-muted small fst-italic'"></span>
+          <i x-show="encodings.x" class="bi bi-x cursor-pointer text-danger" @click="encodings.x = null"></i>
+        </div>
+        <!-- Y Axis Dropzone -->
+        <div class="encoding-zone border rounded bg-white p-2 d-flex align-items-center gap-2" @dragover.prevent
+          @drop="dropField($event, 'y')">
+          <span class="badge bg-secondary">Y-Axis</span>
+          <span x-text="encodings.y || 'Drop Value'"
+            :class="encodings.y ? 'text-primary fw-bold' : 'text-muted small fst-italic'"></span>
+          <i x-show="encodings.y" class="bi bi-x cursor-pointer text-danger" @click="encodings.y = null"></i>
+        </div>
+        <!-- Color Dropzone -->
+        <div class="encoding-zone border rounded bg-white p-2 d-flex align-items-center gap-2" @dragover.prevent
+          @drop="dropField($event, 'color')">
+          <span class="badge bg-secondary">Color</span>
+          <span x-text="encodings.color || 'Drop Category'"
+            :class="encodings.color ? 'text-primary fw-bold' : 'text-muted small fst-italic'"></span>
+          <i x-show="encodings.color" class="bi bi-x cursor-pointer text-danger" @click="encodings.color = null"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-3 bg-white border-top">
+      <form @submit.prevent="sendMessage()">
+        <div class="input-group input-group-lg shadow-sm" @dragover.prevent
+          :class="draggingOver ? 'border-primary ring' : ''" @dragenter="draggingOver = true"
+          @dragleave="draggingOver = false" @drop="handleInputDrop($event)">
+          <button class="btn btn-light border" type="button" @click="showEncoding = !showEncoding"
+            title="Toggle Visual Builder">
+            <i class="bi bi-sliders"></i>
+          </button>
+          <input type="text" class="form-control border-start-0" placeholder="Ask or drag fields here..."
+            x-model="inputMessage" :disabled="loading || !copilot_available" @keydown.enter="sendMessage()">
+          <button class="btn btn-primary" type="submit"
+            :disabled="!inputMessage.trim() || loading || !copilot_available">
+            <span x-show="!loading"><i class="bi bi-send-fill"></i></span>
+            <span x-show="loading" class="spinner-border spinner-border-sm"></span>
+          </button>
+        </div>
+        <div class="d-flex justify-content-between mt-2 px-1">
+          <small class="text-secondary">
+            <i class="bi bi-info-circle"></i>
+            <span x-show="!activeDataset">Load a dataset to unlock visual tools.</span>
+            <span x-show="activeDataset">Exploring: <strong x-text="activeDataset.name"></strong></span>
+          </small>
+          <span x-show="streamStatus" class="text-muted small" x-text="streamStatus"></span>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Right Sidebar: Concept Shelf -->
+  <div class="d-flex flex-column border-start bg-light" style="width: 250px; min-width: 250px;" x-show="showConcepts"
+    x-transition>
+    <div class="p-3 border-bottom">
+      <h6 class="mb-0 fw-bold"><i class="bi bi-database"></i> Concept Shelf</h6>
+    </div>
+
+    <!-- Dataset Selector (Mock) -->
+    <div class="p-3 border-bottom bg-white">
+      <label class="small text-muted mb-1">Active Dataset</label>
+      <select class="form-select form-select-sm" x-model="selectedDatasetId" @change="loadDatasetFields()">
+        <option value="" disabled selected>Select a dataset...</option>
+        <option value="fake_gdp">Global GDP (Demo)</option>
+        <option value="fake_health">Life Expectancy (Demo)</option>
+      </select>
+    </div>
+
+    <!-- Fields List -->
+    <div class="flex-grow-1 overflow-auto p-2">
+      <div x-show="!activeDataset" class="text-center text-muted mt-5 small">
+        <i class="bi bi-arrow-up-circle fs-4 mb-2 d-block"></i>
+        Select a dataset<br>to view concepts
+      </div>
+
+      <template x-for="field in fields" :key="field.name">
+        <div class="card mb-2 shadow-sm field-card cursor-grab" draggable="true" @dragstart="dragField($event, field)">
+          <div class="card-body p-2 d-flex align-items-center">
+            <i class="bi me-2 text-secondary" :class="getFieldIcon(field.type)"></i>
+            <div class="overflow-hidden">
+              <div class="fw-bold small text-truncate" x-text="field.name"></div>
+              <div class="text-muted text-uppercase" style="font-size: 0.65rem;" x-text="field.type"></div>
+            </div>
+            <i class="bi bi-grip-vertical ms-auto text-black-50 handle"></i>
           </div>
         </div>
       </template>
     </div>
   </div>
-
-  <!-- Input Area -->
-  <div class="card">
-    <div class="card-body">
-      <form @submit.prevent="sendMessage()">
-        <div class="input-group">
-          <input 
-            type="text" 
-            class="form-control" 
-            placeholder="Ask about datasets, analysis, or download data..."
-            x-model="inputMessage"
-            :disabled="loading || !copilot_available"
-            @keydown.enter="sendMessage()"
-          >
-          <button 
-            class="btn btn-primary" 
-            type="submit"
-            :disabled="!inputMessage.trim() || loading || !copilot_available"
-          >
-            <span x-show="!loading">
-              <i class="bi bi-send"></i> Send
-            </span>
-            <span x-show="loading" class="spinner-border spinner-border-sm"></span>
-          </button>
-        </div>
-      </form>
-      <small class="text-secondary mt-1 d-block">
-        <i class="bi bi-info-circle"></i>
-        Tip: Try "download gdp-per-capita for Brazil and Argentina"
-      </small>
-    </div>
-  </div>
 </div>
 
 <script>
-function copilotChat() {
-  return {
-    messages: [],
-    inputMessage: '',
-    loading: false,
-    sessionId: null,
-    copilot_available: {{ 'true' if copilot_available else 'false' }},
-    health_status: null,
-    
-    init() {
-      console.log('Copilot Chat initialized');
-      
-      // Try to load session from localStorage
-      const storedSessionId = localStorage.getItem('copilot_session_id');
-      if (storedSessionId) {
-        this.sessionId = storedSessionId;
-        this.loadHistory();
-      }
-      
-      // Check health on load
-      if (this.copilot_available) {
-        this.checkHealth();
-      }
-    },
-    
-    async loadHistory() {
-      if (!this.sessionId) return;
-      
-      try {
-        const response = await fetch(`/api/copilot/history/${this.sessionId}`);
-        const data = await response.json();
-        
-        if (data.status === 'success' && data.messages) {
-          this.messages = data.messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            timestamp: new Date(msg.timestamp),
-            tools: msg.tools || []
-          }));
-          this.scrollToBottom();
-        }
-      } catch (error) {
-        console.error('Failed to load history:', error);
-      }
-    },
+  function copilotChat() {
+    return {
+      // State
+      messages: [],
+      inputMessage: '',
+      loading: false,
+      sessionId: null,
+
+      // Data Threads State
+      threads: [],
+      activeThreadId: null,
+      showThreads: true,
+
+      // Concept Binding State
+      showConcepts: true,
+      showEncoding: false,
+      activeDataset: null,
+      selectedDatasetId: '',
+      fields: [],
+      encodings: { x: null, y: null, color: null },
+      draggingOver: false,
+
+      // Suggestions State
+      suggestions: [],
+
+      // Config
+      copilot_available: {{ 'true' if copilot_available else 'false' }},
+  health_status: null,
+    streamStatus: '',
+
+      init() {
+    console.log('Copilot Chat initialized');
+
+    // Load saved threads or create default
+    this.loadThreads();
+
+    if (this.threads.length === 0) {
+      this.startNewThread();
+    } else {
+      // Select most recent
+      this.switchThread(this.threads[0].id);
+    }
+
+    // Check health on load
+    if (this.copilot_available) {
+      this.checkHealth();
+    }
+  },
+
+  // --- Thread Management ---
+
+  loadThreads() {
+    const stored = localStorage.getItem('copilot_threads');
+    if (stored) {
+      this.threads = JSON.parse(stored);
+    }
+  },
+
+  saveThreads() {
+    localStorage.setItem('copilot_threads', JSON.stringify(this.threads));
+  },
+
+  startNewThread() {
+    const newThread = {
+      id: crypto.randomUUID(),
+      title: 'New Analysis',
+      timestamp: new Date().toISOString(),
+      messages: [],
+      sessionId: null, // Will apply when we start chatting
+      lastMessage: ''
+    };
+
+    this.threads.unshift(newThread);
+    this.saveThreads();
+    this.switchThread(newThread.id);
+  },
+
+  switchThread(threadId) {
+    this.activeThreadId = threadId;
+    const thread = this.threads.find(t => t.id === threadId);
+    if (thread) {
+      this.messages = thread.messages || [];
+      this.sessionId = thread.sessionId;
+      this.suggestions = []; // Clear suggestions on switch
+      this.scrollToBottom();
+    }
+  },
+
+  updateCurrentThread(data) {
+    const threadIndex = this.threads.findIndex(t => t.id === this.activeThreadId);
+    if (threadIndex === -1) return;
+
+    const thread = this.threads[threadIndex];
+    thread.messages = this.messages;
+    thread.sessionId = this.sessionId;
+    thread.timestamp = new Date().toISOString();
+
+    // Update title based on first user message if generic
+    if (thread.title === 'New Analysis' && this.messages.some(m => m.role === 'user')) {
+      const firstMsg = this.messages.find(m => m.role === 'user').content;
+      thread.title = firstMsg.slice(0, 30) + (firstMsg.length > 30 ? '...' : '');
+    }
+
+    // Update last message preview
+    if (this.messages.length > 0) {
+      const last = this.messages[this.messages.length - 1];
+      thread.lastMessage = last.content.slice(0, 50);
+    }
+
+    // Move to top
+    this.threads.splice(threadIndex, 1);
+    this.threads.unshift(thread);
+
+    this.saveThreads();
+  },
+
+    // --- Chat Logic ---
     
     async sendMessage() {
-      if (!this.inputMessage.trim() || this.loading) return;
-      
-      const userMessage = this.inputMessage.trim();
-      this.inputMessage = '';
-      
-      // Add user message
-      this.messages.push({
-        role: 'user',
-        content: userMessage,
-        timestamp: new Date()
+    if ((!this.inputMessage.trim() && Object.values(this.encodings).every(v => v === null)) || this.loading) return;
+
+    let userMessage = this.inputMessage.trim();
+
+    // Inject Concept Bindings if present
+    if (this.showEncoding) {
+      const bindingParts = [];
+      if (this.encodings.x) bindingParts.push(`X-Axis: ${this.encodings.x}`);
+      if (this.encodings.y) bindingParts.push(`Y-Axis: ${this.encodings.y}`);
+      if (this.encodings.color) bindingParts.push(`Color: ${this.encodings.color}`);
+
+      if (bindingParts.length > 0) {
+        userMessage += (userMessage ? '\n\n' : '') + `[Visual Config] ${bindingParts.join(', ')}`;
+      }
+    }
+
+    if (!userMessage) return; // double check empty
+    this.inputMessage = '';
+    this.suggestions = []; // Clear old suggestions
+
+    // 1. Add User Message
+    this.messages.push({
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date()
+    });
+
+    // 2. Add Placeholder Assistant Message
+    const assistantIndex = this.messages.push({
+      role: 'assistant',
+      content: '',
+      loading: true,
+      timestamp: new Date()
+    }) - 1;
+
+    this.loading = true;
+    this.streamStatus = 'Connecting...';
+    this.scrollToBottom();
+
+    try {
+      // 3. Start Streaming Request
+      const response = await fetch('/api/copilot/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          session_id: this.sessionId
+        })
       });
-      
-      // Add loading assistant message
-      const assistantIndex = this.messages.push({
-        role: 'assistant',
-        content: '',
-        loading: true,
-        timestamp: new Date()
-      }) - 1;
-      
-      this.loading = true;
-      
-      try {
-        const response = await fetch('/api/copilot/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userMessage,
-            session_id: this.sessionId,
-            stream: false
-          })
-        });
-        
-        const data = await response.json();
-        
-        // Update assistant message
-        this.messages[assistantIndex].loading = false;
-        
-        if (data.status === 'success') {
-          this.messages[assistantIndex].content = data.text || data.response || 'No response';
-          this.messages[assistantIndex].tools = data.tools_called || [];
-          this.sessionId = data.session_id || this.sessionId;
-          
-          // Save session ID to localStorage for persistence
-          if (this.sessionId) {
-            localStorage.setItem('copilot_session_id', this.sessionId);
+
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+
+      this.messages[assistantIndex].loading = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.status === 'success') {
+                // Append text
+                if (data.text) {
+                  fullContent += data.text;
+                  this.messages[assistantIndex].content = fullContent;
+                }
+
+                // Update Session ID if new
+                if (data.session_id) {
+                  this.sessionId = data.session_id;
+                }
+
+                this.streamStatus = 'Receiving...';
+                this.scrollToBottom();
+              } else if (data.status === 'error') {
+                this.messages[assistantIndex].content += `\n[Error: ${data.message}]`;
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e);
+            }
           }
-        } else {
-          this.messages[assistantIndex].content = `Error: ${data.error || 'Unknown error'}`;
-          this.messages[assistantIndex].error = true;
         }
-        
-      } catch (error) {
-        this.messages[assistantIndex].loading = false;
-        this.messages[assistantIndex].content = `Error: ${error.message}`;
-        this.messages[assistantIndex].error = true;
-      } finally {
-        this.loading = false;
+      }
+
+      this.streamStatus = '';
+
+      // 4. Update Thread State
+      this.updateCurrentThread();
+
+      // 5. Fetch Suggestions (Background)
+      this.fetchSuggestions(fullContent);
+
+    } catch (error) {
+      this.messages[assistantIndex].loading = false;
+      this.messages[assistantIndex].content = `Error: ${error.message}`;
+      this.messages[assistantIndex].error = true;
+    } finally {
+      this.loading = false;
+      this.scrollToBottom();
+    }
+  },
+    
+    async fetchSuggestions(context) {
+    if (!context) return;
+
+    try {
+      // Take last 5 messages as history
+      const history = this.messages.slice(-5).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
+      const res = await fetch('/api/agent/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: context,
+          history: history
+        })
+      });
+
+      const data = await res.json();
+      if (data.status === 'success' && Array.isArray(data.suggestions)) {
+        this.suggestions = data.suggestions;
         this.scrollToBottom();
       }
-    },
-    
-    sendQuick(message) {
-      this.inputMessage = message;
-      this.sendMessage();
-    },
+    } catch (e) {
+      console.warn('Failed to fetch suggestions', e);
+    }
+  },
+
+  sendQuick(message) {
+    this.inputMessage = message;
+    this.sendMessage();
+  },
     
     async checkHealth() {
-      try {
-        const response = await fetch('/api/copilot/health');
-        this.health_status = await response.json();
-      } catch (error) {
-        this.health_status = { status: 'error', error: error.message };
-      }
-    },
-    
-    clearChat() {
-      if (confirm('Clear all messages?')) {
-        this.messages = [];
-        this.sessionId = null;
-        localStorage.removeItem('copilot_session_id');
-      }
-    },
-    
-    formatMessage(text) {
-      if (!text) return '';
-      // Convert newlines to <br>
-      return text.replace(/\n/g, '<br>');
-    },
-    
-    formatTime(date) {
-      if (!date) return '';
-      return new Date(date).toLocaleTimeString();
-    },
-    
-    scrollToBottom() {
-      setTimeout(() => {
-        const container = document.getElementById('chat-messages');
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }, 100);
+    try {
+      const response = await fetch('/api/copilot/health');
+      this.health_status = await response.json();
+    } catch (error) {
+      this.health_status = { status: 'error', error: error.message };
     }
+  },
+
+  clearChat() {
+    if (confirm('Clear current thread messages?')) {
+      this.messages = [];
+      this.updateCurrentThread(); // Save empty state
+    }
+  },
+
+    // --- Concept Binding Logic ---
+
+    async loadDatasetFields() {
+    if (!this.selectedDatasetId) return;
+
+    // Mock data for now (Phase 3 Backend integration comes later)
+    if (this.selectedDatasetId === 'fake_gdp') {
+      this.activeDataset = { id: 'fake_gdp', name: 'Global GDP' };
+      this.fields = [
+        { name: 'Country', type: 'nominal' },
+        { name: 'Year', type: 'temporal' },
+        { name: 'GDP', type: 'quantitative' },
+        { name: 'Population', type: 'quantitative' },
+        { name: 'Continent', type: 'nominal' }
+      ];
+    } else if (this.selectedDatasetId === 'fake_health') {
+      this.activeDataset = { id: 'fake_health', name: 'Life Expectancy' };
+      this.fields = [
+        { name: 'Entity', type: 'nominal' },
+        { name: 'Year', type: 'temporal' },
+        { name: 'Life Expectancy', type: 'quantitative' }
+      ];
+    }
+  },
+
+  getFieldIcon(type) {
+    switch (type) {
+      case 'quantitative': return 'bi-123';
+      case 'temporal': return 'bi-calendar';
+      case 'nominal': return 'bi-fonts';
+      default: return 'bi-hash';
+    }
+  },
+
+  dragField(event, field) {
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/json', JSON.stringify(field));
+    event.dataTransfer.setData('text/plain', field.name); // Fallback
+  },
+
+  dropField(event, channel) {
+    const data = event.dataTransfer.getData('application/json');
+    if (data) {
+      const field = JSON.parse(data);
+      this.encodings[channel] = field.name;
+
+      // Auto-trigger analysis if both X and Y are set
+      if (this.encodings.x && this.encodings.y) {
+        // Optional: Auto-submit? 
+        // this.inputMessage = `Plot ${this.encodings.y} by ${this.encodings.x}`;
+        // this.sendMessage();
+      }
+    }
+  },
+
+  handleInputDrop(event) {
+    const data = event.dataTransfer.getData('application/json');
+    if (data) {
+      const field = JSON.parse(data);
+      // Insert field name at cursor position or append
+      // For simplicity, appending:
+      this.inputMessage += (this.inputMessage ? ' ' : '') + `[${field.name}]`;
+      this.draggingOver = false;
+    }
+  },
+
+  // --- Helpers ---
+
+  getSuggestionIcon(type) {
+    switch (type) {
+      case 'broaden': return 'bi-arrows-expand';
+      case 'deepen': return 'bi-zoom-in';
+      case 'explain': return 'bi-lightbulb';
+      default: return 'bi-chat-dots';
+    }
+  },
+
+  formatMessage(text) {
+    if (!text) return '';
+    // Use marked if available, otherwise simple formatting
+    if (window.marked) {
+      try {
+        // Configure marked to be safe? (DOMPurify should be used ideally)
+        return window.marked.parse(text);
+      } catch (e) {
+        console.error('Marked error', e);
+      }
+    }
+    return text.replace(/\n/g, '<br>');
+  },
+
+  formatTime(dateStr) {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  },
+
+  scrollToBottom() {
+    setTimeout(() => {
+      const container = document.getElementById('chat-messages');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
+  }
   }
 }
 </script>

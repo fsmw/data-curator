@@ -260,6 +260,85 @@ class VegaLiteChartBuilder:
         return spec
 
 
+    @staticmethod
+    def build_dynamic_chart(
+        data: pd.DataFrame,
+        chart_type: str,
+        x_col: str,
+        y_col: str,
+        color_col: Optional[str] = None,
+        title: str = "",
+        height: int = 450,
+        width: int = 800,
+    ) -> Dict[str, Any]:
+        """
+        Build a chart dynamically based on type and axes configuration.
+        
+        Args:
+            data: DataFrame
+            chart_type: One of 'line', 'bar', 'scatter', 'pie'
+            x_col: X-axis column
+            y_col: Y-axis column
+            color_col: Color grouping column (optional)
+            title: Chart title
+            
+        Returns:
+            Vega-Lite specification dict
+        """
+        spec = {
+            "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+            "title": title,
+            "width": width,
+            "height": height,
+            "data": {"values": data.to_dict(orient="records")},
+        }
+
+        # Common encoding
+        encoding = {
+            "tooltip": [
+                {"field": x_col, "title": x_col},
+                {"field": y_col, "title": y_col, "format": ",.2f"}
+            ]
+        }
+        
+        # Add color if specified
+        if color_col and color_col != "None":
+             encoding["color"] = {
+                 "field": color_col, 
+                 "type": "nominal",
+                 "legend": {"columns": 2},
+                 "scale": {"range": VegaLiteChartBuilder.PROFESSIONAL_COLORS}
+             }
+             encoding["tooltip"].insert(0, {"field": color_col, "title": color_col})
+
+        # Chart specific logic
+        if chart_type == "line":
+            spec["mark"] = {"type": "line", "point": True, "tooltip": True}
+            encoding["x"] = {"field": x_col, "type": "quantitative" if x_col == "year" else "nominal"}
+            encoding["y"] = {"field": y_col, "type": "quantitative", "scale": {"zero": False}}
+            
+        elif chart_type == "bar":
+            spec["mark"] = {"type": "bar", "tooltip": True}
+            encoding["x"] = {"field": x_col, "type": "nominal", "axis": {"labelAngle": -45}}
+            encoding["y"] = {"field": y_col, "type": "quantitative"}
+            
+        elif chart_type == "scatter":
+            spec["mark"] = {"type": "point", "size": 100, "tooltip": True, "filled": True}
+            encoding["x"] = {"field": x_col, "type": "quantitative", "scale": {"zero": False}}
+            encoding["y"] = {"field": y_col, "type": "quantitative", "scale": {"zero": False}}
+            
+        elif chart_type == "pie":
+            spec["mark"] = {"type": "arc", "innerRadius": 50, "tooltip": True}
+            encoding["theta"] = {"field": y_col, "type": "quantitative", "stack": True}
+            encoding["color"] = {"field": x_col, "type": "nominal", "legend": {"columns": 1}} # Use x_col as category
+            encoding["order"] = {"field": y_col, "type": "quantitative", "sort": "descending"}
+            spec["view"] = {"stroke": None} # Remove border for pie charts
+        
+        spec["encoding"] = encoding
+        
+        return spec
+
+
 class ChartDataPreparator:
     """Prepare and normalize data for charting."""
 

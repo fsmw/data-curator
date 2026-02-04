@@ -271,6 +271,60 @@ Always be helpful, insightful, and user-focused."""
                 'error': str(e),
                 'text': f"Sorry, I encountered an error: {str(e)}"
             }
+
+    async def chat_stream(
+        self, 
+        message: str, 
+        session_id: Optional[str] = None
+    ):
+        """
+        Stream response from Copilot agent.
+        
+        Args:
+            message: User message
+            session_id: Optional session ID
+            
+        Yields:
+             Dict response chunks
+        """
+        try:
+            # Create session if needed
+            if not self.session or (session_id and self.session.session_id != session_id):
+                await self.create_session(session_id=session_id)
+            
+            # Fallback to non-streaming if SDK doesn't support streaming method
+            # This ensures stability while maintaining the async generator interface
+            response = await self.chat(message, session_id=session_id, stream=False)
+            
+            if response['status'] == 'success':
+                yield {
+                    'status': 'success',
+                    'text': response['text'],
+                    'session_id': response['session_id'],
+                    'done': False
+                }
+            else:
+                yield {
+                    'status': 'error',
+                    'error': response.get('error', 'Unknown error'),
+                    'text': response.get('text', 'Error'),
+                    'done': True
+                }
+            
+            yield {
+                'status': 'success',
+                'text': '',
+                'session_id': self.session.session_id,
+                'done': True
+            }
+
+        except Exception as e:
+            yield {
+                'status': 'error',
+                'error': str(e),
+                'text': f"Error: {str(e)}",
+                'done': True
+            }
     
     def register_tool(self, name: str, function: callable, description: str) -> None:
         """
