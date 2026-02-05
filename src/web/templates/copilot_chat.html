@@ -1,6 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="copilotChat()" x-init="init()" class="h-100 d-flex flex-row overflow-hidden">
+<style>
+  /* Chat container must have fixed height for scroll to work */
+  .chat-container {
+    height: calc(100vh - 180px); /* Adjust based on header/footer height */
+    min-height: 400px;
+  }
+  
+  .chat-messages-wrapper {
+    flex: 1;
+    min-height: 0; /* Critical for flexbox overflow to work */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+  
+  /* Custom scrollbar for chat */
+  .chat-messages-wrapper::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .chat-messages-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .chat-messages-wrapper::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  .chat-messages-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+  }
+  
+  /* Field card styles */
+  .field-card {
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+  }
+  
+  .field-card:hover {
+    border-color: var(--bs-primary);
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+  }
+  
+  .field-card:active {
+    transform: scale(0.98);
+  }
+  
+  /* Spin animation for refresh */
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Concept Shelf scrollbar */
+  .concept-shelf-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .concept-shelf-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .concept-shelf-scroll::-webkit-scrollbar-thumb {
+    background: #d1d1d1;
+    border-radius: 3px;
+  }
+  
+  /* Hide elements with x-cloak until Alpine initializes */
+  [x-cloak] {
+    display: none !important;
+  }
+</style>
+<div x-data="copilotChat()" x-init="init()" class="chat-container d-flex flex-row overflow-hidden">
 
   <!-- Sidebar: Data Threads -->
   <div class="d-flex flex-column border-end bg-light" style="width: 250px; min-width: 250px;" x-show="showThreads"
@@ -36,7 +115,7 @@
   </div>
 
   <!-- Main Chat Area -->
-  <div class="flex-grow-1 d-flex flex-column h-100 position-relative">
+  <div class="flex-grow-1 d-flex flex-column position-relative" style="min-height: 0;">
 
     <!-- Top Bar -->
     <div class="card border-0 border-bottom rounded-0">
@@ -52,7 +131,9 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" @click="showConcepts = !showConcepts">
+          <button class="btn btn-sm" 
+                  :class="showConcepts ? 'btn-secondary' : 'btn-outline-secondary'"
+                  @click="showConcepts = !showConcepts; console.log('Concepts toggled:', showConcepts)">
             <i class="bi" :class="showConcepts ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-reverse'"></i>
             Concepts
           </button>
@@ -84,7 +165,7 @@
     </div>
 
     <!-- Chat Messages -->
-    <div class="flex-grow-1 p-3 overflow-auto" id="chat-messages">
+    <div class="chat-messages-wrapper p-3" id="chat-messages">
       <!-- Welcome State -->
       <div x-show="messages.length === 0" class="text-center text-secondary py-5">
         <i class="bi bi-robot fs-1"></i>
@@ -106,14 +187,75 @@
             </div>
 
             <div class="flex-grow-1" style="max-width: 80%;">
-              <div class="card shadow-sm" :class="msg.role === 'user' ? 'bg-primary text-white' : 'bg-light border-0'">
+              <div class="card shadow-sm" 
+                :class="msg.role === 'user' ? 'bg-primary text-white' : (msg.error ? 'bg-danger bg-opacity-10 border-danger' : 'bg-light border-0')">
                 <div class="card-body py-2 px-3">
-                  <div x-show="msg.loading" class="d-flex align-items-center gap-2">
-                    <span class="spinner-border spinner-border-sm"></span>
-                    <span>Thinking...</span>
-                  </div>
+                  <!-- USER MESSAGE: Always just show content, never loading indicator -->
+                  <template x-if="msg.role === 'user'">
+                    <div class="markdown-body" x-html="formatMessage(msg.content)"></div>
+                  </template>
 
-                  <div x-show="!msg.loading" class="markdown-body" x-html="formatMessage(msg.content)"></div>
+                  <!-- ASSISTANT MESSAGE: Show loading or content -->
+                  <template x-if="msg.role === 'assistant'">
+                    <div>
+                      <!-- Loading indicator - ONLY when content is empty AND no error -->
+                      <template x-if="!msg.content && !msg.error">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="spinner-border spinner-border-sm"></span>
+                          <span>Thinking...</span>
+                        </div>
+                      </template>
+
+                      <!-- Message content - Show when we have content -->
+                      <template x-if="msg.content">
+                        <div :class="msg.error ? 'text-danger' : 'markdown-body'" x-html="formatMessage(msg.content)"></div>
+                      </template>
+
+                      <!-- Error without content -->
+                      <template x-if="msg.error && !msg.content">
+                        <div class="text-danger">An error occurred</div>
+                      </template>
+                    </div>
+                  </template>
+
+                  <!-- Thinking Process (Collapsible) -->
+                  <div x-show="msg.thinking && msg.thinking.length > 0" class="mt-2 pt-2 border-top border-secondary" style="border-top: 1px dashed #ccc !important;">
+                    <div class="d-flex align-items-center justify-content-between cursor-pointer" 
+                         @click="msg.showThinking = !msg.showThinking">
+                      <small class="text-muted d-flex align-items-center gap-1">
+                        <i class="bi bi-brain"></i>
+                        <span class="fw-bold">Thinking Process</span>
+                        <span class="badge bg-secondary bg-opacity-50" x-text="msg.thinking.length + ' step' + (msg.thinking.length > 1 ? 's' : '')"></span>
+                      </small>
+                      <i class="bi text-muted" :class="msg.showThinking ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                    </div>
+                    
+                    <!-- Collapsible Content -->
+                    <div x-show="msg.showThinking" 
+                         x-collapse
+                         class="mt-2"
+                         style="font-size: 0.85rem;">
+                      <template x-for="(step, stepIndex) in msg.thinking" :key="stepIndex">
+                        <div class="mb-2 p-2 rounded" 
+                             :class="step.type === 'tool_use' ? 'bg-info bg-opacity-10' : 'bg-secondary bg-opacity-10'">
+                          <!-- Step Header -->
+                          <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi" :class="getThinkingIcon(step.type)"></i>
+                            <strong class="text-capitalize" x-text="step.type.replace('_', ' ')"></strong>
+                            <small class="text-muted ms-auto" x-text="formatTime(step.timestamp)"></small>
+                          </div>
+                          
+                          <!-- Step Content -->
+                          <div class="text-muted small" style="white-space: pre-wrap;" x-text="step.content"></div>
+                          
+                          <!-- Tool Details -->
+                          <div x-show="step.tool" class="mt-1 pt-1" style="border-top: 1px solid rgba(0,0,0,0.1);">
+                            <small class="font-monospace text-primary" x-text="'Tool: ' + step.tool"></small>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
 
                   <!-- Tool Usage Badge -->
                   <div x-show="msg.tools && msg.tools.length > 0"
@@ -199,14 +341,31 @@
             <span x-show="!loading"><i class="bi bi-send-fill"></i></span>
             <span x-show="loading" class="spinner-border spinner-border-sm"></span>
           </button>
+          <button class="btn btn-danger" type="button" @click="abortStream()" :disabled="!loading">
+            <i class="bi bi-stop-fill"></i>
+          </button>
         </div>
-        <div class="d-flex justify-content-between mt-2 px-1">
-          <small class="text-secondary">
-            <i class="bi bi-info-circle"></i>
-            <span x-show="!activeDataset">Load a dataset to unlock visual tools.</span>
-            <span x-show="activeDataset">Exploring: <strong x-text="activeDataset.name"></strong></span>
-          </small>
-          <span x-show="streamStatus" class="text-muted small" x-text="streamStatus"></span>
+        <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+          <div class="d-flex align-items-center gap-2">
+            <small class="text-secondary">
+              <i class="bi bi-info-circle"></i>
+              <span x-show="!activeDataset">Load a dataset to unlock visual tools.</span>
+              <span x-show="activeDataset">Exploring: <strong x-text="activeDataset.name"></strong></span>
+            </small>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span x-show="streamStatus" class="text-muted small" x-text="streamStatus"></span>
+            <!-- Model Selector -->
+            <div x-show="copilot_available && availableModels.length > 0" class="d-flex align-items-center gap-1">
+              <i class="bi bi-cpu text-secondary" style="font-size: 0.85rem;"></i>
+              <select x-model="selectedModel" class="form-select form-select-sm" style="width: auto; font-size: 0.8rem;" 
+                :disabled="loading || loadingModels">
+                <template x-for="model in availableModels" :key="model.id">
+                  <option :value="model.id" x-text="model.name || model.id"></option>
+                </template>
+              </select>
+            </div>
+          </div>
         </div>
       </form>
     </div>
@@ -214,41 +373,89 @@
   </div>
 
   <!-- Right Sidebar: Concept Shelf -->
-  <div class="d-flex flex-column border-start bg-light" style="width: 250px; min-width: 250px;" x-show="showConcepts"
-    x-transition>
+  <div class="d-flex flex-column border-start bg-light" 
+       style="width: 250px; min-width: 250px;" 
+       x-cloak
+       x-show="showConcepts"
+       x-transition.duration.200ms>
     <div class="p-3 border-bottom">
       <h6 class="mb-0 fw-bold"><i class="bi bi-database"></i> Concept Shelf</h6>
     </div>
 
-    <!-- Dataset Selector (Mock) -->
+    <!-- Dataset Selector -->
     <div class="p-3 border-bottom bg-white">
-      <label class="small text-muted mb-1">Active Dataset</label>
-      <select class="form-select form-select-sm" x-model="selectedDatasetId" @change="loadDatasetFields()">
-        <option value="" disabled selected>Select a dataset...</option>
-        <option value="fake_gdp">Global GDP (Demo)</option>
-        <option value="fake_health">Life Expectancy (Demo)</option>
+      <label class="small text-muted mb-1 d-flex align-items-center justify-content-between">
+        <span>Active Dataset</span>
+        <button class="btn btn-link btn-sm p-0 text-muted" @click="fetchAvailableDatasets()" :disabled="loadingDatasets">
+          <i class="bi" :class="loadingDatasets ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'"></i>
+        </button>
+      </label>
+      <select class="form-select form-select-sm" x-model="selectedDatasetId" @change="loadDatasetFields()" :disabled="loadingDatasets">
+        <option value="">Select a dataset...</option>
+        <template x-for="ds in availableDatasets" :key="ds.id">
+          <option :value="ds.id" x-text="`${ds.name} (${ds.source})`"></option>
+        </template>
       </select>
+      <div x-show="loadingDatasets" class="text-center text-muted small mt-2">
+        <span class="spinner-border spinner-border-sm me-1"></span> Loading datasets...
+      </div>
+      <div x-show="!loadingDatasets && availableDatasets.length === 0" class="text-center text-muted small mt-2">
+        <i class="bi bi-inbox"></i> No datasets found
+      </div>
     </div>
 
     <!-- Fields List -->
     <div class="flex-grow-1 overflow-auto p-2">
-      <div x-show="!activeDataset" class="text-center text-muted mt-5 small">
+      <!-- Loading state -->
+      <div x-show="loadingFields" class="text-center text-muted mt-5 small">
+        <span class="spinner-border spinner-border-sm me-1"></span> Loading fields...
+      </div>
+      
+      <!-- No dataset selected -->
+      <div x-show="!activeDataset && !loadingFields" class="text-center text-muted mt-5 small">
         <i class="bi bi-arrow-up-circle fs-4 mb-2 d-block"></i>
         Select a dataset<br>to view concepts
       </div>
 
-      <template x-for="field in fields" :key="field.name">
-        <div class="card mb-2 shadow-sm field-card cursor-grab" draggable="true" @dragstart="dragField($event, field)">
+      <!-- Dataset info header -->
+      <div x-show="activeDataset && !loadingFields" class="mb-2 p-2 bg-primary bg-opacity-10 rounded small">
+        <div class="fw-bold text-truncate" x-text="activeDataset?.name"></div>
+        <div class="text-muted d-flex justify-content-between">
+          <span x-text="activeDataset?.source"></span>
+          <span x-text="(activeDataset?.rowCount || 0).toLocaleString() + ' rows'"></span>
+        </div>
+      </div>
+
+      <!-- Fields -->
+      <template x-for="field in fields" :key="field.id || field.name">
+        <div class="card mb-2 shadow-sm field-card cursor-grab" 
+             draggable="true" 
+             @dragstart="dragField($event, field)"
+             :class="{'border-primary': field.semanticType === 'quantitative'}">
           <div class="card-body p-2 d-flex align-items-center">
-            <i class="bi me-2 text-secondary" :class="getFieldIcon(field.type)"></i>
-            <div class="overflow-hidden">
+            <i class="bi me-2" :class="[getFieldIcon(field.type), getFieldIconColor(field.type)]"></i>
+            <div class="overflow-hidden flex-grow-1">
               <div class="fw-bold small text-truncate" x-text="field.name"></div>
-              <div class="text-muted text-uppercase" style="font-size: 0.65rem;" x-text="field.type"></div>
+              <div class="d-flex gap-2 align-items-center">
+                <span class="badge rounded-pill" 
+                      :class="getFieldBadgeClass(field.type)"
+                      style="font-size: 0.6rem;" 
+                      x-text="field.type"></span>
+                <span x-show="field.uniqueCount" 
+                      class="text-muted" 
+                      style="font-size: 0.6rem;" 
+                      x-text="field.uniqueCount + ' unique'"></span>
+              </div>
             </div>
             <i class="bi bi-grip-vertical ms-auto text-black-50 handle"></i>
           </div>
         </div>
       </template>
+      
+      <!-- Field count -->
+      <div x-show="fields.length > 0" class="text-center text-muted small mt-2 pb-2">
+        <span x-text="fields.length + ' field' + (fields.length !== 1 ? 's' : '')"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -273,19 +480,34 @@
       activeDataset: null,
       selectedDatasetId: '',
       fields: [],
+      availableDatasets: [],  // List of datasets from catalog
+      loadingDatasets: false,
+      loadingFields: false,
       encodings: { x: null, y: null, color: null },
       draggingOver: false,
 
       // Suggestions State
       suggestions: [],
 
+      // Model Selection State
+      availableModels: [],
+      selectedModel: 'claude-haiku-4.5',  // Changed to faster model
+      loadingModels: false,
+
       // Config
       copilot_available: {{ 'true' if copilot_available else 'false' }},
-  health_status: null,
-    streamStatus: '',
+      health_status: null,
+      streamStatus: '',
+      abortController: null,
+      requestStartTime: null,      // Track request start time
+      elapsedTimer: null,          // Timer for elapsed time display
+      requestTimeout: 45000,       // 45s timeout (configurable)
 
       init() {
     console.log('Copilot Chat initialized');
+
+    // Initialize abort controller
+    this.abortController = null;
 
     // Load saved threads or create default
     this.loadThreads();
@@ -300,6 +522,83 @@
     // Check health on load
     if (this.copilot_available) {
       this.checkHealth();
+      this.fetchModels();
+    }
+    
+    // Load available datasets for Concept Shelf
+    this.fetchAvailableDatasets();
+    
+    // Scroll to bottom after loading messages
+    this.$nextTick(() => {
+      this.scrollToBottom(true);
+    });
+  },
+
+  // --- Dataset Management ---
+  
+  async fetchAvailableDatasets() {
+    try {
+      this.loadingDatasets = true;
+      const response = await fetch('/api/datasets?limit=100&latest=true');
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        this.availableDatasets = data.datasets.map(ds => ({
+          id: ds.id,
+          name: ds.indicator_name || ds.file_name,
+          source: ds.source,
+          topic: ds.topic,
+          rowCount: ds.row_count,
+          columnCount: ds.column_count
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching datasets:', error);
+    } finally {
+      this.loadingDatasets = false;
+    }
+  },
+
+  // --- Model Management ---
+
+  async fetchModels() {
+    if (!this.copilot_available) return;
+    
+    this.loadingModels = true;
+    try {
+      const response = await fetch('/api/copilot/models');
+      const data = await response.json();
+      
+      if (data.status === 'success' && Array.isArray(data.models)) {
+        // Show all available models from the SDK
+        this.availableModels = data.models;
+        
+        // Set default model to claude-haiku-4.5 if available (fastest quality model)
+        const claudeHaiku = this.availableModels.find(model => 
+          model.id.toLowerCase().includes('claude-haiku-4.5') ||
+          model.id.toLowerCase().includes('claude-haiku')
+        );
+        
+        if (claudeHaiku) {
+          this.selectedModel = claudeHaiku.id;
+        } else {
+          // Fallback: try gpt-5-mini
+          const gpt5Mini = this.availableModels.find(model => 
+            model.id.toLowerCase().includes('gpt-5-mini')
+          );
+          
+          if (gpt5Mini) {
+            this.selectedModel = gpt5Mini.id;
+          } else if (this.availableModels.length > 0) {
+            // Last resort: first available model
+            this.selectedModel = this.availableModels[0].id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+    } finally {
+      this.loadingModels = false;
     }
   },
 
@@ -309,6 +608,17 @@
     const stored = localStorage.getItem('copilot_threads');
     if (stored) {
       this.threads = JSON.parse(stored);
+      // Clean up any stuck loading states from all threads
+      this.threads.forEach(thread => {
+        if (thread.messages) {
+          thread.messages = thread.messages.map(msg => ({
+            ...msg,
+            loading: false // Always clear loading state on load
+          }));
+        }
+      });
+      // Save cleaned threads back
+      this.saveThreads();
     }
   },
 
@@ -335,10 +645,17 @@
     this.activeThreadId = threadId;
     const thread = this.threads.find(t => t.id === threadId);
     if (thread) {
-      this.messages = thread.messages || [];
+      // Sanitize messages - ensure no stuck loading states
+      this.messages = (thread.messages || []).map(msg => ({
+        ...msg,
+        loading: false // Always clear loading state when loading from storage
+      }));
       this.sessionId = thread.sessionId;
       this.suggestions = []; // Clear suggestions on switch
-      this.scrollToBottom();
+      // Scroll to bottom after DOM updates
+      this.$nextTick(() => {
+        this.scrollToBottom(true);
+      });
     }
   },
 
@@ -347,7 +664,11 @@
     if (threadIndex === -1) return;
 
     const thread = this.threads[threadIndex];
-    thread.messages = this.messages;
+    // Save messages with loading state cleared to prevent stuck states on reload
+    thread.messages = this.messages.map(msg => ({
+      ...msg,
+      loading: false
+    }));
     thread.sessionId = this.sessionId;
     thread.timestamp = new Date().toISOString();
 
@@ -405,31 +726,63 @@
       role: 'assistant',
       content: '',
       loading: true,
-      timestamp: new Date()
+      timestamp: new Date(),
+      thinking: [],           // Array to store thinking steps
+      showThinking: false,    // Collapsed by default
+      tools: []              // Tools used
     }) - 1;
 
     this.loading = true;
     this.streamStatus = 'Connecting...';
+    this.requestStartTime = Date.now();
     this.scrollToBottom();
 
+    // Start elapsed time counter
+    this.startElapsedTimer();
+
     try {
-      // 3. Start Streaming Request
+      // Create new abort controller for this request with timeout
+      this.abortController = new AbortController();
+      
+      // Auto-abort after timeout
+      const timeoutId = setTimeout(() => {
+        this.abortController.abort();
+        this.streamStatus = '';
+        this.messages[assistantIndex].loading = false;
+        this.messages[assistantIndex].content = `⏱️ Request timeout after ${this.requestTimeout/1000} seconds. The model might be overloaded. Try again or use a faster model.`;
+        this.messages[assistantIndex].error = true;
+        this.loading = false;
+        this.stopElapsedTimer();
+        this.scrollToBottom();
+      }, this.requestTimeout);
+
       const response = await fetch('/api/copilot/stream', {
         method: 'POST',
+        signal: this.abortController.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          session_id: this.sessionId
+          session_id: this.sessionId,
+          model: this.selectedModel || 'claude-haiku-4.5'
         })
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      // Clear timeout if request succeeded
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        this.messages[assistantIndex].loading = false;
+        this.messages[assistantIndex].content = `Error: Network response was not ok (${response.status})`;
+        this.messages[assistantIndex].error = true;
+        this.loading = false;
+        this.streamStatus = '';
+        return;
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = '';
-
-      this.messages[assistantIndex].loading = false;
+      let hasReceivedContent = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -448,6 +801,49 @@
                 if (data.text) {
                   fullContent += data.text;
                   this.messages[assistantIndex].content = fullContent;
+                  // Mark as no longer loading once we have content
+                  if (!hasReceivedContent) {
+                    hasReceivedContent = true;
+                    this.messages[assistantIndex].loading = false;
+                  }
+                }
+
+                // Capture thinking process
+                if (data.thinking) {
+                  this.messages[assistantIndex].thinking.push({
+                    type: data.thinking.type || 'thought',
+                    content: data.thinking.content || data.thinking,
+                    tool: data.thinking.tool || null,
+                    timestamp: new Date()
+                  });
+                  this.streamStatus = `🧠 ${data.thinking.type || 'Thinking'}...`;
+                }
+
+                // Capture tool usage
+                if (data.tool_use) {
+                  this.messages[assistantIndex].thinking.push({
+                    type: 'tool_use',
+                    content: `Using ${data.tool_use.name}${data.tool_use.input ? ': ' + JSON.stringify(data.tool_use.input, null, 2) : ''}`,
+                    tool: data.tool_use.name,
+                    timestamp: new Date()
+                  });
+                  
+                  // Add to tools array if not already there
+                  if (!this.messages[assistantIndex].tools.includes(data.tool_use.name)) {
+                    this.messages[assistantIndex].tools.push(data.tool_use.name);
+                  }
+                  
+                  this.streamStatus = `🔧 Using ${data.tool_use.name}...`;
+                }
+
+                // Capture tool result
+                if (data.tool_result) {
+                  this.messages[assistantIndex].thinking.push({
+                    type: 'tool_result',
+                    content: typeof data.tool_result === 'string' ? data.tool_result : JSON.stringify(data.tool_result, null, 2),
+                    tool: data.tool_result.name || null,
+                    timestamp: new Date()
+                  });
                 }
 
                 // Update Session ID if new
@@ -455,10 +851,15 @@
                   this.sessionId = data.session_id;
                 }
 
-                this.streamStatus = 'Receiving...';
+                if (!data.thinking && !data.tool_use && !data.tool_result) {
+                  this.streamStatus = 'Receiving...';
+                }
+                
                 this.scrollToBottom();
               } else if (data.status === 'error') {
+                this.messages[assistantIndex].loading = false;
                 this.messages[assistantIndex].content += `\n[Error: ${data.message}]`;
+                this.messages[assistantIndex].error = true;
               }
             } catch (e) {
               console.error('Error parsing SSE:', e);
@@ -467,7 +868,10 @@
         }
       }
 
+      // Ensure loading is false when stream completes
+      this.messages[assistantIndex].loading = false;
       this.streamStatus = '';
+      this.stopElapsedTimer();
 
       // 4. Update Thread State
       this.updateCurrentThread();
@@ -477,10 +881,21 @@
 
     } catch (error) {
       this.messages[assistantIndex].loading = false;
-      this.messages[assistantIndex].content = `Error: ${error.message}`;
-      this.messages[assistantIndex].error = true;
+      // Don't show error message if request was aborted by user
+      if (error.name === 'AbortError') {
+        console.log('Request aborted by user');
+      } else {
+        this.messages[assistantIndex].content = `Error: ${error.message}`;
+        this.messages[assistantIndex].error = true;
+      }
     } finally {
       this.loading = false;
+      this.streamStatus = '';
+      this.stopElapsedTimer();
+      // Ensure message loading state is always cleared
+      if (this.messages[assistantIndex]) {
+        this.messages[assistantIndex].loading = false;
+      }
       this.scrollToBottom();
     }
   },
@@ -528,44 +943,151 @@
     }
   },
 
-  clearChat() {
-    if (confirm('Clear current thread messages?')) {
-      this.messages = [];
-      this.updateCurrentThread(); // Save empty state
+  // Abort the current streaming request
+  abortStream() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+      this.loading = false;
+      this.streamStatus = 'Aborted';
+      this.stopElapsedTimer();
+
+      // Update the last assistant message to show it was stopped
+      if (this.messages.length > 0 && this.messages[this.messages.length - 1].role === 'assistant') {
+        this.messages[this.messages.length - 1].content += '\n\n*[Response stopped by user]*';
+        this.messages[this.messages.length - 1].loading = false;
+      }
     }
+  },
+
+  // Start elapsed time counter
+  startElapsedTimer() {
+    this.stopElapsedTimer(); // Clear any existing timer
+    this.elapsedTimer = setInterval(() => {
+      if (this.requestStartTime) {
+        const elapsed = ((Date.now() - this.requestStartTime) / 1000).toFixed(1);
+        this.streamStatus = `⏱️ ${elapsed}s`;
+      }
+    }, 100); // Update every 100ms
+  },
+
+  // Stop elapsed time counter
+  stopElapsedTimer() {
+    if (this.elapsedTimer) {
+      clearInterval(this.elapsedTimer);
+      this.elapsedTimer = null;
+    }
+    this.requestStartTime = null;
   },
 
     // --- Concept Binding Logic ---
 
     async loadDatasetFields() {
-    if (!this.selectedDatasetId) return;
+      if (!this.selectedDatasetId) {
+        this.activeDataset = null;
+        this.fields = [];
+        return;
+      }
 
-    // Mock data for now (Phase 3 Backend integration comes later)
-    if (this.selectedDatasetId === 'fake_gdp') {
-      this.activeDataset = { id: 'fake_gdp', name: 'Global GDP' };
-      this.fields = [
-        { name: 'Country', type: 'nominal' },
-        { name: 'Year', type: 'temporal' },
-        { name: 'GDP', type: 'quantitative' },
-        { name: 'Population', type: 'quantitative' },
-        { name: 'Continent', type: 'nominal' }
-      ];
-    } else if (this.selectedDatasetId === 'fake_health') {
-      this.activeDataset = { id: 'fake_health', name: 'Life Expectancy' };
-      this.fields = [
-        { name: 'Entity', type: 'nominal' },
-        { name: 'Year', type: 'temporal' },
-        { name: 'Life Expectancy', type: 'quantitative' }
-      ];
-    }
-  },
+      try {
+        this.loadingFields = true;
+        const response = await fetch(`/api/datasets/${this.selectedDatasetId}/fields`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          this.activeDataset = {
+            id: data.datasetId,
+            name: data.datasetName,
+            source: data.source,
+            rowCount: data.rowCount
+          };
+          
+          // Map backend field types to semantic types for display
+          this.fields = data.fields.map(field => ({
+            id: field.id,
+            name: field.name,
+            type: this.mapFieldType(field.type, field.semanticType),
+            semanticType: field.semanticType,
+            dataType: field.type,
+            uniqueCount: field.uniqueCount,
+            nullCount: field.nullCount,
+            sampleValues: field.sampleValues,
+            source: field.source,
+            tableRef: field.tableRef
+          }));
+        } else {
+          console.error('Error loading fields:', data.message);
+          this.activeDataset = null;
+          this.fields = [];
+        }
+      } catch (error) {
+        console.error('Error fetching dataset fields:', error);
+        this.activeDataset = null;
+        this.fields = [];
+      } finally {
+        this.loadingFields = false;
+      }
+    },
+
+    // Map backend types to display types
+    mapFieldType(dataType, semanticType) {
+      if (semanticType === 'temporal') return 'temporal';
+      if (semanticType === 'geographic') return 'geographic';
+      if (semanticType === 'categorical') return 'nominal';
+      if (semanticType === 'quantitative') return 'quantitative';
+      
+      // Fallback based on data type
+      switch (dataType) {
+        case 'integer':
+        case 'number':
+          return 'quantitative';
+        case 'date':
+          return 'temporal';
+        case 'boolean':
+          return 'nominal';
+        default:
+          return 'nominal';
+      }
+    },
 
   getFieldIcon(type) {
     switch (type) {
       case 'quantitative': return 'bi-123';
-      case 'temporal': return 'bi-calendar';
+      case 'temporal': return 'bi-calendar3';
+      case 'geographic': return 'bi-geo-alt';
       case 'nominal': return 'bi-fonts';
       default: return 'bi-hash';
+    }
+  },
+
+  getFieldIconColor(type) {
+    switch (type) {
+      case 'quantitative': return 'text-success';
+      case 'temporal': return 'text-info';
+      case 'geographic': return 'text-warning';
+      case 'nominal': return 'text-secondary';
+      default: return 'text-muted';
+    }
+  },
+
+  getFieldBadgeClass(type) {
+    switch (type) {
+      case 'quantitative': return 'bg-success bg-opacity-25 text-success';
+      case 'temporal': return 'bg-info bg-opacity-25 text-info';
+      case 'geographic': return 'bg-warning bg-opacity-25 text-warning';
+      case 'nominal': return 'bg-secondary bg-opacity-25 text-secondary';
+      default: return 'bg-light text-muted';
+    }
+  },
+
+  getThinkingIcon(type) {
+    switch (type) {
+      case 'thought': return 'bi-lightbulb';
+      case 'tool_use': return 'bi-tools';
+      case 'tool_result': return 'bi-check-circle';
+      case 'reasoning': return 'bi-cpu';
+      case 'analysis': return 'bi-graph-up';
+      default: return 'bi-chat-dots';
     }
   },
 
@@ -614,6 +1136,15 @@
 
   formatMessage(text) {
     if (!text) return '';
+    
+    // Check if it's an error message
+    if (text.startsWith('Error:')) {
+      return `<div class="d-flex align-items-start gap-2">
+        <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+        <div>${text.replace(/\n/g, '<br>')}</div>
+      </div>`;
+    }
+    
     // Use marked if available, otherwise simple formatting
     if (window.marked) {
       try {
@@ -631,13 +1162,23 @@
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   },
 
-  scrollToBottom() {
-    setTimeout(() => {
+  scrollToBottom(immediate = false) {
+    const doScroll = () => {
       const container = document.getElementById('chat-messages');
       if (container) {
-        container.scrollTop = container.scrollHeight;
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: immediate ? 'auto' : 'smooth'
+        });
       }
-    }, 100);
+    };
+    
+    if (immediate) {
+      doScroll();
+    } else {
+      // Small delay to ensure DOM is updated
+      setTimeout(doScroll, 50);
+    }
   }
   }
 }

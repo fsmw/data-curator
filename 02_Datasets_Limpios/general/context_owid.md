@@ -17,4 +17,4 @@ No specific methodology documented
 
 ## License
 - **License**: CC BY 4.0
-- **URL**: https://ourworldindata.org/grapher/poverty-headcount-rate-vs-poverty-gap
+- **URL**: https://ourworldindata.org/grapher/cumulative-death-rates-in-armed-conflicts

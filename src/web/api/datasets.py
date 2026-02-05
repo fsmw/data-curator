@@ -503,6 +503,103 @@ def get_dataset_versions() -> Response:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@api_bp.route("/datasets/<int:dataset_id>/fields")
+def get_dataset_fields(dataset_id: int) -> Response:
+    """
+    Get field/column information for a dataset with inferred types.
+    
+    Returns fields in Data Formulator format for use in Concept Shelf.
+    """
+    try:
+        config = Config()
+        catalog = DatasetCatalog(config)
+        
+        # Get dataset info
+        dataset = catalog.get_dataset(dataset_id)
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        
+        # Load preview data to infer types
+        df = catalog.get_preview_data(dataset_id, limit=100)
+        if df is None:
+            return jsonify({"status": "error", "message": "Could not load dataset"}), 500
+        
+        # Build fields list with type inference
+        fields = []
+        for col_name in df.columns:
+            col = df[col_name]
+            
+            # Infer type from pandas dtype
+            dtype_str = str(col.dtype)
+            if 'int' in dtype_str:
+                field_type = 'integer'
+            elif 'float' in dtype_str:
+                field_type = 'number'
+            elif 'bool' in dtype_str:
+                field_type = 'boolean'
+            elif 'datetime' in dtype_str:
+                field_type = 'date'
+            elif 'object' in dtype_str:
+                # Check if it looks like a date
+                sample = col.dropna().head(10).tolist()
+                if sample and all(isinstance(s, str) for s in sample):
+                    # Check if values look numeric
+                    try:
+                        [float(s) for s in sample if s]
+                        field_type = 'number'
+                    except (ValueError, TypeError):
+                        # Check if looks like date (contains - or /)
+                        if any('-' in str(s) or '/' in str(s) for s in sample):
+                            field_type = 'date'
+                        else:
+                            field_type = 'string'
+                else:
+                    field_type = 'string'
+            else:
+                field_type = 'string'
+            
+            # Get unique value count for categorical detection
+            unique_count = col.nunique()
+            total_count = len(col)
+            
+            # Determine semantic type
+            semantic_type = None
+            col_lower = col_name.lower()
+            if 'country' in col_lower or 'entity' in col_lower:
+                semantic_type = 'geographic'
+            elif 'year' in col_lower or 'date' in col_lower or 'time' in col_lower:
+                semantic_type = 'temporal'
+            elif unique_count < 20 and unique_count < total_count * 0.1:
+                semantic_type = 'categorical'
+            elif field_type in ['integer', 'number']:
+                semantic_type = 'quantitative'
+            
+            fields.append({
+                "id": f"original--{dataset_id}--{col_name}",
+                "name": col_name,
+                "type": field_type,
+                "semanticType": semantic_type,
+                "source": "original",
+                "tableRef": str(dataset_id),
+                "uniqueCount": int(unique_count),
+                "nullCount": int(col.isnull().sum()),
+                "sampleValues": [str(v) for v in col.dropna().head(5).tolist()]
+            })
+        
+        return jsonify({
+            "status": "success",
+            "datasetId": dataset_id,
+            "datasetName": dataset.get("indicator_name", dataset.get("file_name", "Unknown")),
+            "fields": fields,
+            "rowCount": dataset.get("row_count", len(df)),
+            "source": dataset.get("source", "unknown")
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting dataset fields {dataset_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @api_bp.route('/llm/models')
 def get_llm_models() -> Response:
     """

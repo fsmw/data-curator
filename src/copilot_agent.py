@@ -140,7 +140,8 @@ class MisesCopilotAgent:
     async def create_session(
         self, 
         session_id: Optional[str] = None,
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None
     ) -> CopilotSession:
         """
         Create a new chat session.
@@ -148,6 +149,7 @@ class MisesCopilotAgent:
         Args:
             session_id: Optional session ID for persistence
             system_prompt: Optional custom system prompt
+            model: Optional model ID to use (e.g., 'gpt-4o', 'claude-3.5-sonnet')
             
         Returns:
             Session instance
@@ -155,40 +157,37 @@ class MisesCopilotAgent:
         if not self.client:
             raise RuntimeError("Client not initialized. Call start() first.")
         
-        # Default system prompt for data curation
-        default_prompt = """You are an expert data analyst for Mises Data Curator, specializing in economic datasets.
+        # Optimized system prompt for data curation (reduced tokens for faster responses)
+        default_prompt = """You are a data analyst for Mises Data Curator, specializing in economic datasets.
 
-**Your Role:**
+**Core Guidelines:**
 - Act as an intelligent analyst, not just a tool executor
-- Use tools INTERNALLY to gather information, then synthesize findings
-- Process and analyze data before presenting to users
-- Provide actionable insights and contextualized answers
+- Use tools to gather info, then synthesize findings
+- Provide actionable insights in plain language
+- Focus on what matters to users, not technical details
 
-**Response Guidelines:**
-1. When users ask about data availability: Use tools to search/explore, then explain what you found in plain language with key insights
-2. Never dump raw tool output or technical details like indicator IDs unless specifically asked
-3. Focus on answering "what this means for the user" rather than "what the system contains"
-4. Provide context: data coverage, time periods, notable gaps, quality notes
-5. Suggest next steps or related analyses when appropriate
+**Response Style:**
+1. Search/explore data using tools, then explain findings clearly
+2. Never dump raw output or technical IDs unless asked
+3. Provide context: coverage, time periods, notable gaps
+4. Suggest relevant next steps when appropriate
 
-**Tool Usage Philosophy:**
-- Tools are YOUR research instruments, not user-facing outputs
-- Call tools to gather facts, then THINK about what matters
-- Synthesize multiple tool results into coherent insights
-- Present findings as a knowledgeable analyst would, not as API responses
+**Tool Philosophy:**
+- Tools are YOUR research instruments
+- Synthesize multiple results into insights
+- Present as a knowledgeable analyst would
 
-**Example Approach:**
-User: "Tell me about inflation data"
-❌ BAD: List indicator IDs and dump technical metadata
-✅ GOOD: "We have comprehensive inflation data from two major sources. The OWID dataset covers consumer prices for 186 countries from 2015-2024, while IMF provides both historical data and forecasts. Coverage is particularly strong for Latin America. I can help you analyze trends for specific countries or compare regional patterns."
-
-Always be helpful, insightful, and user-focused."""
+Always be helpful, insightful, and concise."""
         
         # Build SessionConfig with system message
         config = SessionConfig()
         
         if session_id:
             config['session_id'] = session_id
+        
+        # Set model if provided
+        if model:
+            config['model'] = model  # type: ignore
         
         # Set system message using SystemMessageReplaceConfig
         prompt_to_use = system_prompt if system_prompt else default_prompt
@@ -210,7 +209,8 @@ Always be helpful, insightful, and user-focused."""
         self, 
         message: str, 
         session_id: Optional[str] = None,
-        stream: bool = False
+        stream: bool = False,
+        model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send a message to the Copilot agent.
@@ -219,6 +219,7 @@ Always be helpful, insightful, and user-focused."""
             message: User message
             session_id: Optional session ID (creates new if None)
             stream: Whether to stream the response
+            model: Optional model ID to use
             
         Returns:
             Response dictionary with text and metadata
@@ -226,7 +227,7 @@ Always be helpful, insightful, and user-focused."""
         try:
             # Create session if needed
             if not self.session or (session_id and self.session.session_id != session_id):
-                await self.create_session(session_id=session_id)
+                await self.create_session(session_id=session_id, model=model)
             
             # Send message
             if stream:
@@ -244,6 +245,7 @@ Always be helpful, insightful, and user-focused."""
                 return {
                     'status': 'success',
                     'text': response_text,
+                    'response': response_text,  # For compatibility
                     'session_id': self.session.session_id,
                     'streamed': True
                 }
@@ -261,6 +263,7 @@ Always be helpful, insightful, and user-focused."""
                 return {
                     'status': 'success',
                     'text': response_text,
+                    'response': response_text,  # For compatibility
                     'session_id': self.session.session_id,
                     'streamed': False
                 }
@@ -275,48 +278,95 @@ Always be helpful, insightful, and user-focused."""
     async def chat_stream(
         self, 
         message: str, 
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        model: Optional[str] = None
     ):
         """
-        Stream response from Copilot agent.
+        Stream response from Copilot agent with thinking process.
         
         Args:
             message: User message
             session_id: Optional session ID
+            model: Optional model ID to use
             
         Yields:
-             Dict response chunks
+             Dict response chunks with thinking process
         """
         try:
             # Create session if needed
             if not self.session or (session_id and self.session.session_id != session_id):
-                await self.create_session(session_id=session_id)
+                await self.create_session(session_id=session_id, model=model)
             
-            # Fallback to non-streaming if SDK doesn't support streaming method
-            # This ensures stability while maintaining the async generator interface
-            response = await self.chat(message, session_id=session_id, stream=False)
-            
-            if response['status'] == 'success':
+            # Try to use actual streaming if available
+            try:
+                async for event in self.session.send_streaming({'prompt': message}):
+                    # Parse the event to extract different types of content
+                    chunk_data = {
+                        'status': 'success',
+                        'session_id': self.session.session_id,
+                        'done': False
+                    }
+                    
+                    # Check if this is a text chunk
+                    if isinstance(event, str):
+                        chunk_data['text'] = event
+                    elif hasattr(event, 'content'):
+                        chunk_data['text'] = event.content
+                    elif hasattr(event, 'type'):
+                        # Handle different event types
+                        if event.type == 'thinking' or event.type == 'thought':
+                            chunk_data['thinking'] = {
+                                'type': event.type,
+                                'content': getattr(event, 'content', str(event))
+                            }
+                        elif event.type == 'tool_use':
+                            chunk_data['tool_use'] = {
+                                'name': getattr(event, 'name', 'unknown'),
+                                'input': getattr(event, 'input', None)
+                            }
+                        elif event.type == 'tool_result':
+                            chunk_data['tool_result'] = getattr(event, 'content', str(event))
+                        else:
+                            # Default: treat as text
+                            chunk_data['text'] = str(event)
+                    else:
+                        chunk_data['text'] = str(event)
+                    
+                    yield chunk_data
+                
+                # Send final done message
                 yield {
                     'status': 'success',
-                    'text': response['text'],
-                    'session_id': response['session_id'],
-                    'done': False
-                }
-            else:
-                yield {
-                    'status': 'error',
-                    'error': response.get('error', 'Unknown error'),
-                    'text': response.get('text', 'Error'),
+                    'text': '',
+                    'session_id': self.session.session_id,
                     'done': True
                 }
-            
-            yield {
-                'status': 'success',
-                'text': '',
-                'session_id': self.session.session_id,
-                'done': True
-            }
+                
+            except AttributeError:
+                # Fallback to non-streaming if SDK doesn't support streaming method
+                response = await self.chat(message, session_id=session_id, stream=False, model=model)
+                
+                if response['status'] == 'success':
+                    yield {
+                        'status': 'success',
+                        'text': response['text'],
+                        'session_id': response['session_id'],
+                        'done': False
+                    }
+                else:
+                    yield {
+                        'status': 'error',
+                        'error': response.get('error', 'Unknown error'),
+                        'text': response.get('text', 'Error'),
+                        'done': True
+                    }
+                
+                yield {
+                    'status': 'success',
+                    'text': '',
+                    'session_id': self.session.session_id if self.session else None,
+                    'done': True
+                }
 
         except Exception as e:
             yield {
@@ -358,9 +408,63 @@ Always be helpful, insightful, and user-focused."""
         tool = self.tools[tool_name]
         return await tool['function'](**kwargs)
     
+    async def list_models(self) -> List[Dict[str, Any]]:
+        """
+        Get list of available LLM models from Copilot SDK.
+        
+        Returns:
+            List of model dictionaries with id, name, and other metadata
+        """
+        if not self.client:
+            return self._get_fallback_models()
+        
+        try:
+            # Ensure client is started before listing models
+            try:
+                await self.client.start()
+            except Exception as e:
+                # Client might already be started
+                print(f"Client start: {e}")
+            
+            # Use the SDK's list_models() method
+            models_raw = await self.client.list_models()
+            
+            # Convert ModelInfo objects to dicts
+            models = []
+            if models_raw:
+                for model in models_raw:
+                    # Extract id and name from ModelInfo object
+                    model_dict = {
+                        'id': getattr(model, 'id', str(model)),
+                        'name': getattr(model, 'name', str(model))
+                    }
+                    models.append(model_dict)
+            
+            if models:
+                print(f"✅ Loaded {len(models)} models from Copilot SDK")
+                return models
+            else:
+                print("⚠️  No models returned from SDK, using fallback")
+                return self._get_fallback_models()
+                
+        except Exception as e:
+            print(f"❌ Error listing models: {e}")
+            print("   Using fallback models")
+            return self._get_fallback_models()
+    
+    def _get_fallback_models(self) -> List[Dict[str, Any]]:
+        """Fallback models if SDK call fails."""
+        return [
+            {'id': 'gpt-4o', 'name': 'GPT-4o'},
+            {'id': 'gpt-4o-mini', 'name': 'GPT-4o Mini'},
+            {'id': 'claude-3.5-sonnet', 'name': 'Claude 3.5 Sonnet'},
+            {'id': 'o1', 'name': 'OpenAI o1'},
+            {'id': 'o1-mini', 'name': 'OpenAI o1 Mini'}
+        ]
+    
     def get_available_models(self) -> List[str]:
         """
-        Get list of available LLM models.
+        Get list of available LLM models (sync version for backwards compatibility).
         
         Returns:
             List of model identifiers
@@ -368,7 +472,7 @@ Always be helpful, insightful, and user-focused."""
         if self.client:
             # This would depend on SDK implementation
             # Typically returns ['gpt-4', 'gpt-4-turbo', 'claude-3-opus', etc.]
-            return ['gpt-4', 'gpt-4-turbo-preview', 'claude-3-sonnet', 'claude-3-opus']
+            return ['gpt-4o', 'gpt-4o-mini', 'claude-3.5-sonnet', 'o1', 'o1-mini']
         return []
     
     def health_check(self) -> Dict[str, Any]:

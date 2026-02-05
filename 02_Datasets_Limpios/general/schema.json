@@ -1,12 +1,12 @@
 {
   "dataset_info": {
     "name": "",
-    "slug": "poverty-headcount-rate-vs-poverty-gap",
+    "slug": "cumulative-death-rates-in-armed-conflicts",
     "description": "",
     "source": "Unknown",
-    "total_rows": 121,
-    "total_columns": 9,
-    "created_at": "2026-02-04T13:07:23.557296"
+    "total_rows": 6,
+    "total_columns": 4,
+    "created_at": "2026-02-04T14:17:26.151248"
   },
   "columns": [
     {
@@ -14,11 +14,11 @@
       "type": "object",
       "description": "Country or region name",
       "sample_values": [
-        "Albania",
-        "Armenia",
-        "Australia",
-        "Austria",
-        "Bangladesh"
+        "Africa",
+        "Americas",
+        "Asia and Oceania",
+        "Europe",
+        "Middle East"
       ],
       "null_count": 0,
       "null_percentage": 0.0
@@ -28,14 +28,10 @@
       "type": "object",
       "description": "ISO country code",
       "sample_values": [
-        "ALB",
-        "ARM",
-        "AUS",
-        "AUT",
-        "BGD"
+        "OWID_WRL"
       ],
-      "null_count": 0,
-      "null_percentage": 0.0
+      "null_count": 5,
+      "null_percentage": 83.33333333333334
     },
     {
       "name": "year",
@@ -58,117 +54,23 @@
       }
     },
     {
-      "name": "Share in extreme poverty",
+      "name": "Cumulative death rate in armed conflicts",
       "type": "float64",
-      "description": "Share In Extreme Poverty",
+      "description": "Cumulative Death Rate In Armed Conflicts",
       "sample_values": [
-        0.3409224562346935,
-        1.9280258566141129,
-        0.9892079047858716,
-        0.5282233003526926,
-        5.909079313278198
+        355.98438,
+        32.579697,
+        19.712732,
+        50.447483,
+        299.97192
       ],
       "null_count": 0,
       "null_percentage": 0.0,
       "statistics": {
-        "min": 0.0,
-        "max": 85.31767129898071,
-        "mean": 11.661556186092549,
-        "median": 1.9280258566141129
-      }
-    },
-    {
-      "name": "Poverty gap index at $3 per day",
-      "type": "float64",
-      "description": "Poverty Gap Index At $3 Per Day",
-      "sample_values": [
-        0.0352809845935553,
-        0.2830020152032375,
-        0.6264606490731239,
-        0.3926026169210672,
-        0.9683189913630486
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 0.0,
-        "max": 48.69357943534851,
-        "mean": 4.347138383232688,
-        "median": 0.4845072515308857
-      }
-    },
-    {
-      "name": "Population",
-      "type": "int64",
-      "description": "Population",
-      "sample_values": [
-        2811660,
-        2943398,
-        26451126,
-        9130434,
-        171466986
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 38849.0,
-        "max": 1438069597.0,
-        "mean": 57720874.61983471,
-        "median": 12244161.0
-      }
-    },
-    {
-      "name": "World region according to OWID",
-      "type": "object",
-      "description": "World Region According To Owid",
-      "sample_values": [
-        "Europe",
-        "Asia",
-        "Oceania",
-        "Europe",
-        "Asia"
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0
-    },
-    {
-      "name": "Poverty gap index at $3 per day (Original Year)",
-      "type": "float64",
-      "description": "Poverty Gap Index At $3 Per Day (Original Year)",
-      "sample_values": [
-        2020.0,
-        2023.0,
-        2020.0,
-        2023.0,
-        2022.0
-      ],
-      "null_count": 12,
-      "null_percentage": 9.917355371900827,
-      "statistics": {
-        "min": 2019.0,
-        "max": 2023.0,
-        "mean": 2021.6146788990825,
-        "median": 2022.0
-      }
-    },
-    {
-      "name": "Share in extreme poverty (Original Year)",
-      "type": "float64",
-      "description": "Share In Extreme Poverty (Original Year)",
-      "sample_values": [
-        2020.0,
-        2023.0,
-        2020.0,
-        2023.0,
-        2022.0
-      ],
-      "null_count": 12,
-      "null_percentage": 9.917355371900827,
-      "statistics": {
-        "min": 2019.0,
-        "max": 2023.0,
-        "mean": 2021.6146788990825,
-        "median": 2022.0
+        "min": 19.712732,
+        "max": 355.98438,
+        "mean": 138.99753866666666,
+        "median": 62.8682515
       }
     }
   ]

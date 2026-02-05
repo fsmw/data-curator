@@ -66,6 +66,14 @@ def compare_data() -> Response:
         
         df_x = df_x.rename(columns={val_col_x: 'val_x'})
         df_y = df_y.rename(columns={val_col_y: 'val_y'})
+
+        # Ensure numeric types
+        df_x['val_x'] = pd.to_numeric(df_x['val_x'], errors='coerce')
+        df_y['val_y'] = pd.to_numeric(df_y['val_y'], errors='coerce')
+        
+        # Drop rows where values became NaN after cleaning
+        df_x = df_x.dropna(subset=['val_x'])
+        df_y = df_y.dropna(subset=['val_y'])
         
         logger.info(f"Merging X ({len(df_x)} rows, cols: {df_x.columns.tolist()}) with Y ({len(df_y)} rows, cols: {df_y.columns.tolist()}) on {merge_on}")
         

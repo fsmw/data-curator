@@ -1,2 +1,3 @@
-2026/02/02-18:01:14.905 251bb2 Creating DB /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Service Worker/Database since it was missing.
-2026/02/02-18:01:14.920 251bb2 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Service Worker/Database/MANIFEST-000001
+2026/02/04-17:08:16.868 3b1c9 Reusing MANIFEST /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Service Worker/Database/MANIFEST-000001
+2026/02/04-17:08:16.868 3b1c9 Recovering log #3
+2026/02/04-17:08:16.868 3b1c9 Reusing old log /home/fsmw/dev/mises/data-curator/mcp-data-opencode/Default/Service Worker/Database/000003.log 

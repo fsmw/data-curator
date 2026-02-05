@@ -225,6 +225,15 @@ def start_download() -> Response:
                 logger.warning(f"AI packaging failed: {e}")
                 ai_package_files = {}
 
+        # Index the new dataset in the catalog
+        try:
+            from dataset_catalog import DatasetCatalog
+            catalog = DatasetCatalog(config)
+            catalog.index_dataset(output_path, force=True)
+            logger.info(f"Indexed dataset: {output_path}")
+        except Exception as e:
+            logger.error(f"Failed to index dataset: {e}")
+
         # Success response
         response_payload = {
             "status": "success",

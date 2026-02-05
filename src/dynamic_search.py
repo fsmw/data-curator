@@ -82,10 +82,18 @@ class OWIDSearcher:
 
             for idx, chart in enumerate(data.get("results", [])):
                 # Convert OWID chart format to our standard indicator format
-                # Use index to ensure unique IDs since slugs can be duplicated
+                # Use slug as stable ID, fall back to index if missing
                 slug = chart.get("slug", "")
+                
+                # We prefer a stable ID based on slug to allow reliable "is_downloaded" checks
+                # even if search result order changes.
+                if slug:
+                     unique_id = f"owid_{slug}"
+                else:
+                     unique_id = f"owid_chart_{idx}"
+
                 indicator = {
-                    "id": f"owid_{slug}_{idx}",  # Unique ID with prefix and index
+                    "id": unique_id,
                     "name": chart.get("title", ""),
                     "description": chart.get("subtitle", ""),
                     "source": "owid",

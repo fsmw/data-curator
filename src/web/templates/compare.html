@@ -17,11 +17,10 @@
                     <div class="d-grid gap-2">
                         <template x-if="datasetY">
                             <div
-                                class="p-2 border rounded bg-light d-flex align-items-center justify-content-between w-100">
-                                <div class="overflow-hidden" style="flex: 1; min-width: 0;">
-                                    <div class="fw-bold small text-truncate" x-text="datasetY.indicator"
-                                        :title="datasetY.indicator"></div>
-                                    <div class="text-muted small text-truncate" style="font-size: 0.75rem"
+                                class="p-2 border rounded bg-light d-flex align-items-start justify-content-between w-100">
+                                <div style="flex: 1; min-width: 0; word-wrap: break-word; overflow-wrap: break-word;">
+                                    <div class="fw-bold small lh-sm" x-text="datasetY.indicator"></div>
+                                    <div class="text-muted small mt-1" style="font-size: 0.75rem"
                                         x-text="datasetY.source"></div>
                                 </div>
                                 <button class="btn btn-sm btn-link text-danger p-0 ms-2"
@@ -42,11 +41,10 @@
                     <div class="d-grid gap-2">
                         <template x-if="datasetX">
                             <div
-                                class="p-2 border rounded bg-light d-flex align-items-center justify-content-between w-100">
-                                <div class="overflow-hidden" style="flex: 1; min-width: 0;">
-                                    <div class="fw-bold small text-truncate" x-text="datasetX.indicator"
-                                        :title="datasetX.indicator"></div>
-                                    <div class="text-muted small text-truncate" style="font-size: 0.75rem"
+                                class="p-2 border rounded bg-light d-flex align-items-start justify-content-between w-100">
+                                <div style="flex: 1; min-width: 0; word-wrap: break-word; overflow-wrap: break-word;">
+                                    <div class="fw-bold small lh-sm" x-text="datasetX.indicator"></div>
+                                    <div class="text-muted small mt-1" style="font-size: 0.75rem"
                                         x-text="datasetX.source"></div>
                                 </div>
                                 <button class="btn btn-sm btn-link text-danger p-0 ms-2"
