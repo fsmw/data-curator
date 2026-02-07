@@ -1326,7 +1326,7 @@
     <div class="bg-white rounded-3 shadow-lg p-4" style="max-width: 550px; width: 95%; max-height: 90vh; overflow-y: auto;">
       <!-- Header -->
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Derivar Nuevo Campo</h5>
+        <h5 class="mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Derive New Field</h5>
         <button class="btn btn-link text-muted p-0" @click="showDeriveField = false">
           <i class="bi bi-x-lg"></i>
         </button>
@@ -1336,7 +1336,7 @@
       <div>
         <!-- Field Name -->
         <div class="mb-3">
-          <label class="form-label small fw-bold">Nombre del Campo</label>
+          <label class="form-label small fw-bold">Field Name</label>
           <input type="text" class="form-control" 
                  placeholder="ej: growth_rate"
                  x-model="deriveConfig.fieldName">
@@ -1344,7 +1344,7 @@
         
         <!-- Source Fields -->
         <div class="mb-3">
-          <label class="form-label small fw-bold">Campos Fuente</label>
+          <label class="form-label small fw-bold">Source Fields</label>
           <div class="d-flex flex-wrap gap-2">
             <template x-for="f in fields" :key="f.name">
               <label class="source-field-checkbox"
@@ -1362,13 +1362,13 @@
         
         <!-- Description -->
         <div class="mb-3">
-          <label class="form-label small fw-bold">Descripción (NL)</label>
+          <label class="form-label small fw-bold">Description (NL)</label>
           <textarea class="form-control" rows="3" 
-                    placeholder="Describe qué debe calcular este campo. Ej: Calcular el crecimiento porcentual anual del PIB"
+                    placeholder="Describe what this field should calculate. E.g., Calculate annual GDP percentage growth"
                     x-model="deriveConfig.description"></textarea>
           <div class="form-text">
             <i class="bi bi-lightbulb me-1"></i>
-            Sugerencias: "crecimiento anual", "ranking", "media móvil 5 años", "diferencia entre X e Y"
+            Suggestions: "annual growth", "ranking", "5-year moving average", "difference between X and Y"
           </div>
         </div>
         
@@ -1399,7 +1399,7 @@
         
         <!-- Generated Code -->
         <div x-show="deriveCode" class="mb-3">
-          <label class="form-label small fw-bold">Código Generado</label>
+          <label class="form-label small fw-bold">Generated Code</label>
           <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.75rem;" x-text="deriveCode"></pre>
         </div>
         
@@ -1453,10 +1453,10 @@
         <template x-if="!confirmModal.isAlert">
           <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary btn-sm px-3" @click="confirmModal.show = false; confirmModal.onCancel && confirmModal.onCancel()">
-              Cancelar
+              Cancel
             </button>
             <button class="btn btn-danger btn-sm px-3" @click="confirmModal.onConfirm && confirmModal.onConfirm(); confirmModal.show = false">
-              <i class="bi bi-trash me-1"></i> Eliminar
+              <i class="bi bi-trash me-1"></i> Delete
             </button>
           </div>
         </template>
