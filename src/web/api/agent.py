@@ -306,7 +306,7 @@ def agent_report():
     {
         "rows": [...],
         "table_name": "datos",
-        "topic": "Análisis PIB LATAM",
+        "topic": "LATAM GDP Analysis",
         "format": "markdown"  // or "json"
     }
     """
@@ -324,7 +324,7 @@ def agent_report():
                 "message": "No data provided"
             }), 400
         
-        topic = data.get('topic', 'Análisis de Datos')
+        topic = data.get('topic', 'Data Analysis')
         output_format = data.get('format', 'json')
         name = data.get('table_name', 'datos')
         
