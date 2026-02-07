@@ -7,7 +7,7 @@
         <h6 class="mb-0 text-uppercase small">Concept Shelf</h6>
         <span class="badge bg-light text-dark" x-text="filteredDatasets.length"></span>
       </div>
-      <input class="form-control form-control-sm" placeholder="Buscar dataset" x-model="searchQuery"
+      <input class="form-control form-control-sm" placeholder="Search dataset" x-model="searchQuery"
         @input="applyFilter()" />
       <div class="list-group mt-2" style="max-height: 520px; overflow-y: auto;">
         <template x-for="dataset in filteredDatasets" :key="dataset.id">
@@ -71,7 +71,7 @@
           <h5 class="mb-1" x-text="selectedDataset ? selectedDataset.indicator_name : 'Seleccione un dataset'"></h5>
           <div class="text-secondary small" x-text="selectedDataset ? selectedDataset.file_name : ''"></div>
           <div class="text-secondary small" x-show="tableName">
-            Tabla SQL: <span x-text="tableName"></span> (alias: dataset)
+            SQL Table: <span x-text="tableName"></span> (alias: dataset)
           </div>
         </div>
         <div class="d-flex gap-2">
@@ -132,7 +132,7 @@
           Aplicar
         </button>
         <button class="btn btn-outline-secondary" @click="clearFilter()" :disabled="sqlRunning">
-          Limpiar
+          Clear
         </button>
       </div>
       <div class="small text-secondary mt-2">Usa sintaxis SQL WHERE (sin SELECT).</div>
