@@ -6,6 +6,10 @@ venv/
 .venv/
 env/
 ENV/
+# MCP
+.playwright-mcp/
+mcp-data-opencode/
+mcp-data-copilot/
 
 # Environment variables
 .env
@@ -21,8 +25,9 @@ dist/
 build/
 *.egg-info/
 
-# Metadata cache
+# Cache
 .metadata_cache/
+.pytest_cache/
 
 # IDE
 .vscode/
