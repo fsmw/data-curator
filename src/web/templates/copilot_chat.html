@@ -589,7 +589,7 @@
        x-transition>
     <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
       <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-3"></i> Data Threads</h6>
-      <button class="btn btn-sm btn-link text-secondary" @click="showThreads = false" title="Ocultar panel">
+      <button class="btn btn-sm btn-link text-secondary" @click="showThreads = false" title="Hide panel">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
@@ -617,7 +617,7 @@
                 <small class="text-muted" x-text="formatTime(thread.timestamp)"></small>
                 <button class="btn btn-link btn-sm text-secondary p-0 ms-1 rename-thread-btn" 
                         @click.stop="renameThread(thread.id)" 
-                        title="Renombrar thread"
+                        title="Rename thread"
                         style="font-size: 0.65rem; line-height: 1; opacity: 0.5;"
                         @mouseenter="$el.style.opacity = 1"
                         @mouseleave="$el.style.opacity = 0.5">
@@ -625,7 +625,7 @@
                 </button>
                 <button class="btn btn-link btn-sm text-danger p-0 delete-thread-btn" 
                         @click.stop="deleteThread(thread.id)" 
-                        title="Eliminar thread"
+                        title="Delete thread"
                         style="font-size: 0.65rem; line-height: 1; opacity: 0.5;"
                         @mouseenter="$el.style.opacity = 1"
                         @mouseleave="$el.style.opacity = 0.5">
@@ -688,7 +688,7 @@
               :disabled="loading || agentLoading"
               :class="{'active': agentLoading === 'quality'}">
         <i class="bi bi-clipboard-check"></i>
-        <span>Calidad</span>
+        <span>Quality</span>
         <span x-show="agentLoading === 'quality'" class="spinner-border spinner-border-sm ms-1"></span>
       </button>
       <button class="agent-action-btn" 
@@ -696,47 +696,47 @@
               :disabled="loading || agentLoading"
               :class="{'active': agentLoading === 'transform'}">
         <i class="bi bi-arrow-repeat"></i>
-        <span>Transformar</span>
+        <span>Transform</span>
       </button>
       <button class="agent-action-btn" 
               @click="runAgentAction('report')" 
               :disabled="loading || agentLoading"
               :class="{'active': agentLoading === 'report'}">
         <i class="bi bi-file-earmark-text"></i>
-        <span>Reporte</span>
+        <span>Report</span>
       </button>
       <button class="agent-action-btn" 
               @click="runAgentAction('explore')" 
               :disabled="loading || agentLoading"
               :class="{'active': agentLoading === 'explore'}">
         <i class="bi bi-search"></i>
-        <span>Explorar</span>
+        <span>Explore</span>
       </button>
       <button class="agent-action-btn" 
               @click="runAgentAction('clean')" 
               :disabled="loading || agentLoading || !qualityReport"
               :class="{'active': agentLoading === 'clean'}"
-              title="Primero ejecuta Calidad para detectar problemas">
+              title="First run Quality to detect issues">
         <i class="bi bi-brush"></i>
-        <span>Limpiar</span>
+        <span>Clean</span>
       </button>
       <div style="border-left: 1px solid #dee2e6; height: 24px;"></div>
       <button class="agent-action-btn" 
               @click="openCanvasView()" 
               :disabled="!activeDataset && !canvasCharts.length"
-              title="Abrir canvas de visualización (con gráficos actuales si hay)">
+              title="Open visualization canvas (with current charts if any)">
         <i class="bi bi-bar-chart-line"></i>
-        <span>Visualizar</span>
+        <span>Visualize</span>
       </button>
       <button class="agent-action-btn" 
-              title="Gráfico de correlación con 2 datasets (cruce como Compare)">
+              title="Correlation chart with 2 datasets (cross as Compare)">
       </button>
       <button class="agent-action-btn" 
               @click="showDeriveField = true" 
               :disabled="!activeDataset"
-              title="Derivar nuevo campo con IA">
+              title="Derive new field with AI">
         <i class="bi bi-plus-circle"></i>
-        <span>Derivar</span>
+        <span>Derive</span>
       </button>
     </div>
     
