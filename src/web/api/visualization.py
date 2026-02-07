@@ -314,7 +314,7 @@ CHART_TEMPLATES = {
         "id": "us_map",
         "name": "US Map",
         "icon": "bi-map",
-        "description": "Mapa geográfico de USA",
+        "description": "USA geographic map",
         "required_encodings": ["latitude", "longitude", "color"],
         "optional_encodings": ["size"],
         "spec_template": {
@@ -359,7 +359,7 @@ CHART_TEMPLATES = {
         "id": "world_map",
         "name": "World Map",
         "icon": "bi-globe",
-        "description": "Mapa geográfico mundial",
+        "description": "World geographic map",
         "required_encodings": ["latitude", "longitude", "color"],
         "optional_encodings": ["size"],
         "spec_template": {
@@ -404,7 +404,7 @@ CHART_TEMPLATES = {
         "id": "linear_regression",
         "name": "Linear Regression",
         "icon": "bi-graph-up",
-        "description": "Regresión lineal y tendencia",
+        "description": "Linear regression and trend",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "size", "column"],
         "spec_template": {
@@ -524,7 +524,7 @@ CHART_TEMPLATES = {
         "id": "custom_line",
         "name": "Custom Line",
         "icon": "bi-slash-lg",
-        "description": "Líneas con atributos personalizados",
+        "description": "Lines with custom attributes",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "opacity", "detail", "column", "row"],
         "spec_template": {
@@ -550,7 +550,7 @@ CHART_TEMPLATES = {
         "id": "custom_rect",
         "name": "Custom Rect",
         "icon": "bi-square",
-        "description": "Rectángulos con rango X-Y",
+        "description": "Rectangles with X-Y range",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["x2", "y2", "color", "opacity", "column", "row"],
         "spec_template": {
@@ -563,7 +563,7 @@ CHART_TEMPLATES = {
         "id": "custom_area",
         "name": "Custom Area",
         "icon": "bi-triangle",
-        "description": "Áreas con atributos personalizados",
+        "description": "Areas with custom attributes",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["x2", "y2", "color", "column", "row"],
         "spec_template": {
@@ -589,7 +589,7 @@ CHART_TEMPLATES = {
         "id": "auto",
         "name": "Auto-Detect",
         "icon": "bi-magic",
-        "description": "Detectar automaticamente el mejor tipo de gráfico",
+        "description": "Automatically detect the best chart type",
         "required_encodings": [],
         "optional_encodings": ["x", "y", "color", "size"],
         "spec_template": {
@@ -1243,14 +1243,14 @@ def generate_chart():
             "color": {"field": "country", "type": "nominal"}
         },
         "data": [{"year": 2020, "gdp": 500, "country": "Argentina"}, ...],
-        "title": "PIB por País",
+        "title": "GDP by Country",
         "width": 600,
         "height": 400,
         "sample_method": "random",  // Optional: "random", "head", "tail", "stratified", "auto"
         "sample_size": 500,         // Optional: max rows to keep
         "aggregate_fields": [],     // Optional: fields to group by
         "aggregate_agg": "sum",     // Optional: aggregation method
-        "nl_instruction": "mostrar solo top 5 países"  // Optional NL refinement
+        "nl_instruction": "show only top 5 countries"  // Optional NL refinement
     }
     
     Returns:
