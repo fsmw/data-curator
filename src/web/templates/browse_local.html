@@ -45,7 +45,7 @@
           <button @click="downloadAll()" class="btn btn-outline-secondary flex-grow-1"
             :disabled="loading || downloadingBackup" title="Download backup zip of all data">
             <i class="bi bi-download"></i>
-            <span x-show="!downloadingBackup">Descargar todo</span>
+            <span x-show="!downloadingBackup">Download all</span>
             <span x-show="downloadingBackup">
               <span class="spinner-border spinner-border-sm" role="status"></span>
             </span>
@@ -90,9 +90,9 @@
         <button type="button" class="btn btn-outline-primary btn-sm"
           :disabled="!anySelected || updatingSelected || loading"
           @click="refreshSelected()"
-          title="Actualizar datasets seleccionados">
+          title="Update selected datasets">
           <i class="bi" :class="updatingSelected ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'"></i>
-          <span class="ms-1" x-text="updatingSelected ? 'Actualizando...' : 'Actualizar seleccionados'"></span>
+          <span class="ms-1" x-text="updatingSelected ? 'Updating...' : 'Update selected'"></span>
         </button>
         <div class="btn-group btn-group-sm" role="group">
           <button type="button" class="btn btn-outline-secondary" :class="{ 'active': viewMode === 'table' }"
@@ -195,7 +195,7 @@
                   </span>
                   <div class="btn-group btn-group-sm">
                     <a class="btn btn-outline-secondary" :href="`/edit?dataset_id=${dataset.id}`"
-                      title="Editar dataset">
+                      title="Edit dataset">
                       <i class="bi bi-pencil-square"></i>
                     </a>
                     <button @click="viewDataset(dataset.id)" class="btn btn-outline-primary"
@@ -233,7 +233,7 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                   <a class="btn btn-outline-secondary btn-sm" @click.stop
-                    :href="`/edit?dataset_id=${dataset.id}`" title="Editar dataset">
+                    :href="`/edit?dataset_id=${dataset.id}`" title="Edit dataset">
                     <i class="bi bi-pencil-square"></i>
                   </a>
                   <span class="badge" :class="getCompletenessClass(dataset.completeness_score)"
