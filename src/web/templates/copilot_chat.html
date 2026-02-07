@@ -1739,8 +1739,8 @@
     // Prevent deleting the last thread
     if (this.threads.length <= 1) {
       this.showConfirmModal(
-        'No se puede eliminar',
-        'No puedes eliminar el último thread. Crea uno nuevo primero.',
+        'Cannot Delete',
+        'You cannot delete the last thread. Create a new one first.',
         null,
         null,
         true // isAlert
@@ -1750,8 +1750,8 @@
     
     // Show confirmation modal
     this.showConfirmModal(
-      'Eliminar thread',
-      '¿Eliminar este thread? Esta acción no se puede deshacer.',
+      'Delete Thread',
+      'Delete this thread? This action cannot be undone.',
       () => {
         const threadIndex = this.threads.findIndex(t => t.id === threadId);
         if (threadIndex === -1) return;
@@ -1774,7 +1774,7 @@
     const thread = this.threads.find(t => t.id === threadId);
     if (!thread) return;
     
-    const newName = prompt('Nuevo nombre para el thread:', thread.title || 'New Analysis');
+    const newName = prompt('New name for the thread:', thread.title || 'New Analysis');
     if (newName && newName.trim()) {
       thread.title = newName.trim();
       this.saveThreads();
@@ -2151,9 +2151,9 @@
       // Parse quality report from content
       this.qualityReport = this.parseQualityReport(result);
       this.addAgentMessage(
-        `📊 **Análisis de Calidad Completado**\n\n` +
-        `Puntuación: **${this.qualityReport.score}%**\n` +
-        `Problemas detectados: ${this.qualityReport.issues.length}\n\n` +
+        `📊 **Quality Analysis Completed**\n\n` +
+        `Score: **${this.qualityReport.score}%**\n` +
+        `Issues detected: ${this.qualityReport.issues.length}\n\n` +
         (result.content || '')
       );
     } else {
@@ -2177,7 +2177,7 @@
       
       // Check for nulls
       const totalNulls = stats.nulos_totales || 0;
-      const totalCells = (stats.filas || 1) * (stats.columnas || 1);
+      const totalCells = (stats.rows || 1) * (stats.columns || 1);
       const nullPct = (totalNulls / totalCells) * 100;
       
       if (nullPct > 0) {
@@ -2195,7 +2195,7 @@
         report.issues.push({
           type: 'duplicates',
           severity: dups > 100 ? 'medium' : 'low',
-          message: `${dups} filas duplicadas`
+          message: `${dups} duplicate rows`
         });
         report.score = Math.max(0, report.score - 5);
       }
@@ -2245,11 +2245,11 @@
   async promptTransformAgent() {
     // Add a message asking for transformation
     this.addAgentMessage(
-      '🔄 **Transformación de Datos**\n\n' +
-      '¿Qué transformación deseas aplicar? Ejemplos:\n' +
-      '- "Agrupar por país y calcular promedio de PIB"\n' +
-      '- "Filtrar solo datos de Argentina"\n' +
-      '- "Crear columna con crecimiento porcentual"'
+      '🔄 **Data Transformation**\n\n' +
+      'What transformation do you want to apply? Examples:\n' +
+      '- "Group by country and calculate GDP average"\n' +
+      '- "Filter only Argentina data"\n' +
+      '- "Create column with percentage growth"'
     );
     
     // Focus input
@@ -2263,7 +2263,7 @@
       body: JSON.stringify({
         rows: rows,
         table_name: this.activeDataset.name,
-        goal: `Genera un reporte analítico sobre ${this.activeDataset.name}`
+        goal: `Generate an analytical report on ${this.activeDataset.name}`
       })
     });
     
@@ -2274,14 +2274,14 @@
       let reportContent = '';
       if (result.report) {
         const r = result.report;
-        reportContent = `## ${r.titulo || 'Análisis de Datos'}\n\n`;
+        reportContent = `## ${r.titulo || 'Data Analysis'}\n\n`;
         if (r.resumen_ejecutivo) reportContent += `**Resumen:** ${r.resumen_ejecutivo}\n\n`;
         if (r.contexto) reportContent += `**Contexto:** ${r.contexto}\n\n`;
         if (r.conclusiones) reportContent += `**Conclusiones:** ${r.conclusiones}\n\n`;
       } else {
-        reportContent = result.content || 'Reporte completado';
+        reportContent = result.content || 'Report completed';
       }
-      this.addAgentMessage(`📝 **Reporte Generado**\n\n${reportContent}`);
+      this.addAgentMessage(`📝 **Report Generated**\n\n${reportContent}`);
     } else {
       throw new Error(result.message || 'Report generation failed');
     }
@@ -2294,7 +2294,7 @@
       body: JSON.stringify({
         rows: rows,
         table_name: this.activeDataset.name,
-        context: `Dataset: ${this.activeDataset.name} con ${rows.length} filas`
+        context: `Dataset: ${this.activeDataset.name} with ${rows.length} rows`
       })
     });
     
@@ -2303,15 +2303,15 @@
     if ((result.status === 'success' || result.status === 'ok') && result.suggestions) {
       this.suggestions = result.suggestions;
       this.addAgentMessage(
-        `🔭 **Sugerencias de Exploración**\n\n` +
-        `He analizado el dataset y encontré ${result.suggestions.length} sugerencias. ` +
+        `🔭 **Exploration Suggestions**\n\n` +
+        `I have analyzed the dataset and found ${result.suggestions.length} suggestions. ` +
         `Puedes seleccionar una de las opciones sugeridas abajo.`
       );
     } else if (result.status === 'success' || result.status === 'ok') {
       // No suggestions but still ok
       this.addAgentMessage(
-        `🔭 **Exploración Completada**\n\n` +
-        (result.content || 'El dataset ha sido analizado. Puedes hacer preguntas específicas sobre los datos.')
+        `🔭 **Exploration Completed**\n\n` +
+        (result.content || 'The dataset has been analyzed. You can ask specific questions about the data.')
       );
     } else {
       throw new Error(result.message || 'Exploration failed');
@@ -2320,7 +2320,7 @@
   
   async runCleanAgent(rows) {
     if (!this.qualityReport || this.qualityReport.issues.length === 0) {
-      this.addAgentMessage('ℹ️ No hay problemas de calidad para limpiar. Ejecuta primero el análisis de calidad.');
+      this.addAgentMessage('ℹ️ No quality issues to clean. Run the quality analysis first.');
       return;
     }
     
@@ -2338,15 +2338,15 @@
     
     if (result.status === 'success' || result.status === 'ok') {
       // Show code if available
-      let message = '🧹 **Limpieza de Datos**\n\n';
+      let message = '🧹 **Data Cleaning**\n\n';
       
       if (result.code) {
-        message += 'Código generado para limpiar:\n\n```python\n' + result.code + '\n```\n\n';
+        message += 'Generated code to clean:\n\n```python\n' + result.code + '\n```\n\n';
       }
       
       if (result.result_data) {
         const cleanedCount = Array.isArray(result.result_data) ? result.result_data.length : 0;
-        message += `✅ Datos limpiados: ${cleanedCount} filas resultantes`;
+        message += `✅ Data cleaned: ${cleanedCount} resulting rows`;
       }
       
       message += '\n\n' + (result.content || '');
@@ -2528,7 +2528,7 @@
       }
     } catch (error) {
       console.error('Chart generation error:', error);
-      alert('Error generando gráfico: ' + error.message);
+      alert('Error generating chart: ' + error.message);
     } finally {
       this.chartLoading = false;
     }
@@ -2552,7 +2552,7 @@
       });
     } catch (e) {
       console.error('Vega render error:', e);
-      previewEl.innerHTML = '<div class="text-danger p-3">Error renderizando gráfico</div>';
+      previewEl.innerHTML = '<div class="text-danger p-3">Error rendering chart</div>';
     }
   },
   
@@ -2654,7 +2654,7 @@
   },
   
   clearCanvas() {
-    if (confirm('¿Eliminar todos los gráficos del canvas?')) {
+    if (confirm('Delete all charts from the canvas?')) {
       this.canvasCharts = [];
       this.activeChartId = null;
       this.saveThreadCharts();
@@ -2798,7 +2798,7 @@
         this.derivePreview = result.preview || [];
         this.deriveCode = result.code || '';
       } else {
-        this.deriveError = result.error || result.message || 'Error generando campo';
+        this.deriveError = result.error || result.message || 'Error generating field';
       }
     } catch (error) {
       console.error('Derive field error:', error);
@@ -3023,7 +3023,7 @@
         try {
           sessionStorage.setItem('copilot_canvas_charts', JSON.stringify(this.canvasCharts));
         } catch (e) {
-          console.warn('No se pudieron guardar los gráficos para el canvas:', e);
+          console.warn('Could not save charts for the canvas:', e);
         }
       }
       const url = `/visualizepg${params.toString() ? `?${params.toString()}` : ''}`;
@@ -3194,7 +3194,7 @@
       html = text.replace(/\n/g, '<br>');
     }
     
-    // Reemplazar [GRAFICAR:N] por botón "Graficar" inline (junto a cada "Gráfico: ..." en el texto)
+    // Replace [GRAFICAR:N] with inline "Chart" button (next to each "Chart: ..." in the text)
     if (chartSuggestions && chartSuggestions.length > 0 && typeof msgIndex === 'number') {
       const safeIdx = Math.max(0, msgIndex);
       html = html.replace(/\[GRAFICAR:(\d+)\]/gi, (_, n) => {
@@ -3242,7 +3242,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <small class="text-muted"><i class="bi bi-bar-chart-fill"></i> Visualization</small>
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('${blockId}').style.display = document.getElementById('${blockId}').style.display === 'none' ? 'block' : 'none'" title="Ver código">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('${blockId}').style.display = document.getElementById('${blockId}').style.display === 'none' ? 'block' : 'none'" title="View code">
                       <i class="bi bi-code-slash"></i>
                     </button>
                     <button class="btn btn-outline-primary btn-sm" onclick="window.addInlineChartToCanvas && window.addInlineChartToCanvas('${chartId}')" title="Agregar al canvas">
@@ -3273,11 +3273,11 @@
           <div class="code-block-header">
             <span class="code-block-lang">${language}</span>
             <div class="code-block-actions">
-              <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copiar código">
+              <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copy code">
                 <i class="bi bi-clipboard"></i> Copiar
               </button>
               ${isExecutable ? `
-                <button class="btn-run" onclick="window.runCode('${blockId}', '${language}')" title="Ejecutar código">
+                <button class="btn-run" onclick="window.runCode('${blockId}', '${language}')" title="Execute code">
                   <i class="bi bi-play-fill"></i> Ejecutar
                 </button>
               ` : ''}
@@ -3416,7 +3416,7 @@ window.runCode = async function(blockId, language) {
   }
   
   if (!chatComponent) {
-    alert('Error: No se pudo acceder al estado de la aplicación');
+    alert('Error: Could not access application state');
     return;
   }
   
@@ -3459,17 +3459,17 @@ window.runCode = async function(blockId, language) {
     
     if (result.status === 'success' || result.status === 'ok') {
       // Display result in chat with HTML table
-      let message = '✅ **Código Ejecutado**\n\n';
+      let message = '✅ **Code Executed**\n\n';
       
       if (result.result_data && Array.isArray(result.result_data) && result.result_data.length > 0) {
         const rows = result.result_data;
         const headers = Object.keys(rows[0]);
         const tableId = `result-table-${Date.now()}`;
         
-        message += `Resultado: **${rows.length} filas**\n\n`;
+        message += `Result: **${rows.length} rows**\n\n`;
         message += `<div class="execution-result">`;
         message += `<div class="execution-result-header">`;
-        message += `<span><i class="bi bi-table"></i> Datos (${rows.length} filas × ${headers.length} columnas)</span>`;
+        message += `<span><i class="bi bi-table"></i> Data (${rows.length} rows × ${headers.length} columns)</span>`;
         message += `<button class="btn btn-sm btn-light" onclick="window.downloadTableCSV('${tableId}', '${chatComponent.activeDataset?.name || 'result'}.csv')">`;
         message += `<i class="bi bi-download"></i> CSV</button>`;
         message += `</div>`;
@@ -3487,7 +3487,7 @@ window.runCode = async function(blockId, language) {
         message += `</div></div>`;
         
         if (rows.length > 50) {
-          message += `\n*Mostrando 50 de ${rows.length} filas*`;
+          message += `\n*Showing 50 of ${rows.length} rows*`;
         }
         
         // Store full data for download
