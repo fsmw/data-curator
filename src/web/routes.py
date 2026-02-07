@@ -114,7 +114,7 @@ from src.dataset_catalog import DatasetCatalog
 @ui_bp.route("/status")
 def status() -> str:
     """Render the status/home page."""
-    ctx = base_context("status", "Status", "Estado del proyecto")
+    ctx = base_context("status", "Status", "Project Status")
     
     try:
         config = Config()
@@ -157,7 +157,7 @@ def status() -> str:
 def browse_local() -> str:
     """Render the local datasets browser page."""
     ctx = base_context(
-        "browse_local", "Browse Local", "Datasets disponibles localmente"
+        "browse_local", "Browse Local", "Locally Available Datasets"
     )
     return render_template("browse_local.html", **ctx)
 
@@ -172,7 +172,7 @@ def browse_available():
 @ui_bp.route("/edit")
 def edit_page() -> str:
     """Render the dataset editor page."""
-    ctx = base_context("edit", "Edit", "Editar datasets")
+    ctx = base_context("edit", "Edit", "Edit Datasets")
     ctx["dataset_id"] = request.args.get("dataset_id", type=int)
     return render_template("visualization_canvas.html", **ctx)
 
@@ -180,7 +180,7 @@ def edit_page() -> str:
 @ui_bp.route("/search")
 def search() -> str:
     """Render the search page."""
-    ctx = base_context("search", "Search", "Buscar indicadores y temas")
+    ctx = base_context("search", "Search", "Search Indicators and Topics")
     return render_template("search.html", **ctx)
 
 
@@ -204,7 +204,7 @@ def copilot_chat_page() -> str:
 @ui_bp.route("/visualizepg")
 def visualizepg_page() -> str:
     """Render the PyGWalker visualization view."""
-    ctx = base_context("visualizepg", "Visualizacion", "Explorar con PyGWalker")
+    ctx = base_context("visualizepg", "Visualizacion", "Explore with PyGWalker")
     dataset_id = request.args.get("dataset_id", type=int)
     ctx["dataset_id"] = dataset_id
     ctx["pygwalker_error"] = ""
@@ -302,5 +302,5 @@ def visualizepg_frame() -> str:
 @ui_bp.route("/help")
 def help_page() -> str:
     """Render the help page."""
-    ctx = base_context("help", "Help", "Atajos y guia")
+    ctx = base_context("help", "Help", "Shortcuts and Guide")
     return render_template("help.html", **ctx)
