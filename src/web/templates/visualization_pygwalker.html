@@ -42,12 +42,12 @@
       <h6 class="mb-0 text-uppercase small">Concept Shelf</h6>
       <span class="badge bg-light text-dark" x-text="filteredDatasets.length"></span>
     </div>
-    <input class="form-control form-control-sm" placeholder="Buscar dataset" x-model="searchQuery"
+    <input class="form-control form-control-sm" placeholder="Search dataset" x-model="searchQuery"
       @input="applyFilter()" :disabled="loadingDatasets" />
     <div class="list-group mt-2" style="max-height: 520px; overflow-y: auto;">
       <div x-show="filteredDatasets.length === 0" class="p-3 text-center text-muted small">
         <i class="bi bi-inbox d-block mb-1" style="font-size: 1.2rem;"></i>
-        No hay datasets
+        No datasets
       </div>
       <template x-for="ds in filteredDatasets" :key="ds.id">
         <button type="button" class="list-group-item list-group-item-action"
@@ -75,7 +75,7 @@
          class="alert alert-warning"
          x-cloak>
       Dataset grande detectado (~<span x-text="formatBytes(selectedDatasetSizeBytes)"></span>).
-      PyGWalker podría tardar en cargar o consumir mucha memoria del navegador.
+      PyGWalker may take time to load or consume significant browser memory.
     </div>
 
     <div x-show="iframeSrc" x-cloak class="bg-white border rounded p-2 pygwalker-frame">
@@ -83,7 +83,7 @@
     </div>
     <div x-show="!iframeSrc" x-cloak class="border rounded bg-white p-5 text-center text-muted">
       <i class="bi bi-bar-chart-line fs-2 d-block mb-2"></i>
-      Selecciona un dataset para abrir PyGWalker.
+      Select a dataset to open PyGWalker.
     </div>
   </div>
 </div>
