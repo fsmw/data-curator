@@ -2305,7 +2305,7 @@
       this.addAgentMessage(
         `🔭 **Exploration Suggestions**\n\n` +
         `I have analyzed the dataset and found ${result.suggestions.length} suggestions. ` +
-        `Puedes seleccionar una de las opciones sugeridas abajo.`
+        `You can select one of the suggested options below.`
       );
     } else if (result.status === 'success' || result.status === 'ok') {
       // No suggestions but still ok
@@ -3517,7 +3517,7 @@ window.runCode = async function(blockId, language) {
 window.downloadTableCSV = function(tableId, filename) {
   const data = window._tableData && window._tableData[tableId];
   if (!data || data.length === 0) {
-    alert('No hay datos para descargar');
+    alert('No data to download');
     return;
   }
   
