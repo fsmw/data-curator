@@ -20,6 +20,12 @@ __pycache__/
 *$py.class
 *.so
 
+# Carpetas de trabajo
+01_Raw_Data_Bank/
+02_Datasets_Limpios/
+03_Metadata_y_Notas/
+04_Graficos_Asociados/
+
 # Distribution / packaging
 dist/
 build/
