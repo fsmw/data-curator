@@ -746,7 +746,7 @@
         <div class="quality-card-header">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-clipboard-data"></i>
-            <span class="fw-bold">Calidad de Datos</span>
+            <span class="fw-bold">Data Quality</span>
             <span class="badge bg-light text-dark" x-text="activeDataset ? activeDataset.name : ''"></span>
           </div>
           <button class="btn btn-sm btn-link text-white p-0" @click="qualityReport = null">
@@ -756,7 +756,7 @@
         <div class="p-2">
           <!-- Quality Score Bar -->
           <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="small text-muted">Puntuación:</span>
+            <span class="small text-muted">Score:</span>
             <div class="quality-bar flex-grow-1">
               <div class="quality-bar-fill" 
                    :style="`width: ${qualityReport ? qualityReport.score : 0}%; background: ${getQualityColor(qualityReport ? qualityReport.score : 0)}`">
@@ -776,13 +776,13 @@
               </div>
             </template>
             <div x-show="qualityReport && qualityReport.issues && qualityReport.issues.length > 5" class="text-muted small text-center pt-1">
-              + <span x-text="qualityReport && qualityReport.issues ? qualityReport.issues.length - 5 : 0"></span> más problemas
+              + <span x-text="qualityReport && qualityReport.issues ? qualityReport.issues.length - 5 : 0"></span> more issues
             </div>
           </div>
           
           <!-- No Issues -->
           <div x-show="qualityReport && qualityReport.issues && qualityReport.issues.length === 0" class="text-center text-success small py-2">
-            <i class="bi bi-check-circle-fill me-1"></i> ¡Sin problemas detectados!
+            <i class="bi bi-check-circle-fill me-1"></i> No issues detected!
           </div>
           
           <!-- Actions -->
@@ -790,7 +790,7 @@
             <button class="btn btn-sm btn-outline-primary flex-grow-1" 
                     @click="runAgentAction('clean')" 
                     :disabled="agentLoading || !(qualityReport && qualityReport.issues && qualityReport.issues.length)">
-              <i class="bi bi-brush"></i> Limpiar Automático
+              <i class="bi bi-brush"></i> Automatic Clean
             </button>
             <button class="btn btn-sm btn-outline-secondary" @click="showQualityDetails = !showQualityDetails">
               <i class="bi" :class="showQualityDetails ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
