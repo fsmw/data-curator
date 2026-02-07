@@ -74,7 +74,7 @@
     <div x-show="selectedDatasetSizeBytes && selectedDatasetSizeBytes >= largeDatasetThresholdBytes"
          class="alert alert-warning"
          x-cloak>
-      Dataset grande detectado (~<span x-text="formatBytes(selectedDatasetSizeBytes)"></span>).
+      Large dataset detected (~<span x-text="formatBytes(selectedDatasetSizeBytes)"></span>).
       PyGWalker may take time to load or consume significant browser memory.
     </div>
 

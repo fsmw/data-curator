@@ -1186,9 +1186,9 @@
                       <i class="bi bi-x"></i>
                     </button>
                   </div>
-                  <div x-show="!chartEncodings.x" class="encoding-slot-placeholder">
+                   <div x-show="!chartEncodings.x" class="encoding-slot-placeholder">
                     <select class="form-select form-select-sm" @change="setEncoding('x', $event.target.value); $event.target.value = ''">
-                      <option value="">Seleccionar...</option>
+                      <option value="">Select...</option>
                       <template x-for="f in fields" :key="f.name">
                         <option :value="f.name" x-text="f.name"></option>
                       </template>
@@ -1210,9 +1210,9 @@
                       <i class="bi bi-x"></i>
                     </button>
                   </div>
-                  <div x-show="!chartEncodings.y" class="encoding-slot-placeholder">
+                   <div x-show="!chartEncodings.y" class="encoding-slot-placeholder">
                     <select class="form-select form-select-sm" @change="setEncoding('y', $event.target.value); $event.target.value = ''">
-                      <option value="">Seleccionar...</option>
+                      <option value="">Select...</option>
                       <template x-for="f in fields" :key="f.name">
                         <option :value="f.name" x-text="f.name"></option>
                       </template>

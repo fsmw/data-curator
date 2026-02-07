@@ -233,7 +233,7 @@
         if (detail) {
           this.selectDataset(detail);
         } else {
-          this.datasetLoadError = `No se pudo cargar dataset ${datasetId}`;
+          this.datasetLoadError = `Could not load dataset ${datasetId}`;
           console.warn('[edit] dataset not found', datasetId);
         }
       },
@@ -373,10 +373,10 @@
             this.initialDatasetId = data.dataset.id;
             await this.loadDatasets();
           } else {
-            this.forkStatus = data.message || 'No se pudo crear el fork';
+            this.forkStatus = data.message || 'Could not create fork';
           }
         } catch (err) {
-          this.forkStatus = err.message || 'No se pudo crear el fork';
+          this.forkStatus = err.message || 'Could not create fork';
         } finally {
           this.forking = false;
         }
