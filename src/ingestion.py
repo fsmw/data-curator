@@ -2,13 +2,16 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import pandas as pd
 import requests
 from datetime import datetime
+import time
 import shutil
+import gzip
+from io import BytesIO
 
-from logger import get_logger
+from src.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -92,9 +95,19 @@ class ManualUpload(DataSource):
 
 
 class ILOSTATSource(DataSource):
-    """Handler for ILOSTAT API data."""
+    """Handler for ILOSTAT API data.
+
+    Tries SDMX REST API first; on 404 or failure falls back to ILOSTAT Bulk Download
+    (https://webapps.ilo.org/ilostat-files/WEB_bulk_download/indicator/).
+    """
 
     BASE_URL = "https://www.ilo.org/sdmx/rest/data"
+    # ILOSTAT bulk download via rplumber (https://rplumber.ilo.org/data/indicator/?id=ID&format=.csv.gz)
+    BULK_BASE_URL = "https://rplumber.ilo.org/data/indicator"
+    # Map indicator codes from indicators.yaml to bulk download indicator IDs (optional fallback)
+    BULK_INDICATOR_MAP = {
+        "EMP_TEMP_SEX_AGE_NB": "EMP_2IFL_SEX_NB",   # Informal employment → alternative bulk ID
+    }
 
     def __init__(self, raw_data_dir: Path):
         super().__init__("ILOSTAT", raw_data_dir)
@@ -108,51 +121,103 @@ class ILOSTATSource(DataSource):
         **kwargs,
     ) -> pd.DataFrame:
         """
-        Fetch data from ILOSTAT API using SDMX protocol.
-
-        Args:
-            indicator: ILOSTAT indicator code
-            countries: List of ISO country codes
-            start_year: Starting year
-            end_year: Ending year
-
-        Returns:
-            DataFrame with the data
+        Fetch data from ILOSTAT: try SDMX API first, then Bulk Download CSV.gz.
         """
         if countries is None:
             countries = ["ARG", "BRA", "CHL", "COL", "MEX", "PER", "URY"]
 
+        # 1) Try SDMX REST API
         try:
-            # Construct SDMX query
-            # Format: {base_url}/{dataflow}/{country},{...}/{...}/all?startPeriod={start}&endPeriod={end}
             countries_str = ",".join(countries)
-
             url = f"{self.BASE_URL}/DF_STR/{countries_str}/.*/{indicator}?startPeriod={start_year}&endPeriod={end_year}&format=sdmx-json&detail=full"
-
-            logger.info(f"Fetching from ILOSTAT: {indicator}")
-            logger.info(f"  Countries: {countries_str}")
-            logger.info(f"  Period: {start_year}-{end_year}")
-
+            logger.info(f"Fetching from ILOSTAT (SDMX): {indicator}")
+            logger.info(f"  Countries: {countries_str}, Period: {start_year}-{end_year}")
             response = requests.get(url, timeout=30)
             response.raise_for_status()
-
-            # Parse SDMX-JSON response
             data = response.json()
-
-            # Extract data from SDMX-JSON structure
             df = self._parse_sdmx_json(data, indicator)
-
             if len(df) > 0:
-                logger.info(f"Retrieved {len(df)} records from ILOSTAT")
-            else:
-                logger.warning(f"No data found for indicator {indicator}")
-
-            return df
-
+                logger.info(f"Retrieved {len(df)} records from ILOSTAT (SDMX)")
+                return df
         except requests.exceptions.RequestException as e:
-            logger.error(f"ILOSTAT API error: {e}")
-            logger.info("Falling back to template mode")
-            return pd.DataFrame(columns=["country", "year", "value", "indicator"])
+            logger.warning(f"ILOSTAT SDMX failed: {e}, trying Bulk Download")
+
+        # 2) Fallback: Bulk Download (CSV.gz by indicator)
+        df = self._fetch_bulk_download(indicator, countries, start_year, end_year)
+        if len(df) > 0:
+            logger.info(f"Retrieved {len(df)} records from ILOSTAT (Bulk Download)")
+        else:
+            logger.warning(f"No data found for indicator {indicator}")
+        return df if len(df) > 0 else pd.DataFrame(
+            columns=["country", "year", "value", "indicator"]
+        )
+
+    def _fetch_bulk_download(
+        self,
+        indicator: str,
+        countries: List[str],
+        start_year: int,
+        end_year: int,
+    ) -> pd.DataFrame:
+        """Download indicator from ILOSTAT Bulk Download (rplumber.ilo.org API)."""
+        # Bulk API uses ?id=INDICATOR_ID&format=.csv.gz (e.g. id=EMP_TEMP_SEX_AGE_NB_A for annual)
+        candidates = [f"{indicator}_A", f"{indicator}"]
+        if indicator in self.BULK_INDICATOR_MAP:
+            stem = self.BULK_INDICATOR_MAP[indicator]
+            candidates.extend([f"{stem}_A", f"{stem}"])
+        for bulk_id in candidates:
+            url = f"{self.BULK_BASE_URL}/?id={bulk_id}&format=.csv.gz"
+            try:
+                resp = requests.get(url, timeout=30)
+                resp.raise_for_status()
+            except requests.exceptions.RequestException:
+                continue
+            try:
+                with gzip.open(BytesIO(resp.content), "rt", encoding="utf-8") as f:
+                    df = pd.read_csv(f)
+            except Exception as e:
+                logger.warning(f"Failed to parse bulk CSV {bulk_id}: {e}")
+                continue
+            if df.empty:
+                continue
+            # Normalize columns (ILOSTAT bulk uses ref_area, time, obs_value or similar)
+            col_map = {}
+            for c in df.columns:
+                c_lower = str(c).strip().lower()
+                if c_lower in ("ref_area", "country", "country_code"):
+                    col_map[c] = "country"
+                elif c_lower in ("time", "year", "period"):
+                    col_map[c] = "year"
+                elif c_lower in ("obs_value", "value", "obsvalue"):
+                    col_map[c] = "value"
+            df = df.rename(columns=col_map)
+            if "country" not in df.columns or "year" not in df.columns:
+                # Try first column as country, second as time
+                cols = df.columns.tolist()
+                if len(cols) >= 2:
+                    df = df.rename(columns={cols[0]: "country", cols[1]: "year"})
+            if "value" not in df.columns and len(df.columns) >= 3:
+                df = df.rename(columns={df.columns[2]: "value"})
+            if "country" in df.columns and "year" in df.columns:
+                try:
+                    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+                    df = df.dropna(subset=["year"])
+                    df = df[(df["year"] >= start_year) & (df["year"] <= end_year)]
+                except Exception:
+                    pass
+            if "country" in df.columns and countries:
+                df = df[df["country"].astype(str).str.upper().isin([c.upper() for c in countries])]
+            if "value" in df.columns:
+                df["value"] = pd.to_numeric(df["value"], errors="coerce")
+            df["indicator"] = indicator
+            # Keep only standard columns for consistency
+            out_cols = [c for c in ["country", "year", "value", "indicator"] if c in df.columns]
+            df = df[out_cols].dropna(subset=["value"]).copy()
+            if not df.empty:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.save_raw(df, f"{indicator}_bulk_{timestamp}.csv")
+                return df
+        return pd.DataFrame()
 
     def _parse_sdmx_json(self, data: dict, indicator: str) -> pd.DataFrame:
         """Parse SDMX-JSON response into DataFrame."""
@@ -833,62 +898,85 @@ class OWIDSource(DataSource):
         Returns:
             Dictionary with metadata including description, methodology, sources
         """
-        try:
-            url = f"{self.BASE_URL}/{slug}.metadata.json"
-            logger.info(f"Fetching OWID metadata: {slug}")
+        url = f"{self.BASE_URL}/{slug}.metadata.json"
+        logger.info(f"Fetching OWID metadata: {slug}")
 
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
+        retries = 3
+        backoff_seconds = 2
+        for attempt in range(1, retries + 1):
+            try:
+                response = requests.get(url, timeout=30)
+                if response.status_code in {429, 502, 503, 504}:
+                    raise requests.exceptions.HTTPError(
+                        f"{response.status_code} Server Error: {response.reason} for url: {response.url}",
+                        response=response,
+                    )
+                response.raise_for_status()
 
-            metadata = response.json()
+                metadata = response.json()
 
-            # Extract key fields
-            enriched = {
-                "slug": slug,
-                "title": metadata.get("title", ""),
-                "description": metadata.get("description", ""),
-                "unit": metadata.get("unit", ""),
-                "sources": [],
-                "methodology": "",
-                "limitations": [],
-                "last_updated": None,
-                "license": "CC BY 4.0",
-                "url": f"https://ourworldindata.org/grapher/{slug}",
-                "raw_metadata": metadata,  # Keep full metadata
-            }
+                # Extract key fields
+                enriched = {
+                    "slug": slug,
+                    "title": metadata.get("title", ""),
+                    "description": metadata.get("description", ""),
+                    "note": metadata.get("note", ""),
+                    "citation": metadata.get("citation", ""),
+                    "unit": metadata.get("unit", ""),
+                    "sources": [],
+                    "methodology": "",
+                    "limitations": [],
+                    "last_updated": None,
+                    "license": "CC BY 4.0",
+                    "url": f"https://ourworldindata.org/grapher/{slug}",
+                    "raw_metadata": metadata,  # Keep full metadata
+                }
 
-            # Extract sources information
-            if "sources" in metadata and isinstance(metadata["sources"], list):
-                for source in metadata["sources"]:
-                    source_info = {
-                        "name": source.get("name", ""),
-                        "url": source.get("url", ""),
-                        "description": source.get("description", ""),
-                        "date_accessed": source.get("dateAccessed", ""),
-                    }
-                    enriched["sources"].append(source_info)
+                # Extract sources information
+                if "sources" in metadata and isinstance(metadata["sources"], list):
+                    for source in metadata["sources"]:
+                        source_info = {
+                            "name": source.get("name", ""),
+                            "url": source.get("url", ""),
+                            "description": source.get("description", ""),
+                            "date_accessed": source.get("dateAccessed", ""),
+                        }
+                        enriched["sources"].append(source_info)
 
-            # Try to extract methodology from description or additionalInfo
-            if "additionalInfo" in metadata:
-                enriched["methodology"] = metadata["additionalInfo"]
+                # Try to extract methodology from description or additionalInfo
+                if "additionalInfo" in metadata:
+                    enriched["methodology"] = metadata["additionalInfo"]
 
-            # Extract dataset information if available
-            if "dataset" in metadata and isinstance(metadata["dataset"], dict):
-                dataset = metadata["dataset"]
-                enriched["dataset_name"] = dataset.get("name", "")
-                enriched["dataset_version"] = dataset.get("version", "")
-                if "updatedAt" in dataset:
-                    enriched["last_updated"] = dataset["updatedAt"]
+                # Extract dataset information if available
+                if "dataset" in metadata and isinstance(metadata["dataset"], dict):
+                    dataset = metadata["dataset"]
+                    enriched["dataset_name"] = dataset.get("name", "")
+                    enriched["dataset_version"] = dataset.get("version", "")
+                    if "updatedAt" in dataset:
+                        enriched["last_updated"] = dataset["updatedAt"]
 
-            logger.info(f"Retrieved metadata for {slug}")
-            return enriched
+                logger.info(f"Retrieved metadata for {slug}")
+                return enriched
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"OWID metadata error: {e}")
-            return {"slug": slug, "error": str(e)}
-        except Exception as e:
-            logger.error(f"Error parsing OWID metadata: {e}")
-            return {"slug": slug, "error": str(e)}
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code if e.response else None
+                if status_code in {429, 502, 503, 504} and attempt < retries:
+                    wait_time = backoff_seconds * attempt
+                    logger.warning(
+                        f"OWID metadata transient error ({status_code}) for {slug}; retrying in {wait_time}s"
+                    )
+                    time.sleep(wait_time)
+                    continue
+                logger.warning(f"OWID metadata unavailable for {slug}: {e}")
+                return {"slug": slug, "error": str(e), "status_code": status_code}
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"OWID metadata request failed for {slug}: {e}")
+                return {"slug": slug, "error": str(e)}
+            except Exception as e:
+                logger.error(f"Error parsing OWID metadata: {e}")
+                return {"slug": slug, "error": str(e)}
+
+        return {"slug": slug, "error": "OWID metadata unavailable after retries"}
 
     def fetch_with_metadata(
         self,

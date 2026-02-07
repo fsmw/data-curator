@@ -1,0 +1,99 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: 
+      - link "Mises Data" [ref=e6] [cursor=pointer]:
+        - /url: /
+    - navigation [ref=e7]:
+      - link " Status" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e9]: 
+        - generic [ref=e10]: Status
+      - link " Search" [ref=e11] [cursor=pointer]:
+        - /url: /search
+        - generic [ref=e12]: 
+        - generic [ref=e13]: Search
+      - link " Browse Local" [ref=e14] [cursor=pointer]:
+        - /url: /browse_local
+        - generic [ref=e15]: 
+        - generic [ref=e16]: Browse Local
+      - link " Compare" [ref=e17] [cursor=pointer]:
+        - /url: /compare
+        - generic [ref=e18]: 
+        - generic [ref=e19]: Compare
+      - link " AI Chat" [ref=e20] [cursor=pointer]:
+        - /url: /copilot_chat
+        - generic [ref=e21]: 
+        - generic [ref=e22]: AI Chat
+      - link " Help" [ref=e23] [cursor=pointer]:
+        - /url: /help
+        - generic [ref=e24]: 
+        - generic [ref=e25]: Help
+    - generic [ref=e27]:
+      - generic [ref=e28]: 
+      - generic [ref=e29]: v1.2 Arto
+  - main [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - text: 
+        - generic [ref=e33]:
+          - generic [ref=e34]: Correlaciones y Comparaciones
+          - heading "Compare Datasets" [level=1] [ref=e35]
+      - generic [ref=e36]:
+        - link " Help" [ref=e37] [cursor=pointer]:
+          - /url: /help
+          - generic [ref=e38]: 
+          - text: Help
+        - link " New Analysis" [ref=e39] [cursor=pointer]:
+          - /url: /search
+          - generic [ref=e40]: 
+          - text: New Analysis
+      - text: 
+    - generic [ref=e42]:
+      - generic [ref=e45]:
+        - heading " Configuración" [level=5] [ref=e46]:
+          - generic [ref=e47]: 
+          - text: Configuración
+        - generic [ref=e48]:
+          - generic [ref=e49]: Eje Y (Vertical)
+          - button " Seleccionar" [ref=e51] [cursor=pointer]:
+            - generic [ref=e52]: 
+            - text: Seleccionar
+        - generic [ref=e53]:
+          - generic [ref=e54]: Eje X (Horizontal)
+          - button " Seleccionar" [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: 
+            - text: Seleccionar
+        - separator [ref=e58]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]: Año
+            - generic [ref=e62]: "2020"
+          - slider [disabled]: "2020"
+          - generic [ref=e63]:
+            - generic [ref=e64]: "2000"
+            - generic [ref=e65]: "2023"
+      - generic [ref=e66]:
+        - generic [ref=e68]:
+          - generic [ref=e70]: 
+          - heading "Comparador de Datos" [level=3] [ref=e71]
+          - paragraph [ref=e72]:
+            - text: Seleccione dos datasets para analizar correlaciones.
+            - text: Descubra cómo interactúan diferentes variables económicas y sociales.
+          - generic [ref=e73]:
+            - button "1. Elegir Variable Y" [ref=e74] [cursor=pointer]
+            - button "2. Elegir Variable X" [ref=e75] [cursor=pointer]
+        - text:   
+      - dialog [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - heading "Seleccionar Dataset" [level=5] [ref=e79]
+            - button "Close" [ref=e80] [cursor=pointer]
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e84]: 
+              - textbox "Buscar indicador (ej. PIB, inflación...)" [active] [ref=e85]: GDP
+            - generic [ref=e151]:
+              - text: No se encontraron datasets descargados.
+              - link "Ir a Búsqueda Global" [ref=e152] [cursor=pointer]:
+                - /url: /search

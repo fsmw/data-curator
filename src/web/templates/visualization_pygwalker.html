@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  [x-cloak] { display: none !important; }
+
+  .pygwalker-shell {
+    min-height: calc(100vh - 160px);
+  }
+
+  .pygwalker-frame {
+    min-height: calc(100vh - 200px);
+  }
+
+  .pygwalker-iframe {
+    width: 100%;
+    min-height: calc(100vh - 220px);
+    border: 0;
+  }
+
+  .dataset-panel {
+    width: 280px;
+    min-width: 280px;
+  }
+
+  .dataset-option {
+    cursor: pointer;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<div x-data="pygwalkerView()" x-init="init()" class="pygwalker-shell d-flex gap-3">
+  <div class="dataset-panel border-end bg-light p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0 text-uppercase small">Concept Shelf</h6>
+      <span class="badge bg-light text-dark" x-text="filteredDatasets.length"></span>
+    </div>
+    <input class="form-control form-control-sm" placeholder="Buscar dataset" x-model="searchQuery"
+      @input="applyFilter()" :disabled="loadingDatasets" />
+    <div class="list-group mt-2" style="max-height: 520px; overflow-y: auto;">
+      <div x-show="filteredDatasets.length === 0" class="p-3 text-center text-muted small">
+        <i class="bi bi-inbox d-block mb-1" style="font-size: 1.2rem;"></i>
+        No hay datasets
+      </div>
+      <template x-for="ds in filteredDatasets" :key="ds.id">
+        <button type="button" class="list-group-item list-group-item-action"
+          :class="{ 'active': selectedDatasetId === ds.id }"
+          @click="selectDataset(ds)">
+          <div class="fw-semibold" x-text="ds.name"></div>
+          <div class="small text-muted" x-text="ds.file_name"></div>
+          <div class="small text-secondary" x-text="ds.source"></div>
+        </button>
+      </template>
+    </div>
+    <button class="btn btn-primary w-100 mt-3" @click="loadSelected()" :disabled="!selectedDatasetId">
+      <i class="bi bi-play-fill me-1"></i> Load PyGWalker
+    </button>
+  </div>
+
+  <div class="flex-grow-1">
+    {% if pygwalker_error %}
+      <div class="alert alert-danger" role="alert">
+        {{ pygwalker_error }}
+      </div>
+    {% endif %}
+
+    <div x-show="selectedDatasetSizeBytes && selectedDatasetSizeBytes >= largeDatasetThresholdBytes"
+         class="alert alert-warning"
+         x-cloak>
+      Dataset grande detectado (~<span x-text="formatBytes(selectedDatasetSizeBytes)"></span>).
+      PyGWalker podría tardar en cargar o consumir mucha memoria del navegador.
+    </div>
+
+    <div x-show="iframeSrc" x-cloak class="bg-white border rounded p-2 pygwalker-frame">
+      <iframe class="pygwalker-iframe" :src="iframeSrc" title="PyGWalker"></iframe>
+    </div>
+    <div x-show="!iframeSrc" x-cloak class="border rounded bg-white p-5 text-center text-muted">
+      <i class="bi bi-bar-chart-line fs-2 d-block mb-2"></i>
+      Selecciona un dataset para abrir PyGWalker.
+    </div>
+  </div>
+</div>
+
+<script>
+  function pygwalkerView() {
+    return {
+      availableDatasets: [],
+      filteredDatasets: [],
+      searchQuery: '',
+      selectedDatasetId: {{ dataset_id | tojson }},
+      selectedDatasetSizeBytes: {{ (selected_dataset.file_size_bytes if selected_dataset else None) | tojson }},
+      iframeSrc: {{ iframe_src | tojson }},
+      chartIntent: {{ chart_intent | tojson }},
+      loadingDatasets: false,
+      largeDatasetThresholdBytes: {{ large_dataset_threshold_bytes | tojson }},
+
+      init() {
+        this.fetchAvailableDatasets();
+        if (this.selectedDatasetId) {
+          this.bootstrapDataset(this.selectedDatasetId);
+        }
+      },
+
+      applyFilter() {
+        const needle = this.searchQuery.trim().toLowerCase();
+        if (!needle) {
+          this.filteredDatasets = [...this.availableDatasets];
+          return;
+        }
+        this.filteredDatasets = this.availableDatasets.filter(ds => {
+          const name = (ds.name || '').toLowerCase();
+          const file = (ds.file_name || '').toLowerCase();
+          return name.includes(needle) || file.includes(needle);
+        });
+      },
+
+      async bootstrapDataset(datasetId) {
+        if (!datasetId) return;
+        const detail = await this.fetchDataset(datasetId);
+        if (detail) {
+          this.selectDataset(detail);
+        }
+      },
+
+      async fetchDataset(datasetId) {
+        try {
+          const response = await fetch(`/api/datasets/${datasetId}`);
+          const data = await response.json();
+          if (data.status === 'success' && data.dataset) {
+            return {
+              id: data.dataset.id,
+              name: data.dataset.indicator_name || data.dataset.file_name,
+              file_name: data.dataset.file_name,
+              source: data.dataset.source,
+              row_count: data.dataset.row_count,
+              file_size_bytes: data.dataset.file_size_bytes
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching dataset:', error);
+        }
+        return null;
+      },
+
+      async fetchAvailableDatasets() {
+        try {
+          this.loadingDatasets = true;
+          const response = await fetch('/api/datasets?limit=300');
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.availableDatasets = data.datasets.map(ds => ({
+              id: ds.id,
+              name: ds.indicator_name || ds.file_name,
+              file_name: ds.file_name,
+              source: ds.source,
+              row_count: ds.row_count,
+              file_size_bytes: ds.file_size_bytes
+            }));
+            this.applyFilter();
+            if (this.selectedDatasetId) {
+              const selected = this.availableDatasets.find(ds => String(ds.id) === String(this.selectedDatasetId));
+              if (selected) {
+                this.selectDataset(selected);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching datasets:', error);
+        } finally {
+          this.loadingDatasets = false;
+        }
+      },
+
+      refreshDatasets() {
+        this.fetchAvailableDatasets();
+      },
+
+      selectDataset(ds) {
+        this.selectedDatasetId = ds.id;
+        this.selectedDatasetSizeBytes = ds.file_size_bytes;
+      },
+
+      loadSelected() {
+        if (!this.selectedDatasetId) return;
+        this.setIframeSrc(this.selectedDatasetId);
+      },
+
+      setIframeSrc(datasetId) {
+        if (!datasetId) {
+          this.iframeSrc = '';
+          return;
+        }
+        const params = new URLSearchParams();
+        params.set('dataset_id', datasetId);
+        if (this.chartIntent) params.set('chart_intent', this.chartIntent);
+        this.iframeSrc = `/visualizepg/frame?${params.toString()}`;
+        window.history.replaceState({}, '', `/visualizepg?${params.toString()}`);
+      },
+
+      formatBytes(bytes) {
+        if (!bytes || Number.isNaN(bytes)) return '';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex += 1;
+        }
+        return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+      }
+    };
+  }
+</script>
+{% endblock %}

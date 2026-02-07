@@ -454,39 +454,76 @@ def document(input_file, topic, source, url, force, config):
 @click.option("--topic", required=True, help="Topic name")
 @click.option("--source", required=True, help="Source identifier")
 @click.option("--coverage", default="global", help="Geographic coverage")
+@click.option("--identifier", help="Optional dataset identifier/slug")
 @click.option("--url", help="Original source URL")
+@click.option("--min-rows", type=int, help="Validation: minimum rows")
+@click.option("--min-columns", type=int, help="Validation: minimum columns")
+@click.option("--max-null-percentage", type=float, help="Validation: max null percentage")
+@click.option("--min-completeness", type=float, help="Validation: min completeness score")
+@click.option("--strict/--no-strict", default=True, help="Fail on validation errors")
+@click.option("--ai-package/--no-ai-package", default=True, help="Create AI-ready package files")
+@click.option("--rag-index/--no-rag-index", default=False, help="Update RAG catalog index")
+@click.option("--force", is_flag=True, help="Force regeneration (ignore cache)")
 @click.option("--config", default="config.yaml", help="Path to configuration file")
-def pipeline(input_file, topic, source, coverage, url, config):
-    """Run full curation pipeline: clean + document."""
+def pipeline(
+    input_file,
+    topic,
+    source,
+    coverage,
+    identifier,
+    url,
+    min_rows,
+    min_columns,
+    max_null_percentage,
+    min_completeness,
+    strict,
+    ai_package,
+    rag_index,
+    force,
+    config,
+):
+    """Run full curation pipeline: clean + validate + metadata + package + index."""
     click.echo(f"🔄 Running full pipeline for: {input_file}\n")
 
     try:
+        from src.pipeline import PipelineRunner, PipelineOptions, PipelineValidationConfig
+
         cfg = Config(config)
-        cleaner = DataCleaner(cfg)
-        metadata_gen = MetadataGenerator(cfg)
 
-        # Step 1: Clean
-        click.echo("Step 1/2: Cleaning data...")
-        data = pd.read_csv(input_file)
-        cleaned = cleaner.clean_dataset(data)
-        output_path = cleaner.save_clean_dataset(cleaned, topic, source, coverage)
-        transformations = cleaner.get_transformations()
+        validation = PipelineValidationConfig()
+        if min_rows is not None:
+            validation.min_rows = min_rows
+        if min_columns is not None:
+            validation.min_columns = min_columns
+        if max_null_percentage is not None:
+            validation.max_null_percentage = max_null_percentage
+        if min_completeness is not None:
+            validation.min_completeness_score = min_completeness
 
-        # Step 2: Document
-        click.echo("\nStep 2/2: Generating metadata...")
-        data_summary = cleaner.get_data_summary(cleaned)
-        metadata_content = metadata_gen.generate_metadata(
+        runner = PipelineRunner(cfg, validation=validation)
+        options = PipelineOptions(
             topic=topic,
-            data_summary=data_summary,
             source=source,
-            transformations=transformations,
-            original_source_url=url,
+            coverage=coverage,
+            url=url,
+            identifier=identifier,
+            force=force,
+            strict_validation=strict,
+            create_ai_package=ai_package,
+            rag_index=rag_index,
         )
-        metadata_path = metadata_gen.save_metadata(topic, metadata_content)
 
-        click.echo(f"\n✅ Pipeline complete!")
-        click.echo(f"   📊 Data: {output_path}")
-        click.echo(f"   📝 Metadata: {metadata_path}")
+        manifest = runner.run(Path(input_file), options)
+
+        click.echo("✅ Pipeline complete!")
+        click.echo(f"   📊 Data: {manifest.get('output', {}).get('clean_path')}")
+        click.echo(f"   📝 Metadata: {manifest.get('metadata_path')}")
+        if manifest.get("quality_report_path"):
+            click.echo(f"   ✅ Quality: {manifest.get('quality_report_path')}")
+        if manifest.get("ai_package"):
+            click.echo(f"   🤖 AI package: {manifest.get('ai_package')}")
+        if manifest.get("catalog_id"):
+            click.echo(f"   🗂️ Catalog ID: {manifest.get('catalog_id')}")
 
     except Exception as e:
         click.echo(f"❌ Error: {e}", err=True)
@@ -541,12 +578,9 @@ def status(config):
     is_flag=True,
     help="Force re-index all datasets (ignore change detection)",
 )
-@click.option(
-    "--clean", is_flag=True, help="Clean up catalog entries for deleted files"
-)
 @click.option("--stats", is_flag=True, help="Show catalog statistics only")
 @click.option("--config", default="config.yaml", help="Path to configuration file")
-def index(filepath, force, clean, stats, config):
+def index(filepath, force, stats, config):
     """Index datasets into SQLite3 catalog for browsing."""
     try:
         cfg = Config(config)
@@ -565,13 +599,6 @@ def index(filepath, force, clean, stats, config):
             click.echo(f"\nBy topic:")
             for topic, count in statistics["by_topic"].items():
                 click.echo(f"  {topic}: {count}")
-            return
-
-        # Clean up deleted files
-        if clean:
-            click.echo("🧹 Cleaning up catalog (removing entries for deleted files)...")
-            # TODO: Implement cleanup method
-            click.echo("⚠️  Cleanup not yet implemented")
             return
 
         # Index single file
@@ -687,6 +714,376 @@ def analyze(
         raise click.Abort()
 
 
+# =============================================================================
+# Agent Commands (Data Formulator-inspired)
+# =============================================================================
+
+@cli.group()
+def agent():
+    """AI-powered data analysis agents."""
+    pass
+
+
+@agent.command("quality")
+@click.argument("filepath", type=click.Path(exists=True))
+@click.option("--fix", is_flag=True, help="Auto-fix detected issues")
+@click.option("--strategy", type=click.Choice(["auto", "drop", "mean", "median", "mode"]), 
+              default="auto", help="Null value handling strategy")
+@click.option("--output", "-o", type=click.Path(), help="Output file for cleaned data")
+def agent_quality(filepath, fix, strategy, output):
+    """
+    Analyze data quality and optionally fix issues.
+    
+    Examples:
+        curate agent quality data.csv
+        curate agent quality data.csv --fix --strategy median
+        curate agent quality data.csv --fix -o cleaned.csv
+    """
+    from src.agents import DataCleanAgent, quick_quality_check
+    
+    click.echo(f"🔍 Analyzing data quality: {filepath}\n")
+    
+    try:
+        data = pd.read_csv(filepath)
+        name = Path(filepath).stem
+        
+        # Run quality check
+        report = quick_quality_check(data, name)
+        
+        # Display results
+        click.echo(f"📊 Dataset: {name}")
+        click.echo(f"   Filas: {report['total_filas']:,}")
+        click.echo(f"   Columnas: {report['total_columnas']}")
+        click.echo(f"   Calidad General: {report['calidad_general'].upper()}\n")
+        
+        if report['issues']:
+            click.echo("⚠️  Problemas Detectados:\n")
+            for issue in report['issues']:
+                severity_icon = "🔴" if issue['severidad'] == "alta" else ("🟡" if issue['severidad'] == "media" else "🟢")
+                click.echo(f"   {severity_icon} [{issue['tipo']}] {issue['columna'] or 'General'}")
+                click.echo(f"      {issue['descripcion']}")
+                click.echo(f"      💡 {issue['solucion_propuesta']}\n")
+        else:
+            click.echo("✅ No se detectaron problemas significativos\n")
+        
+        # Fix issues if requested
+        if fix:
+            click.echo(f"🔧 Aplicando correcciones (estrategia: {strategy})...")
+            
+            agent = DataCleanAgent()
+            cleaned = agent.clean_nulls(data, strategy=strategy)
+            cleaned = agent.remove_duplicates(cleaned)
+            
+            rows_removed = len(data) - len(cleaned)
+            click.echo(f"   Filas originales: {len(data):,}")
+            click.echo(f"   Filas finales: {len(cleaned):,}")
+            click.echo(f"   Filas eliminadas: {rows_removed:,}")
+            
+            # Save if output specified
+            if output:
+                cleaned.to_csv(output, index=False)
+                click.echo(f"\n✅ Datos limpios guardados en: {output}")
+            else:
+                # Show preview
+                click.echo("\n📋 Vista previa (primeras 5 filas):")
+                click.echo(cleaned.head().to_string())
+                click.echo("\n💡 Usa --output/-o para guardar los resultados")
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@agent.command("report")
+@click.argument("filepath", type=click.Path(exists=True))
+@click.option("--topic", "-t", default=None, help="Report topic/title")
+@click.option("--output", "-o", type=click.Path(), help="Output file (markdown)")
+def agent_report(filepath, topic, output):
+    """
+    Generate an analysis report for a dataset.
+    
+    Examples:
+        curate agent report pib_latam.csv
+        curate agent report data.csv --topic "Análisis PIB" -o report.md
+    """
+    from src.agents import quick_report
+    
+    click.echo(f"📝 Generating report: {filepath}\n")
+    
+    try:
+        data = pd.read_csv(filepath)
+        name = Path(filepath).stem
+        report_topic = topic or f"Análisis de {name}"
+        
+        # Generate report
+        report_md = quick_report(data, report_topic)
+        
+        if output:
+            with open(output, 'w', encoding='utf-8') as f:
+                f.write(report_md)
+            click.echo(f"✅ Reporte guardado en: {output}")
+        else:
+            click.echo(report_md)
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@agent.command("transform")
+@click.argument("filepath", type=click.Path(exists=True))
+@click.argument("goal")
+@click.option("--mode", type=click.Choice(["python", "sql"]), default="python", 
+              help="Transformation mode")
+@click.option("--execute", is_flag=True, default=True, help="Execute generated code")
+@click.option("--output", "-o", type=click.Path(), help="Output file for transformed data")
+@click.option("--show-code", is_flag=True, help="Show generated code")
+def agent_transform(filepath, goal, mode, execute, output, show_code):
+    """
+    Transform data using natural language.
+    
+    Examples:
+        curate agent transform data.csv "Calcular promedio por país"
+        curate agent transform data.csv "Filtrar solo años 2020-2023" --show-code
+        curate agent transform data.csv "SELECT pais, AVG(pib) FROM df GROUP BY pais" --mode sql
+    """
+    from src.agents import DataTransformAgent, SQLTransformAgent, create_table_context
+    
+    click.echo(f"🔄 Transforming: {filepath}")
+    click.echo(f"   Goal: {goal}")
+    click.echo(f"   Mode: {mode.upper()}\n")
+    
+    try:
+        data = pd.read_csv(filepath)
+        name = Path(filepath).stem
+        table_ctx = create_table_context(data, name)
+        
+        # Create agent
+        if mode == "sql":
+            agent = SQLTransformAgent(language="es")
+        else:
+            agent = DataTransformAgent(language="es")
+        
+        # Run transformation
+        click.echo("⏳ Generando transformación...")
+        response = agent.transform(goal, [table_ctx], execute=execute)
+        
+        if response.status != "ok":
+            click.echo(f"❌ Error: {response.error}", err=True)
+            raise click.Abort()
+        
+        # Show code if requested
+        if show_code and response.code:
+            click.echo(f"\n📜 Código generado ({mode.upper()}):\n")
+            click.echo("─" * 40)
+            click.echo(response.code)
+            click.echo("─" * 40 + "\n")
+        
+        # Show results
+        if response.result_data is not None:
+            result_df = response.result_data
+            click.echo(f"✅ Transformación exitosa!")
+            click.echo(f"   Filas resultado: {len(result_df):,}")
+            click.echo(f"   Columnas: {list(result_df.columns)}\n")
+            
+            if output:
+                result_df.to_csv(output, index=False)
+                click.echo(f"📁 Guardado en: {output}")
+            else:
+                click.echo("📋 Vista previa:")
+                click.echo(result_df.head(10).to_string())
+                click.echo("\n💡 Usa --output/-o para guardar los resultados")
+        else:
+            click.echo("⚠️  No se generaron resultados (execute=False o error)")
+            if response.code:
+                click.echo("\nCódigo generado:")
+                click.echo(response.code)
+        
+    except click.Abort:
+        raise
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@agent.command("explore")
+@click.argument("filepath", type=click.Path(exists=True))
+@click.option("--focus", "-f", default=None, help="Focus area for suggestions")
+def agent_explore(filepath, focus):
+    """
+    Get exploration suggestions for a dataset.
+    
+    Examples:
+        curate agent explore pib_latam.csv
+        curate agent explore data.csv --focus "tendencias temporales"
+    """
+    from src.agents import ExplorationAgent, create_table_context
+    
+    click.echo(f"🔭 Exploring: {filepath}\n")
+    
+    try:
+        data = pd.read_csv(filepath)
+        name = Path(filepath).stem
+        table_ctx = create_table_context(data, name)
+        
+        agent = ExplorationAgent(language="es")
+        suggestions = agent.get_suggestions_list([table_ctx])
+        
+        if suggestions:
+            click.echo("💡 Sugerencias de Análisis:\n")
+            for i, sug in enumerate(suggestions, 1):
+                tipo = sug.get('tipo', sug.get('type', 'general'))
+                pregunta = sug.get('pregunta', sug.get('question', str(sug)))
+                razon = sug.get('razon', sug.get('reason', ''))
+                
+                click.echo(f"   {i}. [{tipo.upper()}] {pregunta}")
+                if razon:
+                    click.echo(f"      → {razon}")
+                click.echo()
+        else:
+            click.echo("⚠️  No se generaron sugerencias")
+            click.echo("   Esto puede ocurrir si el LLM no está configurado.")
+            click.echo("   Las sugerencias requieren conexión a un modelo de lenguaje.")
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@agent.command("workflow")
+@click.argument("filepath", type=click.Path(exists=True))
+@click.option("--clean/--no-clean", default=True, help="Include data cleaning step")
+@click.option("--report/--no-report", default=True, help="Generate final report")
+@click.option("--output", "-o", type=click.Path(), help="Output file for cleaned data")
+@click.option("--report-output", "-r", type=click.Path(), help="Output file for report")
+def agent_workflow(filepath, clean, report, output, report_output):
+    """
+    Run complete analysis workflow on a dataset.
+    
+    Steps: Quality Check → Clean (optional) → Explore → Report (optional)
+    
+    Examples:
+        curate agent workflow data.csv
+        curate agent workflow data.csv --no-clean
+        curate agent workflow data.csv -o cleaned.csv -r report.md
+    """
+    from src.agents import AgentOrchestrator
+    
+    click.echo(f"🔄 Running workflow: {filepath}\n")
+    
+    try:
+        data = pd.read_csv(filepath)
+        name = Path(filepath).stem
+        
+        orchestrator = AgentOrchestrator(language="es")
+        
+        click.echo("⏳ Ejecutando workflow...")
+        result = orchestrator.analyze_dataset(
+            data, name,
+            clean_data=clean,
+            generate_report=report
+        )
+        
+        click.echo(f"\n{'✅' if result.success else '❌'} Workflow {'completado' if result.success else 'con errores'}\n")
+        
+        # Show step results
+        for step in result.steps:
+            icon = "✅" if step.success else "❌"
+            click.echo(f"   {icon} {step.step_name}: {step.step_type.value}")
+            if step.error:
+                click.echo(f"      Error: {step.error}")
+            if step.metadata:
+                for k, v in step.metadata.items():
+                    click.echo(f"      {k}: {v}")
+        
+        # Save outputs
+        if output and result.final_data is not None:
+            result.final_data.to_csv(output, index=False)
+            click.echo(f"\n📁 Datos guardados en: {output}")
+        
+        if report_output and result.final_report:
+            with open(report_output, 'w', encoding='utf-8') as f:
+                f.write(result.final_report)
+            click.echo(f"📝 Reporte guardado en: {report_output}")
+        
+        # Show report preview if generated
+        if result.final_report and not report_output:
+            click.echo("\n" + "─" * 50)
+            click.echo("📝 REPORTE:\n")
+            # Show first 30 lines
+            lines = result.final_report.split('\n')[:30]
+            click.echo('\n'.join(lines))
+            if len(result.final_report.split('\n')) > 30:
+                click.echo("\n... (truncado, usa -r para guardar completo)")
+        
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.command("rag-list-models")
+@click.option("--config", default="config.yaml", help="Path to configuration file")
+def rag_list_models(config):
+    """List models from the OpenAI-compatible API (for choosing an embedding model)."""
+    try:
+        cfg = Config(config)
+        rag = cfg.get_rag_config()
+        base_url = (rag.get("embedding_base_url") or "").rstrip("/")
+        if not base_url:
+            click.echo("Set OPENAI_BASE_URL or rag.embedding_base_url in config.", err=True)
+            raise click.Abort()
+        import os
+        import requests
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("EMBEDDING_API_KEY")
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        r = requests.get(f"{base_url}/models", headers=headers, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        models = data.get("data", data) if isinstance(data, dict) else data
+        if not isinstance(models, list):
+            models = list(models) if hasattr(models, "__iter__") else [data]
+        click.echo(f"Models at {base_url} ({len(models)}):")
+        for m in models:
+            mid = m.get("id", m.get("model", m)) if isinstance(m, dict) else m
+            if isinstance(mid, dict):
+                mid = mid.get("id", str(m))
+            flag = "  [embedding?]" if "embed" in str(mid).lower() else ""
+            click.echo(f"  {mid}{flag}")
+        click.echo("\nUse one of the embedding models in config.yaml → rag.embedding_model or .env EMBEDDING_MODEL")
+    except requests.exceptions.HTTPError as e:
+        click.echo(f"API error: {e.response.status_code} - {e.response.text[:200]}", err=True)
+        raise click.Abort()
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.command("rag-index")
+@click.option("--config", default="config.yaml", help="Path to configuration file")
+@click.option("--docs/--no-docs", default=True, help="Index docs/*.md")
+@click.option("--catalog/--no-catalog", default=True, help="Index dataset catalog metadata")
+@click.option("--tools/--no-tools", default=True, help="Index MCP tool descriptions")
+@click.option("--docs-root", type=click.Path(path_type=Path), default=None, help="Root directory for .md files (default: DATA_ROOT/docs)")
+def rag_index(config, docs, catalog, tools, docs_root):
+    """Build RAG vector index (docs, catalog, tools). Run after updating docs or catalog."""
+    try:
+        cfg = Config(config)
+        from src.rag.index import build_index
+        counts = build_index(
+            cfg,
+            docs_root=docs_root,
+            index_docs=docs,
+            index_catalog=catalog,
+            index_tools=tools,
+        )
+        click.echo("RAG index built:")
+        click.echo(f"  docs: {counts.get('docs', 0)} chunks")
+        click.echo(f"  catalog: {counts.get('catalog', 0)} chunks")
+        click.echo(f"  tools: {counts.get('tools', 0)} chunks")
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
 if __name__ == "__main__":
     cli()
-

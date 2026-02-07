@@ -52,7 +52,8 @@ NAV_ITEMS = [
     {"slug": "status", "label": "Status", "icon": "house"},
     {"slug": "search", "label": "Search", "icon": "search"},
     {"slug": "browse_local", "label": "Browse Local", "icon": "folder"},
-    {"slug": "compare", "label": "Compare", "icon": "shuffle"},
+    {"slug": "edit", "label": "Edit", "icon": "pencil-square"},
+    {"slug": "visualizepg", "label": "Visualizacion", "icon": "bar-chart-line"},
     {"slug": "copilot_chat", "label": "AI Chat", "icon": "robot"},
     {"slug": "help", "label": "Help", "icon": "question-circle"},
 ]

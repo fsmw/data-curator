@@ -13,7 +13,12 @@ Example:
     >>> dataset = await download_owid("gdp-per-capita", countries=["BRA"])
 """
 
+import io
 import json
+import os
+import re
+import shutil
+import sqlite3
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import pandas as pd
@@ -82,7 +87,12 @@ async def search_datasets(
         
         # Search in local catalog
         catalog = DatasetCatalog(config)
-        local_datasets = catalog.search_datasets(query=query, source=source, topic=topic)
+        filters = {}
+        if source:
+            filters["source"] = source
+        if topic:
+            filters["topic"] = topic
+        local_datasets = catalog.search(query=query, filters=filters, limit=limit)
         
         # Combine results
         combined_results = []
@@ -128,7 +138,80 @@ async def search_datasets(
 
 
 # ============================================================================
-# TOOL 2: Preview Data
+# TOOL 2: List Local Datasets (for "review my datasets" / multi-dataset proposals)
+# ============================================================================
+
+async def list_local_datasets(
+    topic: Optional[str] = None,
+    source: Optional[str] = None,
+    limit: int = 50,
+    include_uncataloged: bool = True,
+) -> Dict[str, Any]:
+    """
+    List datasets the user has locally (cataloged in 02_Datasets_Limpios).
+    Call this first when the user asks to "review my datasets" or "propose analyses
+    crossing multiple datasets" so you know what they have before proposing.
+
+    Args:
+        topic: Filter by topic (e.g. gdp, wages, tax)
+        source: Filter by source (e.g. owid, oecd)
+        limit: Max datasets to return (default 50)
+        include_uncataloged: If True, also list CSV files in the clean folder that
+            are not yet in the catalog (user may need to run 'curate index')
+
+    Returns:
+        - cataloged: list of {id, name, source, topic, row_count} (use id for preview_data/get_metadata/analyze_data)
+        - uncataloged_files: list of file names in 02_Datasets_Limpios not yet indexed (if include_uncataloged)
+        - total_cataloged: count
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        filters = {}
+        if topic:
+            filters["topic"] = topic
+        if source:
+            filters["source"] = source
+        datasets = catalog.search(query="", filters=filters or None, limit=limit)
+        cataloged = []
+        for ds in datasets:
+            name = ds.get("indicator_name") or ds.get("name") or ds.get("file_name", "")
+            cataloged.append({
+                "id": ds.get("id"),
+                "name": name,
+                "source": ds.get("source", ""),
+                "topic": ds.get("topic", ""),
+                "row_count": ds.get("row_count", 0),
+                "columns": (ds.get("columns") or [])[:10],
+            })
+        uncataloged_files = []
+        if include_uncataloged:
+            clean_dir = config.get_directory("clean")
+            if clean_dir.exists():
+                all_cataloged = catalog.list_datasets(limit=5000)
+                cataloged_paths = {Path(d.get("file_path", "")).name for d in all_cataloged if d.get("file_path")}
+                for path in clean_dir.rglob("*.csv"):
+                    if path.name not in cataloged_paths:
+                        uncataloged_files.append(path.name)
+        return {
+            "status": "success",
+            "cataloged": cataloged,
+            "total_cataloged": len(cataloged),
+            "uncataloged_files": uncataloged_files[:20],
+            "hint": "Use cataloged[].id with preview_data, get_metadata, or analyze_data. If uncataloged_files is not empty, suggest running 'curate index' to add them to the catalog.",
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "cataloged": [],
+            "total_cataloged": 0,
+            "uncataloged_files": [],
+        }
+
+
+# ============================================================================
+# TOOL 3: Preview Data
 # ============================================================================
 
 async def preview_data(
@@ -866,6 +949,501 @@ async def recommend_datasets(
 
 
 # ============================================================================
+# TOOL 7: Semantic Search Datasets (vector store)
+# ============================================================================
+
+async def semantic_search_datasets(
+    query: str,
+    limit: int = 10
+) -> Dict[str, Any]:
+    """
+    Search for datasets by semantic similarity (vector search over catalog metadata).
+
+    Use this when the user asks for datasets "like X" or "related to Y" or
+    when keyword search might miss relevant indicators. Requires RAG index
+    to be built (curate rag-index) and rag.enabled in config.
+
+    Args:
+        query: Natural language description of desired data (e.g. "real wages", "inflation")
+        limit: Maximum number of results (default 10)
+
+    Returns:
+        Dictionary with datasets (from local catalog), total_found, query, status.
+    """
+    try:
+        config = get_config()
+        rag_cfg = config.get_rag_config()
+        try:
+            from src.embeddings import get_embedding_provider
+            from src.vector_store import VectorStore
+            provider = get_embedding_provider(
+                rag_cfg.get("embedding_provider", "openai"),
+                model=rag_cfg.get("embedding_model"),
+                base_url=rag_cfg.get("embedding_base_url"),
+            )
+            store = VectorStore(rag_cfg["chroma_persist_dir"])
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": f"RAG/vector store not available: {e}",
+                "query": query,
+                "datasets": [],
+                "total_found": 0,
+            }
+        embedding = provider.embed(query)
+        hits = store.search(
+            embedding,
+            top_k=limit,
+            filter_metadata={"type": "catalog"},
+        )
+        catalog = DatasetCatalog(config)
+        datasets_out = []
+        seen_ids = set()
+        for h in hits:
+            meta = h.get("metadata") or {}
+            did = meta.get("dataset_id")
+            if did is None or did in seen_ids:
+                continue
+            seen_ids.add(did)
+            ds = catalog.get_dataset(int(did))
+            if not ds:
+                continue
+            name = ds.get("indicator_name") or ds.get("name", "")
+            datasets_out.append({
+                "id": ds.get("id", ""),
+                "name": name,
+                "source": ds.get("source", ""),
+                "description": ds.get("description", ""),
+                "type": "local",
+                "file_path": str(ds.get("file_path", "")),
+                "row_count": ds.get("row_count", 0),
+                "similarity_distance": h.get("distance"),
+            })
+        return {
+            "status": "success",
+            "query": query,
+            "datasets": datasets_out,
+            "total_found": len(datasets_out),
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "query": query,
+            "datasets": [],
+            "total_found": 0,
+        }
+
+SQL_SAMPLE_LIMIT = int(os.getenv("SMOOTHCSV_SQL_SAMPLE_LIMIT", "5000"))
+SQL_PREVIEW_LIMIT = int(os.getenv("SMOOTHCSV_SQL_PREVIEW_LIMIT", "200"))
+
+
+def _get_smoothcsv_db_path(config: Config) -> Path:
+    return config.data_root / "smoothcsv_cache.db"
+
+
+def _init_smoothcsv_db(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dataset_mapping (
+            dataset_id INTEGER PRIMARY KEY,
+            table_name TEXT NOT NULL,
+            file_hash TEXT,
+            sample_limit INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+
+
+def _smoothcsv_table_name(dataset_id: int) -> str:
+    return f"table{dataset_id:06d}"
+
+
+def _ensure_smoothcsv_table(
+    conn: sqlite3.Connection,
+    dataset: dict,
+    sample_limit: int,
+) -> str:
+    _init_smoothcsv_db(conn)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT table_name, file_hash, sample_limit FROM dataset_mapping WHERE dataset_id = ?",
+        (dataset["id"],),
+    )
+    row = cursor.fetchone()
+    table_name = row["table_name"] if row else _smoothcsv_table_name(dataset["id"])
+    current_hash = dataset.get("file_hash")
+    needs_reload = (
+        row is None
+        or row["file_hash"] != current_hash
+        or row["sample_limit"] != sample_limit
+    )
+
+    if needs_reload:
+        file_path = Path(dataset["file_path"])
+        if not file_path.exists():
+            raise FileNotFoundError(f"Dataset file not found: {file_path}")
+        df = pd.read_csv(file_path, nrows=sample_limit)
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        cursor.execute(
+            """
+            INSERT INTO dataset_mapping (dataset_id, table_name, file_hash, sample_limit)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(dataset_id) DO UPDATE SET
+                table_name = excluded.table_name,
+                file_hash = excluded.file_hash,
+                sample_limit = excluded.sample_limit,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset["id"], table_name, current_hash, sample_limit),
+        )
+        conn.commit()
+
+    return table_name
+
+
+def _prepare_smoothcsv_sql(sql: str, limit: int) -> str:
+    sql = sql.strip().rstrip(";")
+    if not sql:
+        raise ValueError("Missing SQL query.")
+    if not sql.lower().startswith("select"):
+        raise ValueError("Only SELECT queries are supported.")
+    if not re.search(r"\blimit\b", sql, flags=re.IGNORECASE):
+        sql = f"{sql} LIMIT {limit}"
+    return sql
+
+
+# ============================================================================
+# TOOL 8: Run SQL Query (sampled)
+# ============================================================================
+
+async def run_sql_query(
+    dataset_id: int,
+    sql: str,
+    limit: int = SQL_PREVIEW_LIMIT,
+) -> Dict[str, Any]:
+    """
+    Run a SQL query against a sampled dataset table.
+
+    Args:
+        dataset_id: Catalog dataset ID
+        sql: SQL SELECT query (table name is 'dataset')
+        limit: Max rows to return (default 200)
+
+    Returns:
+        Dictionary with columns, rows, and executed query.
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(int(dataset_id))
+        if not dataset:
+            return {"status": "error", "error": "Dataset not found", "dataset_id": dataset_id}
+
+        db_path = _get_smoothcsv_db_path(config)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            table_name = _ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
+            cursor = conn.cursor()
+            cursor.execute("DROP VIEW IF EXISTS dataset")
+            cursor.execute(f'CREATE TEMP VIEW dataset AS SELECT * FROM "{table_name}"')
+
+            query_sql = _prepare_smoothcsv_sql(sql, int(limit))
+            cursor.execute(query_sql)
+            rows = cursor.fetchall()
+            columns = [col[0] for col in cursor.description] if cursor.description else []
+            values = [list(row) for row in rows]
+            return {
+                "status": "success",
+                "columns": columns,
+                "rows": values,
+                "table_name": table_name,
+                "sample_limit": SQL_SAMPLE_LIMIT,
+                "query": query_sql,
+            }
+        finally:
+            conn.close()
+    except (ValueError, FileNotFoundError) as exc:
+        return {"status": "error", "error": str(exc), "dataset_id": dataset_id}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "dataset_id": dataset_id}
+
+
+# ============================================================================
+# TOOL 9: Fork Dataset
+# ============================================================================
+
+async def fork_dataset(
+    dataset_id: int,
+    new_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Create a fork of a dataset and mark it as edited.
+
+    Args:
+        dataset_id: Catalog dataset ID
+        new_name: Optional filename base for the fork
+
+    Returns:
+        Dictionary with new dataset info.
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(int(dataset_id))
+        if not dataset:
+            return {"status": "error", "error": "Dataset not found", "dataset_id": dataset_id}
+
+        source_path = Path(dataset["file_path"])
+        if not source_path.exists():
+            return {"status": "error", "error": "Dataset file not found", "dataset_id": dataset_id}
+
+        fork_name = (new_name or "").strip()
+        safe_base = fork_name or f"{source_path.stem}_edited"
+        safe_base = "".join(c if c.isalnum() or c in "-_" else "_" for c in safe_base).strip("_")
+        if not safe_base:
+            safe_base = f"dataset_{dataset_id}_edited"
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        dest_name = f"{safe_base}_{timestamp}.csv"
+        dest_path = source_path.parent / dest_name
+
+        shutil.copyfile(source_path, dest_path)
+        new_id = catalog.index_dataset(dest_path, force=True)
+        if not new_id:
+            return {"status": "error", "error": "Failed to index forked dataset", "dataset_id": dataset_id}
+
+        conn = sqlite3.connect(catalog.db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE datasets SET is_edited = 1 WHERE id = ?", (new_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        return {
+            "status": "success",
+            "dataset": {
+                "id": new_id,
+                "file_name": dest_name,
+                "file_path": str(dest_path),
+                "is_edited": True,
+            },
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "dataset_id": dataset_id}
+
+
+# ============================================================================
+# TOOL 10: Get Dataset Versions
+# ============================================================================
+
+async def get_dataset_versions(
+    identifier: str,
+    source: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Return all dataset versions for a given identifier (indicator_id or indicator_name).
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        versions = catalog.get_versions_for_identifier(identifier, source=source or None)
+        formatted = []
+        for v in versions:
+            formatted.append({
+                "id": v.get("id"),
+                "file_name": v.get("file_name"),
+                "indicator_id": v.get("indicator_id"),
+                "indicator_name": v.get("indicator_name"),
+                "source": v.get("source"),
+                "indexed_at": v.get("indexed_at"),
+                "row_count": v.get("row_count"),
+                "column_count": v.get("column_count"),
+                "is_edited": bool(v.get("is_edited")),
+            })
+        return {
+            "status": "success",
+            "identifier": identifier,
+            "source": source,
+            "total": len(formatted),
+            "versions": formatted,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "identifier": identifier}
+
+
+# ============================================================================
+# TOOL 11: Get Dataset Statistics (catalog-only)
+# ============================================================================
+
+async def get_dataset_statistics(
+    dataset_id: int,
+) -> Dict[str, Any]:
+    """
+    Return catalog statistics for a dataset without loading the full file.
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(int(dataset_id))
+        if not dataset:
+            return {"status": "error", "error": "Dataset not found", "dataset_id": dataset_id}
+
+        file_size_bytes = dataset.get("file_size_bytes") or 0
+        return {
+            "status": "success",
+            "dataset_id": dataset_id,
+            "name": dataset.get("indicator_name") or dataset.get("file_name"),
+            "source": dataset.get("source"),
+            "topic": dataset.get("topic"),
+            "row_count": dataset.get("row_count"),
+            "column_count": dataset.get("column_count"),
+            "min_year": dataset.get("min_year"),
+            "max_year": dataset.get("max_year"),
+            "country_count": dataset.get("country_count"),
+            "file_size_bytes": file_size_bytes,
+            "file_size_mb": file_size_bytes / (1024 * 1024) if file_size_bytes else 0,
+            "completeness_score": dataset.get("completeness_score"),
+            "null_percentage": dataset.get("null_percentage"),
+            "is_edited": bool(dataset.get("is_edited")),
+            "indexed_at": dataset.get("indexed_at"),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "dataset_id": dataset_id}
+
+
+# ============================================================================
+# TOOL 12: Export Preview CSV
+# ============================================================================
+
+async def export_preview_csv(
+    dataset_id: int,
+    limit: int = 200,
+) -> Dict[str, Any]:
+    """
+    Export a CSV preview (first N rows) for sharing.
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        df = catalog.get_preview_data(int(dataset_id), limit=min(int(limit), 1000))
+        if df is None:
+            return {"status": "error", "error": "Dataset not found", "dataset_id": dataset_id}
+
+        buffer = io.StringIO()
+        df.to_csv(buffer, index=False)
+        return {
+            "status": "success",
+            "dataset_id": dataset_id,
+            "row_count": len(df),
+            "columns": list(df.columns),
+            "csv": buffer.getvalue(),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "dataset_id": dataset_id}
+
+
+# ============================================================================
+# TOOL 13: List Datasets With Filters
+# ============================================================================
+
+async def list_datasets_with_filters(
+    query: str = "",
+    source: Optional[str] = None,
+    topic: Optional[str] = None,
+    edited_only: bool = False,
+    latest_only: bool = False,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    """
+    List datasets with optional filters (source/topic/edited/latest).
+    """
+    try:
+        config = get_config()
+        catalog = DatasetCatalog(config)
+        filters = {}
+        if source:
+            filters["source"] = source
+        if topic:
+            filters["topic"] = topic
+
+        fetch_limit = max(int(limit) * 5, int(limit))
+        datasets = catalog.search(query=query or "", filters=filters or None, limit=fetch_limit)
+
+        if edited_only:
+            datasets = [ds for ds in datasets if ds.get("is_edited")]
+
+        if latest_only:
+            seen = set()
+            latest = []
+            for ds in datasets:
+                gid = ds.get("indicator_id") or ds.get("indicator_name")
+                if not gid or gid in seen:
+                    continue
+                seen.add(gid)
+                latest.append(ds)
+            datasets = latest
+
+        datasets = datasets[: int(limit)]
+        formatted = []
+        for ds in datasets:
+            formatted.append({
+                "id": ds.get("id"),
+                "name": ds.get("indicator_name") or ds.get("file_name"),
+                "source": ds.get("source"),
+                "topic": ds.get("topic"),
+                "row_count": ds.get("row_count"),
+                "column_count": ds.get("column_count"),
+                "file_name": ds.get("file_name"),
+                "is_edited": bool(ds.get("is_edited")),
+                "indexed_at": ds.get("indexed_at"),
+            })
+        return {
+            "status": "success",
+            "query": query,
+            "filters": {
+                "source": source,
+                "topic": topic,
+                "edited_only": edited_only,
+                "latest_only": latest_only,
+            },
+            "datasets": formatted,
+            "total_found": len(formatted),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "datasets": []}
+
+
+# ============================================================================
+# TOOL 14: List Available Tools
+# ============================================================================
+
+async def list_available_tools(
+    include_parameters: bool = False,
+) -> Dict[str, Any]:
+    """
+    List available MCP tools and their descriptions.
+    """
+    tools_out = []
+    for name, info in TOOL_REGISTRY.items():
+        entry = {
+            "name": name,
+            "description": info.get("description", ""),
+        }
+        if include_parameters:
+            entry["parameters"] = info.get("parameters", {})
+        tools_out.append(entry)
+    return {
+        "status": "success",
+        "total": len(tools_out),
+        "tools": tools_out,
+    }
+
+# ============================================================================
 # TOOL REGISTRY
 # ============================================================================
 
@@ -879,6 +1457,16 @@ TOOL_REGISTRY = {
             "source": {"type": "string", "required": False, "description": "Filter by source (owid, worldbank, etc.)"},
             "topic": {"type": "string", "required": False, "description": "Filter by topic"},
             "limit": {"type": "integer", "required": False, "description": "Max results to return"}
+        }
+    },
+    "list_local_datasets": {
+        "function": list_local_datasets,
+        "description": "List the user's local datasets (cataloged). Call this FIRST when the user asks to 'review my datasets' or 'propose analyses crossing multiple datasets' so you know what they have; then propose concrete analyses using the returned ids with preview_data/analyze_data.",
+        "parameters": {
+            "topic": {"type": "string", "required": False, "description": "Filter by topic"},
+            "source": {"type": "string", "required": False, "description": "Filter by source"},
+            "limit": {"type": "integer", "required": False, "description": "Max datasets to return (default 50)"},
+            "include_uncataloged": {"type": "boolean", "required": False, "description": "Include CSV files not yet in catalog (default true)"}
         }
     },
     "preview_data": {
@@ -927,6 +1515,73 @@ TOOL_REGISTRY = {
             "dataset_id": {"type": "string", "required": False, "description": "Dataset ID to find similar datasets for"},
             "query": {"type": "string", "required": False, "description": "Text query to find relevant datasets"},
             "limit": {"type": "integer", "required": False, "description": "Maximum number of recommendations"}
+        }
+    },
+    "semantic_search_datasets": {
+        "function": semantic_search_datasets,
+        "description": "Search datasets by semantic similarity (vector search). Use for 'datasets like X' or related topics.",
+        "parameters": {
+            "query": {"type": "string", "required": True, "description": "Natural language description of desired data"},
+            "limit": {"type": "integer", "required": False, "description": "Max results (default 10)"}
+        }
+    },
+    "run_sql_query": {
+        "function": run_sql_query,
+        "description": "Run a SQL SELECT query against a sampled dataset table (table name is 'dataset').",
+        "parameters": {
+            "dataset_id": {"type": "integer", "required": True, "description": "Catalog dataset ID"},
+            "sql": {"type": "string", "required": True, "description": "SQL SELECT query"},
+            "limit": {"type": "integer", "required": False, "description": "Max rows to return (default 200)"}
+        }
+    },
+    "fork_dataset": {
+        "function": fork_dataset,
+        "description": "Create a forked dataset marked as edited.",
+        "parameters": {
+            "dataset_id": {"type": "integer", "required": True, "description": "Catalog dataset ID"},
+            "new_name": {"type": "string", "required": False, "description": "Optional filename base for the fork"}
+        }
+    },
+    "get_dataset_versions": {
+        "function": get_dataset_versions,
+        "description": "List all versions for an identifier (indicator_id or indicator_name).",
+        "parameters": {
+            "identifier": {"type": "string", "required": True, "description": "Indicator id or indicator name"},
+            "source": {"type": "string", "required": False, "description": "Optional source filter"}
+        }
+    },
+    "get_dataset_statistics": {
+        "function": get_dataset_statistics,
+        "description": "Get catalog statistics for a dataset without loading the full file.",
+        "parameters": {
+            "dataset_id": {"type": "integer", "required": True, "description": "Catalog dataset ID"}
+        }
+    },
+    "export_preview_csv": {
+        "function": export_preview_csv,
+        "description": "Export a CSV preview (first N rows) for a dataset.",
+        "parameters": {
+            "dataset_id": {"type": "integer", "required": True, "description": "Catalog dataset ID"},
+            "limit": {"type": "integer", "required": False, "description": "Preview row limit (default 200)"}
+        }
+    },
+    "list_datasets_with_filters": {
+        "function": list_datasets_with_filters,
+        "description": "List datasets with filters (source/topic/edited/latest).",
+        "parameters": {
+            "query": {"type": "string", "required": False, "description": "Search query"},
+            "source": {"type": "string", "required": False, "description": "Filter by source"},
+            "topic": {"type": "string", "required": False, "description": "Filter by topic"},
+            "edited_only": {"type": "boolean", "required": False, "description": "Only edited datasets"},
+            "latest_only": {"type": "boolean", "required": False, "description": "Only latest version per identifier"},
+            "limit": {"type": "integer", "required": False, "description": "Max results (default 50)"}
+        }
+    },
+    "list_available_tools": {
+        "function": list_available_tools,
+        "description": "List available MCP tools and their descriptions.",
+        "parameters": {
+            "include_parameters": {"type": "boolean", "required": False, "description": "Include parameter schema"}
         }
     }
 }

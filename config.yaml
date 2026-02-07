@@ -47,6 +47,24 @@ metadata:
     - transformations
     - warnings
 
+# Pipeline validation defaults
+pipeline:
+  min_rows: 10
+  min_columns: 2
+  max_null_percentage: 40.0
+  min_completeness_score: 60.0
+
+# RAG y embeddings (AI Ready)
+# Tu API (almacen.digital) solo tiene modelos de chat, no de embeddings → usamos embeddings locales.
+rag:
+  enabled: true
+  top_k: 5
+  embedding_provider: local   # local = sin API, usa sentence-transformers (pip install sentence-transformers)
+  # openai = API; requiere que la API tenga modelo de embeddings (POST /embeddings).
+  embedding_base_url: "https://almacen.digital/api/v1"
+  # Modelo local: all-MiniLM-L6-v2 (rápido, EN) o paraphrase-multilingual-MiniLM-L12-v2 (mejor para español).
+  embedding_model: paraphrase-multilingual-MiniLM-L12-v2
+
 # LLM configuration
 llm:
   max_tokens: 2000

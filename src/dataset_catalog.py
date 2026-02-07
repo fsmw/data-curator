@@ -63,10 +63,16 @@ class DatasetCatalog:
                 regions_json TEXT,
                 
                 null_percentage REAL,
-                completeness_score REAL
+                completeness_score REAL,
+                is_edited INTEGER DEFAULT 0
             )
         """)
         
+        try:
+            cursor.execute("ALTER TABLE datasets ADD COLUMN is_edited INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
         # Full-text search index
         cursor.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS datasets_fts USING fts5(
@@ -449,7 +455,11 @@ class DatasetCatalog:
                 stats['skipped'] += 1
         
         return stats
-    
+
+    def list_datasets(self, limit: int = 5000) -> List[Dict]:
+        """List all datasets in the catalog (for recommender and listing)."""
+        return self.search(query="", filters=None, limit=limit)
+
     def search(self, query: str = "", filters: Optional[Dict] = None, 
                limit: int = 100) -> List[Dict]:
         """Search datasets with full-text search and filters.
@@ -541,6 +551,33 @@ class DatasetCatalog:
             
             return dataset
             
+        finally:
+            conn.close()
+
+    def get_dataset_by_file_name(self, file_name: str) -> Optional[Dict]:
+        """Get a single dataset by exact file name."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM datasets WHERE file_name = ?", (file_name,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            dataset = dict(row)
+            dataset['columns'] = json.loads(dataset['columns_json']) if dataset['columns_json'] else []
+            dataset['countries'] = json.loads(dataset['countries_json']) if dataset['countries_json'] else []
+
+            # Get column details
+            cursor.execute("SELECT * FROM dataset_columns WHERE dataset_id = ?", (dataset['id'],))
+            column_rows = cursor.fetchall()
+            dataset['columns_detail'] = [dict(r) for r in column_rows]
+
+            return dataset
+
         finally:
             conn.close()
     

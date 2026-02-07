@@ -27,19 +27,25 @@
 </head>
 
 <body>
-  <div x-data="{ sidebarOpen: false }" class="app-container">
+  <div x-data="{ sidebarOpen: false, sidebarCollapsed: false }" class="app-container"
+    :class="{ 'sidebar-collapsed': sidebarCollapsed }">
 
     <!-- Mobile Overlay -->
     <div class="mobile-overlay" :class="{ 'show': sidebarOpen }" @click="sidebarOpen = false"></div>
 
     <!-- Sidebar Navigation -->
-    <aside class="sidebar" :class="{ 'show': sidebarOpen }">
+    <aside class="sidebar" :class="{ 'show': sidebarOpen, 'collapsed': sidebarCollapsed }">
       <!-- Brand -->
       <div class="brand-area">
         <i class="bi bi-bar-chart-fill text-blue" style="font-size: 24px;"></i>
         <a href="/" class="brand-logo text-decoration-none">
           Mises Data
         </a>
+        <button class="btn btn-sm btn-outline-secondary sidebar-toggle d-none d-lg-inline-flex"
+          @click="sidebarCollapsed = !sidebarCollapsed"
+          :title="sidebarCollapsed ? 'Mostrar menú' : 'Ocultar menú'">
+          <i class="bi" :class="sidebarCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
+        </button>
       </div>
 
       <!-- Navigation -->
@@ -57,7 +63,7 @@
       <div class="mt-auto pt-4 border-top border-light">
         <div class="d-flex align-items-center gap-2 text-muted small">
           <i class="bi bi-shield-check"></i>
-          <span>v1.2 Arto</span>
+          <span class="sidebar-footer-text">v1.2 Arto</span>
         </div>
       </div>
     </aside>

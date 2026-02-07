@@ -109,11 +109,17 @@ class AIPackager:
         Returns:
             Markdown content
         """
+        raw_metadata = metadata.get("raw_metadata") or {}
+        description = metadata.get("description") or raw_metadata.get("description") or "No description available"
+        note = metadata.get("note") or raw_metadata.get("note") or ""
+        citation = metadata.get("citation") or raw_metadata.get("citation") or ""
+        additional_info = metadata.get("methodology") or raw_metadata.get("additionalInfo") or ""
+
         lines = [
             f"# {metadata.get('title', 'Dataset')}",
             "",
             "## Description",
-            metadata.get("description", "No description available"),
+            description,
             "",
             "## Data Source",
         ]
@@ -139,10 +145,12 @@ class AIPackager:
         else:
             lines.append("Source information not available")
 
+        if note:
+            lines.extend(["", "## Notes and Context", note])
+
         lines.extend(["", "## Methodology"])
-        methodology = metadata.get("methodology", "")
-        if methodology:
-            lines.append(methodology)
+        if additional_info:
+            lines.append(additional_info)
         else:
             lines.append("No specific methodology documented")
 
@@ -167,6 +175,9 @@ class AIPackager:
         if metadata.get("last_updated"):
             lines.extend(["", "## Last Updated"])
             lines.append(metadata["last_updated"])
+
+        if citation:
+            lines.extend(["", "## Citation", citation])
 
         # Add data statistics if available
         data_stats = metadata.get("data_stats", {})

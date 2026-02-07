@@ -8,7 +8,7 @@ from flask import request, jsonify, Response
 from pathlib import Path
 
 from config import Config
-from logger import get_logger
+from src.logger import get_logger
 
 from . import api_bp
 

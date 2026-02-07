@@ -15,12 +15,19 @@ pyyaml>=6.0
 # CLI
 click>=8.1.0
 
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.1.0
+
 # Web UI
 flask>=3.0.0
 rich>=13.0.0
 
 # Web Visualization (Vega-Lite)
 altair>=5.0.0      # Python API for Vega-Lite declarative visualization
+pygwalker>=0.4.9   # Interactive data exploration (PyGWalker)
+
+# Google Sheets integration
 
 # Utilities
 python-dateutil>=2.8.0
@@ -48,3 +55,8 @@ pyarrow>=14.0.0
 # Schema Validation (Freedom Data Phase 6)
 pandera>=0.18.0
 
+# RAG and embeddings (AI Ready)
+chromadb>=0.4.0
+openai>=1.0.0
+# Para embeddings locales (rag.embedding_provider: local):
+sentence-transformers>=2.2.0

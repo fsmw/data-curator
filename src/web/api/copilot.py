@@ -10,7 +10,7 @@ from typing import Dict
 import json
 
 from config import Config
-from logger import get_logger
+from src.logger import get_logger
 from src.response_cache import get_cache
 
 from . import api_bp

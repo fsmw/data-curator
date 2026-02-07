@@ -49,6 +49,7 @@ class MetadataGenerator:
         source: str,
         transformations: list,
         original_source_url: Optional[str] = None,
+        dataset_info: Optional[Dict[str, Any]] = None,
         force_regenerate: bool = False,
     ) -> str:
         """
@@ -67,7 +68,7 @@ class MetadataGenerator:
         """
         # Check cache first
         if self.cache_enabled and not force_regenerate:
-            cached = self._get_from_cache(topic, data_summary)
+            cached = self._get_from_cache(topic, data_summary, dataset_info)
             if cached:
                 print(f"✓ Using cached metadata for {topic}")
                 return cached
@@ -77,14 +78,19 @@ class MetadataGenerator:
             try:
                 metadata = asyncio.get_event_loop().run_until_complete(
                     self._generate_with_copilot(
-                        topic, data_summary, source, transformations, original_source_url
+                        topic,
+                        data_summary,
+                        source,
+                        transformations,
+                        original_source_url,
+                        dataset_info,
                     )
                 )
                 print(f"✓ Generated metadata using Copilot SDK for {topic}")
 
                 # Cache the result
                 if self.cache_enabled:
-                    self._save_to_cache(topic, data_summary, metadata)
+                    self._save_to_cache(topic, data_summary, dataset_info, metadata)
 
                 return metadata
             except Exception as e:
@@ -93,7 +99,12 @@ class MetadataGenerator:
 
         # Fallback to template
         metadata = self._generate_from_template(
-            topic, data_summary, source, transformations, original_source_url
+            topic,
+            data_summary,
+            source,
+            transformations,
+            original_source_url,
+            dataset_info,
         )
         print(f"✓ Generated metadata using template for {topic}")
 
@@ -106,11 +117,17 @@ class MetadataGenerator:
         source: str,
         transformations: list,
         original_source_url: Optional[str],
+        dataset_info: Optional[Dict[str, Any]],
     ) -> str:
         """Generate metadata using Copilot SDK."""
         # Construct prompt
         prompt = self._build_llm_prompt(
-            topic, data_summary, source, transformations, original_source_url
+            topic,
+            data_summary,
+            source,
+            transformations,
+            original_source_url,
+            dataset_info,
         )
 
         # Call Copilot SDK
@@ -131,11 +148,19 @@ class MetadataGenerator:
         source: str,
         transformations: list,
         original_source_url: Optional[str],
+        dataset_info: Optional[Dict[str, Any]],
     ) -> str:
         """Build prompt for LLM."""
+        dataset_info = dataset_info or {}
+        dataset_label = dataset_info.get("indicator_name") or dataset_info.get("file_name") or topic
+        dataset_id = dataset_info.get("identifier") or dataset_info.get("indicator_id") or ""
+        country_count = data_summary.get("country_count", "N/A")
+        country_col = data_summary.get("country_column", "N/A")
         prompt = f"""Genera documentación metodológica en español para el siguiente dataset económico:
 
 **Tema**: {topic}
+**Dataset**: {dataset_label}
+**ID**: {dataset_id or "N/A"}
 **Fuente**: {source}
 **URL Original**: {original_source_url or "No especificada"}
 
@@ -144,6 +169,8 @@ class MetadataGenerator:
 - Columnas: {data_summary.get("columns", "N/A")}
 - Nombres de columnas: {", ".join(data_summary.get("column_names", []))}
 - Rango temporal: {data_summary.get("year_range", ["N/A", "N/A"])[0]} - {data_summary.get("year_range", ["N/A", "N/A"])[1]}
+- Columna de país: {country_col}
+- Países (conteo): {country_count}
 
 **Transformaciones aplicadas**:
 {chr(10).join(f"- {t}" for t in transformations) if transformations else "- Ninguna"}
@@ -167,13 +194,20 @@ El documento debe ser profesional, claro y útil para economistas e investigador
         source: str,
         transformations: list,
         original_source_url: Optional[str],
+        dataset_info: Optional[Dict[str, Any]],
     ) -> str:
         """Generate metadata using template fallback."""
         year_range = data_summary.get("year_range", ["N/A", "N/A"])
+        dataset_info = dataset_info or {}
+        dataset_label = dataset_info.get("indicator_name") or dataset_info.get("file_name") or topic
+        dataset_id = dataset_info.get("identifier") or dataset_info.get("indicator_id") or "N/A"
+        country_count = data_summary.get("country_count", "N/A")
+        country_col = data_summary.get("country_column", "N/A")
 
-        template = f"""# Metadatos: {topic}
+        template = f"""# Metadatos: {dataset_label}
 
 **Fecha de generación**: {datetime.now().strftime("%Y-%m-%d")}
+**ID**: {dataset_id}
 
 ## 1. Fuente Original
 
@@ -200,7 +234,8 @@ El documento debe ser profesional, claro y útil para economistas e investigador
 
 ### Cobertura Geográfica
 
-- Ver columnas de país/región en el dataset
+- Columna de país: {country_col}
+- Países (conteo): {country_count}
 
 ## 4. Metodología y Transformaciones
 
@@ -262,10 +297,42 @@ El documento debe ser profesional, claro y útil para economistas e investigador
         print(f"✓ Saved metadata to {filepath}")
         return filepath
 
-    def _get_cache_key(self, topic: str, data_summary: Dict[str, Any]) -> str:
+    def save_metadata_for_dataset(self, file_path: Path, metadata_content: str) -> Path:
+        """
+        Save metadata using the dataset filename stem for direct lookup.
+
+        Args:
+            file_path: Path to the dataset file
+            metadata_content: Markdown content
+
+        Returns:
+            Path to saved file
+        """
+        self.metadata_dir.mkdir(parents=True, exist_ok=True)
+        stem = file_path.stem
+        filepath = self.metadata_dir / f"{stem}.md"
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(metadata_content)
+
+        print(f"✓ Saved metadata to {filepath}")
+        return filepath
+
+    def get_metadata_path_for_dataset(self, file_path: Path) -> Path:
+        """Get metadata path for a dataset file based on its stem."""
+        return self.metadata_dir / f"{file_path.stem}.md"
+
+    def _get_cache_key(
+        self,
+        topic: str,
+        data_summary: Dict[str, Any],
+        dataset_info: Optional[Dict[str, Any]],
+    ) -> str:
         """Generate cache key from topic and data summary."""
+        dataset_info = dataset_info or {}
         cache_data = {
             "topic": topic,
+            "identifier": dataset_info.get("identifier") or dataset_info.get("indicator_id") or dataset_info.get("file_name"),
             "rows": data_summary.get("rows"),
             "columns": data_summary.get("columns"),
             "column_names": data_summary.get("column_names", []),
@@ -274,10 +341,13 @@ El documento debe ser profesional, claro y útil para economistas e investigador
         return hashlib.md5(cache_string.encode()).hexdigest()
 
     def _get_from_cache(
-        self, topic: str, data_summary: Dict[str, Any]
+        self,
+        topic: str,
+        data_summary: Dict[str, Any],
+        dataset_info: Optional[Dict[str, Any]],
     ) -> Optional[str]:
         """Retrieve metadata from cache."""
-        cache_key = self._get_cache_key(topic, data_summary)
+        cache_key = self._get_cache_key(topic, data_summary, dataset_info)
         cache_file = self.cache_dir / f"{cache_key}.md"
 
         if cache_file.exists():
@@ -286,9 +356,15 @@ El documento debe ser profesional, claro y útil para economistas e investigador
 
         return None
 
-    def _save_to_cache(self, topic: str, data_summary: Dict[str, Any], metadata: str):
+    def _save_to_cache(
+        self,
+        topic: str,
+        data_summary: Dict[str, Any],
+        dataset_info: Optional[Dict[str, Any]],
+        metadata: str,
+    ):
         """Save metadata to cache."""
-        cache_key = self._get_cache_key(topic, data_summary)
+        cache_key = self._get_cache_key(topic, data_summary, dataset_info)
         cache_file = self.cache_dir / f"{cache_key}.md"
 
         with open(cache_file, "w", encoding="utf-8") as f:

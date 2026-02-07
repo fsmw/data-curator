@@ -58,6 +58,7 @@
 
   /* Layout */
   --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
   --header-height: 72px;
 
   /* Shapes */
@@ -122,6 +123,11 @@ a {
   margin: 0 auto;
 }
 
+.app-container.sidebar-collapsed .main-content {
+  max-width: none;
+  margin: 0;
+}
+
 /* ============================================
    SIDEBAR (Floating Dock Style)
    ============================================ */
@@ -137,11 +143,17 @@ a {
   flex-direction: column;
 }
 
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+  padding: 24px 12px;
+}
+
 .brand-area {
   margin-bottom: 40px;
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
 }
 
 .brand-logo {
@@ -149,6 +161,32 @@ a {
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.03em;
+}
+
+.sidebar-toggle {
+  margin-left: auto;
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.sidebar-toggle:hover {
+  color: var(--accent-blue);
+  border-color: var(--border-focus);
+}
+
+.sidebar.collapsed .brand-logo,
+.sidebar.collapsed .nav-link span,
+.sidebar.collapsed .sidebar-footer-text {
+  display: none;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar.collapsed .nav-link i {
+  margin: 0;
 }
 
 .nav-link {
@@ -401,6 +439,8 @@ a {
   border-radius: 99px;
   font-size: 12px;
   font-weight: 600;
+  background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .badge-blue {
@@ -416,6 +456,51 @@ a {
 .badge-gray {
   background: #F7FAFC;
   color: #4A5568;
+}
+
+.badge-secondary {
+  background: #E2E8F0;
+  color: #334155;
+}
+
+.badge-info {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.badge-success {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.badge-source {
+  background: #F1F5F9;
+  color: #0F172A;
+  border: 1px solid var(--border-subtle);
+}
+
+.badge-oecd {
+  background: #E0F2FE;
+  color: #075985;
+}
+
+.badge-worldbank {
+  background: #EDE9FE;
+  color: #5B21B6;
+}
+
+.badge-fred {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.badge-bcch {
+  background: #FCE7F3;
+  color: #9D174D;
+}
+
+.badge-pill {
+  border-radius: 999px;
 }
 
 /* Removed orphaned CSS lines */

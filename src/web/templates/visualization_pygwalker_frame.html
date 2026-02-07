@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PyGWalker</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #fff;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      .frame-shell {
+        min-height: 100vh;
+        padding: 0.75rem;
+        box-sizing: border-box;
+      }
+      .alert {
+        border: 1px solid #f5c2c7;
+        background: #f8d7da;
+        color: #842029;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+      }
+      .empty-state {
+        border: 1px dashed #d0d7de;
+        border-radius: 0.75rem;
+        padding: 3rem 1rem;
+        text-align: center;
+        color: #6c757d;
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame-shell">
+      {% if pygwalker_error %}
+        <div class="alert">{{ pygwalker_error }}</div>
+      {% elif pygwalker_html %}
+        {{ pygwalker_html | safe }}
+      {% else %}
+        <div class="empty-state">Selecciona un dataset para abrir PyGWalker.</div>
+      {% endif %}
+    </div>
+  </body>
+</html>

@@ -38,10 +38,10 @@
 
   <!-- Quick Filters -->
   <div class="mb-4">
-    <small class="text-uppercase text-muted fw-bold ms-1" style="font-size: 0.7rem;">Filtros Rápidos</small>
+    <small class="text-uppercase text-muted fw-bold ms-1" style="font-size: 0.7rem;">Quick Filters</small>
     <div class="d-flex flex-wrap gap-2 mt-2">
       <button @click="applyQuickFilter('latam')" class="btn btn-sm btn-outline-secondary rounded-pill">
-        🌎 LATAM + España
+        🌎 LATAM + Spain
       </button>
       <button @click="applyQuickFilter('oecd')" class="btn btn-sm btn-outline-secondary rounded-pill">
         📊 OECD
@@ -50,10 +50,10 @@
         🌍 G20
       </button>
       <button @click="applyQuickFilter('inflation')" class="btn btn-sm btn-outline-danger rounded-pill">
-        📈 Inflación > 10%
+        📈 Inflation > 10%
       </button>
       <button @click="applyQuickFilter('poverty')" class="btn btn-sm btn-outline-warning rounded-pill">
-        📉 Pobreza
+        📉 Poverty
       </button>
     </div>
   </div>
@@ -62,24 +62,31 @@
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
-        <span class="text-gold fw-semibold" x-text="results.length"></span>
+        <span class="text-gold fw-semibold" x-text="searchMetadata?.total || results.length"></span>
         <span class="text-secondary"> Results</span>
         <span x-show="query || source" class="text-secondary">
           for "<strong class="text-gold" x-text="query"></strong>"
           <span x-show="source"> in <span class="badge badge-source" x-text="source.toUpperCase()"></span></span>
         </span>
       </div>
-      <!-- Source breakdown badges -->
-      <div x-show="searchMetadata && searchMetadata.sources" class="d-flex gap-2">
-        <span class="badge badge-secondary badge-pill">
-          <i class="bi bi-hdd me-1"></i>Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
-        </span>
-        <span class="badge badge-info badge-pill" x-show="searchMetadata?.sources?.owid">
-          <i class="bi bi-cloud me-1"></i>OWID: <span x-text="searchMetadata?.sources?.owid || 0"></span>
-        </span>
-        <span class="badge badge-oecd badge-pill" x-show="searchMetadata?.sources?.oecd">
-          OECD: <span x-text="searchMetadata?.sources?.oecd || 0"></span>
-        </span>
+      <div class="d-flex gap-2 align-items-center">
+        <!-- Source breakdown badges -->
+        <div x-show="searchMetadata && searchMetadata.sources" class="d-flex gap-2">
+          <span class="badge badge-secondary badge-pill">
+            <i class="bi bi-hdd me-1"></i>Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
+          </span>
+          <span class="badge badge-info badge-pill" x-show="searchMetadata?.sources?.owid">
+            <i class="bi bi-cloud me-1"></i>OWID: <span x-text="searchMetadata?.sources?.owid || 0"></span>
+          </span>
+          <span class="badge badge-oecd badge-pill" x-show="searchMetadata?.sources?.oecd">
+            OECD: <span x-text="searchMetadata?.sources?.oecd || 0"></span>
+          </span>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" @click="downloadSelected()"
+          :disabled="selectedKeys.length === 0 || bulkDownloading">
+          <span x-show="!bulkDownloading"><i class="bi bi-download me-1"></i>Download selected</span>
+          <span x-show="bulkDownloading"><span class="spinner-border spinner-border-sm me-1"></span>Downloading...</span>
+        </button>
       </div>
     </div>
 
@@ -99,7 +106,11 @@
         <table class="table table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width: 30%">Indicator</th>
+              <th style="width: 4%" class="text-center">
+                <input class="form-check-input" type="checkbox" aria-label="Select all results"
+                  :checked="allSelected()" @change="toggleSelectAll()">
+              </th>
+              <th style="width: 26%">Indicator</th>
               <th style="width: 35%">Description</th>
               <th style="width: 15%">Source</th>
               <th style="width: 20%" class="text-end">Actions</th>
@@ -108,6 +119,11 @@
           <tbody>
             <template x-for="(result, index) in results" :key="result.id || index">
               <tr>
+                <td class="text-center">
+                  <input class="form-check-input" type="checkbox" aria-label="Select row"
+                    :disabled="!selectionKey(result)"
+                    :checked="isSelected(result)" @change="toggleSelection(result)">
+                </td>
                 <td>
                   <div class="fw-semibold" x-text="result.indicator || 'N/A'"></div>
                   <div class="small text-muted" x-show="result.tags">
@@ -131,15 +147,32 @@
                 </td>
                 <td class="text-end">
                   <div class="action-buttons">
+                    <span x-show="downloadStatus[result.id]" class="badge badge-pill"
+                      :class="statusClass(downloadStatus[result.id])"
+                      x-text="statusLabel(downloadStatus[result.id])"></span>
                     <!-- Downloaded badge -->
                     <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
                       <i class="bi bi-check-circle-fill"></i> Downloaded
                     </span>
 
                     <!-- Remote OWID: Preview button -->
-                    <button x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
-                      @click.prevent="previewRemote(result)" class="btn btn-outline-light btn-sm btn-icon" type="button"
+                    <button x-show="result.remote && (result.source || '').toLowerCase().includes('owid')"
+                      @click.prevent="previewRemote(result)" class="btn btn-outline-secondary btn-sm btn-icon" type="button"
                       title="Preview chart">
+                      <i class="bi bi-eye"></i>
+                    </button>
+
+                    <!-- Remote World Bank: Preview button -->
+                    <button x-show="result.remote && (result.source || '').toLowerCase().includes('worldbank')"
+                      @click.prevent="previewWorldBank(result)" class="btn btn-outline-secondary btn-sm btn-icon" type="button"
+                      title="Preview data">
+                      <i class="bi bi-eye"></i>
+                    </button>
+
+                    <!-- Remote OECD: Preview button -->
+                    <button x-show="result.remote && (result.source || '').toLowerCase().includes('oecd')"
+                      @click.prevent="previewOecd(result)" class="btn btn-outline-secondary btn-sm btn-icon" type="button"
+                      title="Preview data">
                       <i class="bi bi-eye"></i>
                     </button>
 
@@ -165,14 +198,14 @@
                     </button>
 
                     <!-- Remote OWID: Link to website -->
-                    <a x-show="result.remote && (result.source === 'OWID' || result.source?.includes('OWID'))"
+                    <a x-show="result.remote && (result.source || '').toLowerCase().includes('owid')"
                       :href="'https://ourworldindata.org/grapher/' + (result.slug || '')" target="_blank"
-                      class="btn btn-outline-light btn-sm btn-icon" title="View on Our World in Data">
+                      class="btn btn-outline-secondary btn-sm btn-icon" title="View on Our World in Data">
                       <i class="bi bi-box-arrow-up-right"></i>
                     </a>
 
                     <!-- View versions in Browse Local -->
-                    <button class="btn btn-outline-light btn-sm btn-icon" @click.prevent="openBrowseVersions(result)"
+                    <button class="btn btn-outline-secondary btn-sm btn-icon" @click.prevent="openBrowseVersions(result)"
                       title="View version history">
                       <i class="bi bi-clock-history"></i>
                     </button>
@@ -183,7 +216,7 @@
 
             <!-- Empty State -->
             <tr x-show="results.length === 0 && !loading">
-              <td colspan="4" class="text-center py-5">
+              <td colspan="5" class="text-center py-5">
                 <div class="empty-state">
                   <i class="bi bi-search"></i>
                   <h5 x-show="!query && !source">Start your search</h5>
@@ -196,6 +229,35 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 py-3 border-top">
+        <div class="small text-secondary">
+          Showing
+          <span x-text="results.length"></span>
+          of
+          <span x-text="searchMetadata?.total || results.length"></span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <label class="small text-secondary mb-0">Page size</label>
+          <select class="form-select form-select-sm" style="width: auto;" x-model.number="perPage"
+            @change="setPage(1)">
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+          <button class="btn btn-outline-secondary btn-sm" @click="prevPage()" :disabled="page <= 1 || loading">
+            <i class="bi bi-chevron-left"></i> Prev
+          </button>
+          <span class="small text-secondary">
+            Page <span x-text="page"></span> / <span x-text="totalPages"></span>
+          </span>
+          <button class="btn btn-outline-secondary btn-sm" @click="nextPage()"
+            :disabled="page >= totalPages || loading">
+            Next <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -232,10 +294,109 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
         <a id="downloadChartLink" href="#" class="btn btn-primary" download>
           <i class="bi bi-download"></i> Download PNG
         </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal - World Bank (table) -->
+<div class="modal fade" id="worldbankPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="worldbankPreviewTitle" class="modal-title">
+          <i class="bi bi-table text-gold me-2"></i>
+          Data Preview
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="worldbankPreviewSpinner" class="py-4 text-center">
+          <div class="spinner text-center mx-auto mb-3"></div>
+          <div class="text-secondary small">Loading data from World Bank...</div>
+        </div>
+
+        <div id="worldbankPreviewError" class="alert alert-warning d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span></span>
+        </div>
+
+        <div id="worldbankPreviewChart" class="mb-3" style="display: none;">
+          <div class="small text-secondary mb-2">Average by year (preview)</div>
+          <svg id="worldbankPreviewSvg" width="100%" height="120" viewBox="0 0 360 120" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div id="worldbankPreviewTable" class="table-responsive" style="max-height: 400px; overflow: auto; display: none;">
+          <table class="table table-sm table-striped mb-0">
+            <thead class="sticky-top bg-white">
+              <tr>
+                <th>Country</th>
+                <th>Code</th>
+                <th>Year</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="worldbankPreviewTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal - OECD (table + mini chart) -->
+<div class="modal fade" id="oecdPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="oecdPreviewTitle" class="modal-title">
+          <i class="bi bi-table text-gold me-2"></i>
+          Data Preview
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="oecdPreviewSpinner" class="py-4 text-center">
+          <div class="spinner text-center mx-auto mb-3"></div>
+          <div class="text-secondary small">Loading data from OECD...</div>
+        </div>
+
+        <div id="oecdPreviewError" class="alert alert-warning d-none" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <span></span>
+        </div>
+
+        <div id="oecdPreviewChart" class="mb-3" style="display: none;">
+          <div class="small text-secondary mb-2">Average by year (preview)</div>
+          <svg id="oecdPreviewSvg" width="100%" height="120" viewBox="0 0 360 120" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div id="oecdPreviewTable" class="table-responsive" style="max-height: 400px; overflow: auto; display: none;">
+          <table class="table table-sm table-striped mb-0">
+            <thead class="sticky-top bg-white">
+              <tr>
+                <th>Country</th>
+                <th>Year</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody id="oecdPreviewTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -255,8 +416,14 @@
       loading: false,
       error: '',
       downloading: {},
+      downloadStatus: {},
       successMessage: '',
       currentSlug: '',
+      selectedKeys: [],
+      bulkDownloading: false,
+      page: 1,
+      perPage: 25,
+      totalPages: 1,
 
       init() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -276,7 +443,8 @@
 
       async loadDefaults() {
         this.source = 'owid';
-        this.query = '2024'; // Search for current year to get recent data
+        this.query = '20'; // Lighter default query for faster initial load
+        this.page = 1;
         await this.performSearch();
       },
 
@@ -293,11 +461,16 @@
           const params = new URLSearchParams();
           if (this.query) params.append('q', this.query);
           if (this.source) params.append('source', this.source);
+          params.append('page', this.page);
+          params.append('per_page', this.perPage);
 
           const res = await fetch(`/api/search?${params}`);
           if (!res.ok) throw new Error(`Error ${res.status}`);
           const data = await res.json();
           this.results = data.results || [];
+          this.selectedKeys = [];
+          this.downloadStatus = {};
+          this.totalPages = data.total_pages || 1;
 
           // DEBUG: Log first 3 results to see structure
           console.log('First 3 results:', this.results.slice(0, 3).map(r => ({
@@ -315,12 +488,67 @@
           };
           console.log('Search complete:', this.searchMetadata);
         } catch (err) {
-          this.error = `Búsqueda falló: ${err.message}`;
+          this.error = `Search failed: ${err.message}`;
           this.results = [];
           this.searchMetadata = null;
         } finally {
           this.loading = false;
         }
+      },
+
+      renderMiniChart(svgId, series) {
+        const svg = document.getElementById(svgId);
+        if (!svg) return;
+        svg.innerHTML = '';
+
+        if (!Array.isArray(series) || series.length < 2) return;
+
+        const points = series
+          .map(item => ({ x: Number(item.x), y: Number(item.y) }))
+          .filter(item => Number.isFinite(item.x) && Number.isFinite(item.y))
+          .sort((a, b) => a.x - b.x);
+
+        if (points.length < 2) return;
+
+        const width = 360;
+        const height = 120;
+        const pad = 8;
+        const minY = Math.min(...points.map(p => p.y));
+        const maxY = Math.max(...points.map(p => p.y));
+        const range = maxY - minY || 1;
+        const step = (width - pad * 2) / (points.length - 1);
+
+        const coords = points.map((p, i) => {
+          const x = pad + i * step;
+          const y = height - pad - ((p.y - minY) / range) * (height - pad * 2);
+          return { x, y };
+        });
+
+        const path = coords
+          .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`)
+          .join(' ');
+
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.innerHTML = `
+          <path d="${path}" fill="none" stroke="#c78f2c" stroke-width="2" />
+          <circle cx="${coords[coords.length - 1].x}" cy="${coords[coords.length - 1].y}" r="2.5" fill="#c78f2c" />
+        `;
+      },
+
+      setPage(nextPage) {
+        if (nextPage < 1) return;
+        this.page = nextPage;
+        this.performSearch();
+      },
+
+      nextPage() {
+        if (this.page >= this.totalPages) return;
+        this.setPage(this.page + 1);
+      },
+
+      prevPage() {
+        if (this.page <= 1) return;
+        this.setPage(this.page - 1);
       },
 
       async previewRemote(result) {
@@ -331,13 +559,13 @@
         document.getElementById('owidPreviewSpinner').classList.remove('d-none');
         document.getElementById('owidPreviewError').classList.add('d-none');
         document.getElementById('owidPreviewImage').style.display = 'none';
-        document.getElementById('owidPreviewTitle').textContent = result.slug || result.indicator || 'Gráfico';
+        document.getElementById('owidPreviewTitle').textContent = result.slug || result.indicator || 'Chart';
 
         modal.show();
 
         try {
           const slug = result.slug || result.id;
-          if (!slug) throw new Error('No slug disponible');
+          if (!slug) throw new Error('No slug available');
 
           // Load PNG directly
           const pngUrl = `/api/chart/export-png?slug=${encodeURIComponent(slug)}`;
@@ -356,7 +584,7 @@
           };
 
           img.onerror = () => {
-            throw new Error('No se pudo cargar el gráfico');
+            throw new Error('Could not load chart');
           };
 
           img.src = pngUrl;
@@ -371,11 +599,137 @@
         }
       },
 
-      async startDownload(result) {
+      async previewWorldBank(result) {
+        const modalEl = document.getElementById('worldbankPreviewModal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        document.getElementById('worldbankPreviewSpinner').classList.remove('d-none');
+        document.getElementById('worldbankPreviewError').classList.add('d-none');
+        document.getElementById('worldbankPreviewTable').style.display = 'none';
+        document.getElementById('worldbankPreviewChart').style.display = 'none';
+        document.getElementById('worldbankPreviewSvg').innerHTML = '';
+        document.getElementById('worldbankPreviewTbody').innerHTML = '';
+        document.getElementById('worldbankPreviewTitle').textContent = result.indicator || 'Data Preview';
+
+        modal.show();
+
+        try {
+          const indicator = result.indicator_code || result.code || result.id || '';
+          if (!indicator) throw new Error('Missing indicator code');
+
+          const url = `/api/remote/worldbank/preview?indicator=${encodeURIComponent(indicator)}&limit=200`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.status !== 'success') {
+            throw new Error(data.message || 'Preview failed');
+          }
+
+          const rows = data.preview?.rows || [];
+          const series = data.preview?.series || [];
+          const tbody = document.getElementById('worldbankPreviewTbody');
+          rows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${row.country || ''}</td>
+              <td>${row.country_code || ''}</td>
+              <td>${row.year || ''}</td>
+              <td>${row.value ?? ''}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          if (series.length > 1) {
+            this.renderMiniChart('worldbankPreviewSvg', series);
+            document.getElementById('worldbankPreviewChart').style.display = 'block';
+          }
+
+          document.getElementById('worldbankPreviewSpinner').classList.add('d-none');
+          document.getElementById('worldbankPreviewTable').style.display = 'block';
+        } catch (err) {
+          console.error('World Bank preview error', err);
+          document.getElementById('worldbankPreviewSpinner').classList.add('d-none');
+          const errEl = document.getElementById('worldbankPreviewError');
+          errEl.querySelector('span').textContent = err.message || String(err);
+          errEl.classList.remove('d-none');
+        }
+      },
+
+      async previewOecd(result) {
+        const modalEl = document.getElementById('oecdPreviewModal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        document.getElementById('oecdPreviewSpinner').classList.remove('d-none');
+        document.getElementById('oecdPreviewError').classList.add('d-none');
+        document.getElementById('oecdPreviewTable').style.display = 'none';
+        document.getElementById('oecdPreviewChart').style.display = 'none';
+        document.getElementById('oecdPreviewSvg').innerHTML = '';
+        document.getElementById('oecdPreviewTbody').innerHTML = '';
+        document.getElementById('oecdPreviewTitle').textContent = result.indicator || result.id || 'Data Preview';
+
+        modal.show();
+
+        try {
+          let dataset = result.dataset || '';
+          let indicator = result.indicator_code || '';
+          if (!dataset && result.code) {
+            const parts = String(result.code).split('.', 2);
+            dataset = parts[0] || '';
+            indicator = indicator || parts[1] || '';
+          }
+
+          if (!dataset) throw new Error('Missing dataset id');
+
+          const params = new URLSearchParams({ dataset });
+          if (indicator) params.append('indicator', indicator);
+          params.append('limit', '200');
+
+          const url = `/api/remote/oecd/preview?${params.toString()}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.status !== 'success') {
+            throw new Error(data.message || 'Preview failed');
+          }
+
+          const rows = data.preview?.rows || [];
+          const series = data.preview?.series || [];
+          const tbody = document.getElementById('oecdPreviewTbody');
+          rows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${row.country || ''}</td>
+              <td>${row.year || ''}</td>
+              <td>${row.value ?? ''}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          if (series.length > 1) {
+            this.renderMiniChart('oecdPreviewSvg', series);
+            document.getElementById('oecdPreviewChart').style.display = 'block';
+          }
+
+          document.getElementById('oecdPreviewSpinner').classList.add('d-none');
+          document.getElementById('oecdPreviewTable').style.display = 'block';
+        } catch (err) {
+          console.error('OECD preview error', err);
+          document.getElementById('oecdPreviewSpinner').classList.add('d-none');
+          const errEl = document.getElementById('oecdPreviewError');
+          errEl.querySelector('span').textContent = err.message || String(err);
+          errEl.classList.remove('d-none');
+        }
+      },
+
+      async startDownload(result, options = {}) {
         console.log('=== DOWNLOAD STARTED ===');
         this.downloading = { ...this.downloading, [result.id]: true };
-        this.error = '';
-        this.successMessage = '';
+        this.downloadStatus = {
+          ...this.downloadStatus,
+          [result.id]: { status: 'in_progress' }
+        };
+        if (!options.silent) {
+          this.error = '';
+          this.successMessage = '';
+        }
 
         try {
           const res = await fetch('/api/download/start', {
@@ -388,7 +742,12 @@
               description: result.description,
               remote: result.remote || false,
               slug: result.slug,
-              url: result.url
+                url: result.url,
+                indicator_code: result.indicator_code,
+                dataset: result.dataset,
+                code: result.code,
+                database: result.database,
+                table: result.table
             })
           });
 
@@ -407,25 +766,131 @@
 
           // Rely on consistent backend JSON: status = success|enqueued|already_queued|error
           if (data.status === 'success') {
-            this.successMessage = data.message || `✓ Descarga completada: ${result.indicator}`;
+            if (!options.silent) {
+              this.successMessage = data.message || `OK: Download completed: ${result.indicator}`;
+            }
             const resultIndex = this.results.findIndex(r => r.id === result.id);
             if (resultIndex !== -1) { this.results[resultIndex].downloaded = true; }
-            setTimeout(() => { this.successMessage = ''; }, 5000);
+            this.downloadStatus = {
+              ...this.downloadStatus,
+              [result.id]: { status: 'success' }
+            };
+            if (!options.silent) {
+              setTimeout(() => { this.successMessage = ''; }, 5000);
+            }
           } else if (data.status === 'enqueued') {
-            this.successMessage = data.message || `✓ Descarga en cola para "${result.indicator}".`;
-            setTimeout(() => { this.successMessage = ''; }, 5000);
+            if (!options.silent) {
+              this.successMessage = data.message || `OK: Download queued for "${result.indicator}".`;
+              setTimeout(() => { this.successMessage = ''; }, 5000);
+            }
+            this.downloadStatus = {
+              ...this.downloadStatus,
+              [result.id]: { status: 'queued' }
+            };
           } else if (data.status === 'already_queued') {
-            this.error = data.message || 'Este indicador ya está en la cola de descargas.';
+            if (!options.silent) {
+              this.error = data.message || 'This indicator is already in the download queue.';
+            }
+            this.downloadStatus = {
+              ...this.downloadStatus,
+              [result.id]: { status: 'queued' }
+            };
           } else {
-            this.error = data.message || data.error || `Error desconocido (status: ${data.status})`;
+            if (!options.silent) {
+              this.error = data.message || data.error || `Unknown error (status: ${data.status})`;
+            }
+            this.downloadStatus = {
+              ...this.downloadStatus,
+              [result.id]: { status: 'error' }
+            };
           }
 
         } catch (err) {
-          this.error = `Error al iniciar descarga: ${err.message}`;
+          if (!options.silent) {
+            this.error = `Error starting download: ${err.message}`;
+          }
           console.error('Download error:', err);
+          this.downloadStatus = {
+            ...this.downloadStatus,
+            [result.id]: { status: 'error' }
+          };
         } finally {
           this.downloading = { ...this.downloading, [result.id]: false };
         }
+      },
+
+      selectionKey(result) {
+        return result.id || result.slug || result.indicator || '';
+      },
+
+      isSelected(result) {
+        const key = this.selectionKey(result);
+        return key ? this.selectedKeys.includes(key) : false;
+      },
+
+      toggleSelection(result) {
+        const key = this.selectionKey(result);
+        if (!key) return;
+        if (this.selectedKeys.includes(key)) {
+          this.selectedKeys = this.selectedKeys.filter(k => k !== key);
+        } else {
+          this.selectedKeys = [...this.selectedKeys, key];
+        }
+      },
+
+      allSelected() {
+        const selectable = this.results
+          .map(r => this.selectionKey(r))
+          .filter(key => key);
+        return selectable.length > 0 && selectable.every(key => this.selectedKeys.includes(key));
+      },
+
+      toggleSelectAll() {
+        if (this.allSelected()) {
+          this.selectedKeys = [];
+          return;
+        }
+        this.selectedKeys = this.results
+          .map(r => this.selectionKey(r))
+          .filter(key => key);
+      },
+
+      async downloadSelected() {
+        if (this.selectedKeys.length === 0 || this.bulkDownloading) return;
+        this.bulkDownloading = true;
+        this.error = '';
+        this.successMessage = '';
+
+        const selected = this.results.filter(r => this.selectedKeys.includes(this.selectionKey(r)));
+        const outcomes = await Promise.allSettled(
+          selected.map(result => this.startDownload(result, { silent: true }))
+        );
+
+        this.bulkDownloading = false;
+        const failures = outcomes.filter(o => o.status === 'rejected').length;
+        if (failures > 0) {
+          this.error = `Warning: ${failures} download(s) failed. Check row status.`;
+        }
+        this.successMessage = `OK: Download started for ${selected.length} indicator(s).`;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+      },
+
+      statusLabel(state) {
+        if (!state || !state.status) return '';
+        if (state.status === 'in_progress') return 'Downloading';
+        if (state.status === 'queued') return 'Queued';
+        if (state.status === 'success') return 'Done';
+        if (state.status === 'error') return 'Error';
+        return '';
+      },
+
+      statusClass(state) {
+        if (!state || !state.status) return 'badge-secondary';
+        if (state.status === 'in_progress') return 'badge-info';
+        if (state.status === 'queued') return 'badge-secondary';
+        if (state.status === 'success') return 'badge-success';
+        if (state.status === 'error') return 'bg-danger text-white';
+        return 'badge-secondary';
       },
 
       openBrowseVersions(result) {
@@ -438,6 +903,7 @@
       },
 
       applyQuickFilter(type) {
+        this.page = 1;
         if (type === 'latam') {
           this.query = "Argentina Chile Colombia Peru Mexico Brasil";
           this.source = "owid";

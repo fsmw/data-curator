@@ -18,14 +18,18 @@ Example:
 
 import os
 import json
-from typing import Optional, Dict, Any, List
+import asyncio
+import logging
+import re
+from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
+from dataclasses import dataclass
 
 # Import Copilot SDK
 try:
     from copilot import CopilotClient, CopilotSession
     from copilot import Tool
-    from copilot.types import SessionConfig, SystemMessageReplaceConfig
+    from copilot.types import SessionConfig, SystemMessageAppendConfig
     COPILOT_SDK_AVAILABLE = True
 except ImportError as e:
     COPILOT_SDK_AVAILABLE = False
@@ -33,6 +37,25 @@ except ImportError as e:
     print(f"   Error: {e}")
 
 from src.config import Config
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry and fallback behavior."""
+    max_retries: int = 3
+    base_delay: float = 1.0  # Base delay in seconds
+    max_delay: float = 8.0   # Max delay between retries
+    timeout: float = 45.0    # Timeout per attempt in seconds
+    
+    # Fallback model chain - try these if primary fails
+    fallback_models: tuple = (
+        'gpt-4.1',          # Fastest GPT
+        'claude-haiku-4.5',  # Fastest Claude
+    )
+
+
+# Default retry configuration
+DEFAULT_RETRY_CONFIG = RetryConfig()
 
 
 class MisesCopilotAgent:
@@ -70,6 +93,12 @@ class MisesCopilotAgent:
         self.session: Optional[CopilotSession] = None
         self.tools: Dict[str, Any] = {}
         self._system_prompt: str = ""  # Will be set when creating session
+        self._session_tools: List[Tool] = []
+        self._tool_names: List[str] = []
+        self._rag_store = None
+        self._rag_embedding = None
+
+        self.logger = logging.getLogger(__name__)
         
         # Initialize the client
         self._initialize_client()
@@ -118,6 +147,13 @@ class MisesCopilotAgent:
                     description=tool_info['description']
                 )
             
+            # Build SDK tool definitions for session registration
+            self._session_tools = [
+                self._build_sdk_tool(tool_name, tool_info)
+                for tool_name, tool_info in TOOL_REGISTRY.items()
+            ]
+            self._tool_names = [tool.name for tool in self._session_tools]
+
             print(f"✅ Registered {len(TOOL_REGISTRY)} MCP tools")
             
         except ImportError as e:
@@ -172,10 +208,44 @@ class MisesCopilotAgent:
 3. Provide context: coverage, time periods, notable gaps
 4. Suggest relevant next steps when appropriate
 
+**Tools Available:**
+- list_available_tools: list all available tools (use when asked "qué tools tienes")
+- list_local_datasets: list what the user has locally (cataloged). Call this FIRST when they ask to "review my datasets" or "propose analyses crossing multiple datasets".
+- search_datasets: find datasets by query/source/topic
+- semantic_search_datasets: find datasets by semantic similarity (e.g. "like real wages")
+- preview_data: preview rows and schema for a dataset (use id from list_local_datasets)
+- run_sql_query: run SQL SELECT queries on sampled data (table name 'dataset')
+- fork_dataset: create a fork marked as edited
+- get_dataset_versions: list versions for an identifier
+- get_dataset_statistics: catalog stats without loading full file
+- export_preview_csv: export a preview CSV (first N rows)
+- list_datasets_with_filters: list datasets by source/topic/edited/latest
+- download_owid: download OWID data by slug
+- get_metadata: fetch dataset metadata and schema
+- analyze_data: automated analysis (summary/trends/outliers/correlations)
+- recommend_datasets: find related datasets
+
+**When the user asks to "revisar mis datasets" or "propuestas de análisis multi-dataset":**
+1. Call list_local_datasets() to see what they have (cataloged + any uncataloged CSVs).
+2. From the list, propose concrete analyses (e.g. "puedes cruzar dataset X con Y por país y año") and offer to run preview_data or analyze_data on specific ids. If there are uncataloged_files, suggest they run "curate index" so those appear in the catalog.
+
+**When you suggest specific charts (e.g. in "Propuestas de Análisis Cruzado" or any "Gráfico: ..." line):**
+1. **Inline button:** Wherever you describe a chart in the text (e.g. "Gráfico: Línea: Entrada vs Salida de IED en el tiempo" or "Gráfico: Mapa: Conflictos (color intensidad)..."), put the marker [GRAFICAR:N] immediately after that description. N is the 0-based index of that chart in the chart_suggestions array (so the first chart you describe is [GRAFICAR:0], the second [GRAFICAR:1], etc.). This makes a "Graficar" button appear right there in the text.
+2. **Block at the end:** At the end of your message, add a single fenced code block with language `chart_suggestions` and a JSON array in the SAME order as the [GRAFICAR:0], [GRAFICAR:1], ... in the text:
+```chart_suggestions
+[
+  {"type": "line", "title": "Entrada vs Salida IED", "dataset_ids": [121, 131], "encodings": {"x": "year", "y": "value"}},
+  {"type": "scatter_compare", "title": "Correlación GDP vs HDI", "dataset_ids": [133, 117]}
+]
+```
+- type: "scatter", "line", "bar", "area", "bubble", "scatter_compare", or "map"/"mapa".
+- title: short label.
+- dataset_ids: one ID for single-dataset, two for scatter_compare (eje X, eje Y).
+- encodings: always include x and y when the chart type needs them. Use axes that make sense: for line/area charts use x=year (or time) and y=the numeric metric (e.g. GDP, HDI, life expectancy), never put year on the Y-axis. For scatter use x and y as two numeric metrics. Field names must match the dataset columns exactly (e.g. "GDP per capita", "year", "Human Development Index").
+
 **Tool Philosophy:**
-- Tools are YOUR research instruments
-- Synthesize multiple results into insights
-- Present as a knowledgeable analyst would
+- Use tools to answer factual questions; never guess what datasets exist—call list_local_datasets or search_datasets first when in doubt.
+- Synthesize multiple tool outputs into clear, actionable answers.
 
 Always be helpful, insightful, and concise."""
         
@@ -189,12 +259,34 @@ Always be helpful, insightful, and concise."""
         if model:
             config['model'] = model  # type: ignore
         
-        # Set system message using SystemMessageReplaceConfig
+        # Append to default system prompt to preserve SDK tool guidance
         prompt_to_use = system_prompt if system_prompt else default_prompt
-        config['system_message'] = SystemMessageReplaceConfig(
-            mode='replace',
+        config['system_message'] = SystemMessageAppendConfig(
+            mode='append',
             content=prompt_to_use
         )
+
+        # Register tools for this session if available
+        if self._session_tools:
+            config['tools'] = self._session_tools
+            config['available_tools'] = [tool.name for tool in self._session_tools]
+
+            config['custom_agents'] = [
+                {
+                    "name": "mises-data-curator",
+                    "display_name": "Mises Data Curator",
+                    "description": "Agent with dataset tools for economic data curation",
+                    "tools": [tool.name for tool in self._session_tools],
+                    "prompt": prompt_to_use,
+                    "infer": True
+                }
+            ]
+
+            config['hooks'] = {
+                "on_pre_tool_use": self._on_pre_tool_use,
+                "on_post_tool_use": self._on_post_tool_use,
+                "on_error_occurred": self._on_error_occurred
+            }
         
         # Note: Tools are registered globally via _register_mcp_tools()
         # The SDK discovers them automatically through the MCP protocol
@@ -210,48 +302,151 @@ Always be helpful, insightful, and concise."""
         message: str, 
         session_id: Optional[str] = None,
         stream: bool = False,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        retry_config: Optional[RetryConfig] = None
     ) -> Dict[str, Any]:
         """
-        Send a message to the Copilot agent.
+        Send a message to the Copilot agent with retry and fallback support.
         
         Args:
             message: User message
             session_id: Optional session ID (creates new if None)
             stream: Whether to stream the response
             model: Optional model ID to use
+            retry_config: Optional retry configuration
             
         Returns:
-            Response dictionary with text and metadata
+            Response dictionary with text, metadata, and retry info
         """
+        config = retry_config or DEFAULT_RETRY_CONFIG
+        errors = []
+        models_tried = []
+        
+        # Build model chain: primary model + fallbacks
+        model_chain = [model] if model else [None]  # None = use session default
+        model_chain.extend(config.fallback_models)
+        
+        for model_idx, current_model in enumerate(model_chain):
+            if model_idx > 0:
+                print(f"🔄 Falling back to model: {current_model}")
+            
+            models_tried.append(current_model or "default")
+            
+            # Retry loop for current model
+            for attempt in range(config.max_retries):
+                try:
+                    # Calculate delay with exponential backoff
+                    if attempt > 0:
+                        delay = min(config.base_delay * (2 ** (attempt - 1)), config.max_delay)
+                        print(f"⏳ Retry attempt {attempt + 1}/{config.max_retries} after {delay:.1f}s delay...")
+                        await asyncio.sleep(delay)
+                    
+                    # Attempt the request with timeout
+                    response = await self._chat_single_attempt(
+                        message=message,
+                        session_id=session_id,
+                        stream=stream,
+                        model=current_model,
+                        timeout=config.timeout
+                    )
+                    
+                    if response.get('status') == 'success':
+                        # Add retry metadata
+                        response['retry_info'] = {
+                            'attempts': attempt + 1,
+                            'model_used': current_model or "default",
+                            'models_tried': models_tried,
+                            'used_fallback': model_idx > 0
+                        }
+                        return response
+                    else:
+                        # Non-timeout error - still record it
+                        error_msg = response.get('error', 'Unknown error')
+                        errors.append(f"Attempt {attempt + 1}: {error_msg}")
+                        
+                except asyncio.TimeoutError:
+                    error_msg = f"Timeout after {config.timeout}s"
+                    errors.append(f"Attempt {attempt + 1} ({current_model or 'default'}): {error_msg}")
+                    print(f"⏰ {error_msg}")
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    errors.append(f"Attempt {attempt + 1}: {error_msg}")
+                    print(f"❌ Error: {error_msg}")
+                    
+                    # If it's a rate limit or overload, try fallback immediately
+                    if 'overloaded' in error_msg.lower() or 'rate limit' in error_msg.lower():
+                        print("🔄 Model overloaded, trying fallback...")
+                        break  # Break retry loop, try next model
+            
+            # If all retries failed for this model, try next one
+            print(f"❌ All retries exhausted for model: {current_model or 'default'}")
+        
+        # All models and retries exhausted
+        return {
+            'status': 'error',
+            'error': 'All retry attempts and model fallbacks exhausted',
+            'text': self._build_friendly_error_message(errors, models_tried),
+            'retry_info': {
+                'attempts': sum(1 for e in errors),
+                'models_tried': models_tried,
+                'errors': errors[-3:],  # Last 3 errors
+                'suggestion': 'Try using a faster model or simplifying your request'
+            }
+        }
+    
+    async def _chat_single_attempt(
+        self,
+        message: str,
+        session_id: Optional[str],
+        stream: bool,
+        model: Optional[str],
+        timeout: float
+    ) -> Dict[str, Any]:
+        """Single chat attempt with timeout."""
         try:
             # Create session if needed
             if not self.session or (session_id and self.session.session_id != session_id):
                 await self.create_session(session_id=session_id, model=model)
+
+            # Lightweight tool-augmented fallback for dataset queries
+            augmented_message, tool_event = await self._maybe_augment_prompt(message)
             
-            # Send message
+            # Wrap the actual call with timeout
             if stream:
                 # Streaming response
                 response_text = ""
-                async for chunk in self.session.send_streaming({'prompt': message}):
-                    # chunk is likely a string directly
-                    if isinstance(chunk, str):
-                        response_text += chunk
-                    elif hasattr(chunk, 'content'):
-                        response_text += chunk.content
-                    else:
-                        response_text += str(chunk)
                 
-                return {
+                async def stream_with_timeout():
+                    nonlocal response_text
+                    async for chunk in self.session.send_streaming({'prompt': augmented_message}):
+                        if isinstance(chunk, str):
+                            response_text += chunk
+                        elif hasattr(chunk, 'content'):
+                            response_text += chunk.content
+                        else:
+                            response_text += str(chunk)
+                    return response_text
+                
+                await asyncio.wait_for(stream_with_timeout(), timeout=timeout)
+                
+                response_payload = {
                     'status': 'success',
                     'text': response_text,
-                    'response': response_text,  # For compatibility
+                    'response': response_text,
                     'session_id': self.session.session_id,
                     'streamed': True
                 }
+                if tool_event:
+                    response_payload['tools_called'] = [tool_event['name']]
+                    response_payload['fallback_used'] = True
+                return response_payload
             else:
-                # Regular response - use send_and_wait() which returns a SessionEvent
-                response = await self.session.send_and_wait({'prompt': message})
+                # Regular response with timeout
+                response = await asyncio.wait_for(
+                    self.session.send_and_wait({'prompt': augmented_message}),
+                    timeout=timeout
+                )
                 
                 # Extract text from SessionEvent.data.content
                 response_text = ""
@@ -260,20 +455,37 @@ Always be helpful, insightful, and concise."""
                 else:
                     response_text = str(response)
                 
-                return {
+                response_payload = {
                     'status': 'success',
                     'text': response_text,
-                    'response': response_text,  # For compatibility
+                    'response': response_text,
                     'session_id': self.session.session_id,
                     'streamed': False
                 }
+                if tool_event:
+                    response_payload['tools_called'] = [tool_event['name']]
+                    response_payload['fallback_used'] = True
+                return response_payload
                 
+        except asyncio.TimeoutError:
+            raise  # Re-raise for handling in caller
         except Exception as e:
             return {
                 'status': 'error',
                 'error': str(e),
-                'text': f"Sorry, I encountered an error: {str(e)}"
+                'text': f"Error: {str(e)}"
             }
+    
+    def _build_friendly_error_message(self, errors: List[str], models_tried: List[str]) -> str:
+        """Build a user-friendly error message."""
+        msg = "⚠️ **Request failed after multiple attempts**\n\n"
+        msg += f"Tried {len(models_tried)} model(s): {', '.join(models_tried)}\n\n"
+        msg += "**Suggestions:**\n"
+        msg += "- Try a simpler question\n"
+        msg += "- Select a faster model (GPT-4.1 or Claude Haiku)\n"
+        msg += "- Wait a moment and try again\n\n"
+        msg += f"Last error: {errors[-1] if errors else 'Unknown'}"
+        return msg
 
     async def chat_stream(
         self, 
@@ -296,10 +508,32 @@ Always be helpful, insightful, and concise."""
             # Create session if needed
             if not self.session or (session_id and self.session.session_id != session_id):
                 await self.create_session(session_id=session_id, model=model)
+
+            # Lightweight tool-augmented fallback for dataset queries
+            augmented_message, tool_event = await self._maybe_augment_prompt(message)
             
             # Try to use actual streaming if available
             try:
-                async for event in self.session.send_streaming({'prompt': message}):
+                if tool_event:
+                    yield {
+                        'status': 'success',
+                        'session_id': self.session.session_id,
+                        'done': False,
+                        'fallback_used': True,
+                        'tool_use': {
+                            'name': tool_event['name'],
+                            'input': tool_event.get('input')
+                        }
+                    }
+                    yield {
+                        'status': 'success',
+                        'session_id': self.session.session_id,
+                        'done': False,
+                        'fallback_used': True,
+                        'tool_result': tool_event.get('result')
+                    }
+
+                async for event in self.session.send_streaming({'prompt': augmented_message}):
                     # Parse the event to extract different types of content
                     chunk_data = {
                         'status': 'success',
@@ -347,17 +581,22 @@ Always be helpful, insightful, and concise."""
                 response = await self.chat(message, session_id=session_id, stream=False, model=model)
                 
                 if response['status'] == 'success':
-                    yield {
+                    chunk = {
                         'status': 'success',
                         'text': response['text'],
                         'session_id': response['session_id'],
                         'done': False
                     }
+                    # Include retry_info if present
+                    if 'retry_info' in response:
+                        chunk['retry_info'] = response['retry_info']
+                    yield chunk
                 else:
                     yield {
                         'status': 'error',
                         'error': response.get('error', 'Unknown error'),
                         'text': response.get('text', 'Error'),
+                        'retry_info': response.get('retry_info'),
                         'done': True
                     }
                 
@@ -390,6 +629,152 @@ Always be helpful, insightful, and concise."""
             'description': description
         }
         print(f"🔧 Registered tool: {name}")
+
+    def _build_sdk_tool(self, name: str, tool_info: Dict[str, Any]) -> Tool:
+        """Create a Copilot SDK Tool with a handler bound to a local function."""
+        async def handler(invocation):
+            try:
+                args = invocation.get("arguments") or {}
+                result = await tool_info["function"](**args)
+                return {
+                    "textResultForLlm": json.dumps(result, ensure_ascii=True),
+                    "resultType": "success"
+                }
+            except Exception as e:
+                return {
+                    "textResultForLlm": "Tool execution failed.",
+                    "resultType": "failure",
+                    "error": str(e)
+                }
+
+        return Tool(
+            name=name,
+            description=tool_info.get("description", ""),
+            parameters=self._build_tool_schema(tool_info.get("parameters", {})),
+            handler=handler
+        )
+
+    async def _get_rag_context(self, message: str) -> str:
+        """Retrieve RAG context for the message. Returns empty string if RAG disabled or unavailable."""
+        try:
+            rag_cfg = self.config.get_rag_config()
+            if not rag_cfg.get("enabled", False):
+                return ""
+            top_k = rag_cfg.get("top_k", 5)
+            if self._rag_store is None or self._rag_embedding is None:
+                from src.embeddings import get_embedding_provider
+                from src.vector_store import VectorStore
+                self._rag_embedding = get_embedding_provider(
+                    rag_cfg.get("embedding_provider", "openai"),
+                    model=rag_cfg.get("embedding_model"),
+                    base_url=rag_cfg.get("embedding_base_url"),
+                )
+                self._rag_store = VectorStore(rag_cfg["chroma_persist_dir"])
+            embedding = self._rag_embedding.embed(message)
+            hits = self._rag_store.search(embedding, top_k=top_k)
+            if not hits:
+                return ""
+            parts = [h.get("text", "").strip() for h in hits if h.get("text")]
+            if not parts:
+                return ""
+            return "\n\n".join(parts)
+        except Exception as e:
+            self.logger.debug("RAG retrieval failed: %s", e)
+            return ""
+
+    async def _maybe_augment_prompt(self, message: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Attach RAG context and optionally search results for dataset-like queries."""
+        if "[Tool result: search_datasets]" in message:
+            augmented = message
+        else:
+            rag_context = await self._get_rag_context(message)
+            if rag_context:
+                augmented = f"{message}\n\n[Context]\n{rag_context}"
+            else:
+                augmented = message
+
+        if not self._looks_like_dataset_query(augmented):
+            return augmented, None
+
+        try:
+            from src.copilot_tools import search_datasets
+
+            results = await search_datasets(query=message, limit=5)
+            self.logger.info(
+                "Tool fallback search_datasets status: %s",
+                results.get("status")
+            )
+            tool_context = json.dumps(results, ensure_ascii=True)
+            augmented = (
+                f"{augmented}\n\n"
+                f"[Tool result: search_datasets]\n{tool_context}\n\n"
+                "Use these results to answer. If no matches, ask for clarification."
+            )
+            return augmented, {
+                "name": "search_datasets",
+                "input": {"query": message, "limit": 5},
+                "result": results
+            }
+        except Exception as e:
+            self.logger.warning(f"Tool fallback failed: {e}")
+            return augmented, None
+
+    def _looks_like_dataset_query(self, message: str) -> bool:
+        """Heuristic detection for dataset search intent."""
+        lowered = message.lower()
+        keywords = [
+            "dataset", "datasets", "dato", "datos", "indicador", "indicadores",
+            "catalogo", "herramienta", "herramientas",
+            "gdp", "pib", "inflacion", "inflation", "unemployment", "desempleo",
+            "salarios", "wage", "income", "pobreza", "poverty"
+        ]
+        return any(k in lowered for k in keywords)
+
+    def _on_pre_tool_use(self, input_data, _env):
+        tool_name = input_data.get("toolName")
+        print(f"[copilot] pre-tool: {tool_name}")
+        self.logger.info(f"Copilot pre-tool: {tool_name}")
+
+    def _on_post_tool_use(self, input_data, _env):
+        tool_name = input_data.get("toolName")
+        print(f"[copilot] post-tool: {tool_name}")
+        self.logger.info(f"Copilot post-tool: {tool_name}")
+
+    def _on_error_occurred(self, input_data, _env):
+        print(f"[copilot] error: {input_data.get('error')}")
+        self.logger.warning(f"Copilot error: {input_data.get('error')}")
+
+    def _build_tool_schema(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert simple parameter metadata into a JSON schema for the SDK."""
+        properties: Dict[str, Any] = {}
+        required: list[str] = []
+
+        for name, meta in parameters.items():
+            param_type = meta.get("type", "string")
+            description = meta.get("description", "")
+
+            schema: Dict[str, Any] = {
+                "type": param_type,
+                "description": description
+            }
+
+            if param_type == "array":
+                schema["items"] = {"type": "string"}
+
+            properties[name] = schema
+
+            if meta.get("required"):
+                required.append(name)
+
+        tool_schema: Dict[str, Any] = {
+            "type": "object",
+            "properties": properties
+        }
+
+        if required:
+            tool_schema["required"] = required
+
+        return tool_schema
     
     async def execute_tool(self, tool_name: str, **kwargs) -> Any:
         """

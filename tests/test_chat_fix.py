@@ -4,6 +4,11 @@
 import sys
 import os
 
+if __name__ != "__main__":
+    import pytest
+
+    pytest.skip("script-style test; run manually", allow_module_level=True)
+
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 os.chdir(os.path.join(os.path.dirname(__file__), 'src'))

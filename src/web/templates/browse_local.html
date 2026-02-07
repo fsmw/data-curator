@@ -5,14 +5,14 @@
   <!-- Search and Filters Card -->
   <div class="card p-3 mb-3">
     <div class="row g-2 align-items-center">
-      <div class="col-md-6">
+      <div class="col-md-5">
         <input x-model="searchQuery" class="form-control"
-          placeholder="Buscar datasets locales (ej: salarios, tax, informal)" @keyup.enter="loadDatasets()"
+          placeholder="Search local datasets (e.g., wages, tax, informal)" @keyup.enter="loadDatasets()"
           @input="debounceSearch()" />
       </div>
       <div class="col-md-2">
         <select class="form-select" x-model="filters.source" @change="loadDatasets()">
-          <option value="">Todas las fuentes</option>
+          <option value="">All sources</option>
           <option value="owid">OWID</option>
           <option value="ilostat">ILOSTAT</option>
           <option value="oecd">OECD</option>
@@ -24,23 +24,33 @@
       </div>
       <div class="col-md-2">
         <select class="form-select" x-model="filters.topic" @change="loadDatasets()">
-          <option value="">Todos los temas</option>
-          <option value="salarios">Salarios</option>
-          <option value="libertad">Libertad Económica</option>
-          <option value="informalidad">Informalidad</option>
-          <option value="tax">Impuestos</option>
+          <option value="">All topics</option>
+          <option value="salarios">Wages</option>
+          <option value="libertad">Economic Freedom</option>
+          <option value="informalidad">Informality</option>
+          <option value="tax">Taxes</option>
           <option value="general">General</option>
         </select>
       </div>
-      <div class="col-md-2 text-end">
-        <button @click="refreshCatalog()" class="btn btn-primary w-100" :disabled="loading"
-          title="Re-indexar todos los datasets desde el disco">
-          <i class="bi bi-arrow-clockwise"></i>
-          <span x-show="!loading">Refresh</span>
-          <span x-show="loading">
-            <span class="spinner-border spinner-border-sm" role="status"></span>
-          </span>
-        </button>
+      <div class="col-md-3 text-end">
+        <div class="d-flex gap-2">
+          <button @click="refreshCatalog()" class="btn btn-primary flex-grow-1" :disabled="loading || downloadingBackup"
+            title="Re-index all datasets from disk">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span x-show="!loading">Refresh</span>
+            <span x-show="loading">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+            </span>
+          </button>
+          <button @click="downloadAll()" class="btn btn-outline-secondary flex-grow-1"
+            :disabled="loading || downloadingBackup" title="Download backup zip of all data">
+            <i class="bi bi-download"></i>
+            <span x-show="!downloadingBackup">Descargar todo</span>
+            <span x-show="downloadingBackup">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -49,11 +59,11 @@
   <div class="card p-3 mb-3" x-show="statistics">
     <div class="row text-center">
       <div class="col-md-3">
-        <div class="text-secondary small">Total Datasets</div>
+        <div class="text-secondary small">Total datasets</div>
         <div class="h4 mb-0" x-text="statistics?.total_datasets || 0"></div>
       </div>
       <div class="col-md-3">
-        <div class="text-secondary small">Database Size</div>
+        <div class="text-secondary small">Database size</div>
         <div class="h4 mb-0" x-text="formatSize(statistics?.total_size_mb)"></div>
       </div>
       <div class="col-md-3">
@@ -71,29 +81,38 @@
   <div class="card p-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="text-secondary small">
-        <span x-text="datasets.length"></span> datasets encontrados
+        <span x-text="datasets.length"></span> datasets found
         <span x-show="searchQuery" class="ms-2">
-          para: <strong x-text="searchQuery"></strong>
+          for: <strong x-text="searchQuery"></strong>
         </span>
       </div>
-      <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary" :class="{ 'active': viewMode === 'table' }"
-          @click="viewMode = 'table'">
-          <i class="bi bi-table"></i> Tabla
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm"
+          :disabled="!anySelected || updatingSelected || loading"
+          @click="refreshSelected()"
+          title="Actualizar datasets seleccionados">
+          <i class="bi" :class="updatingSelected ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'"></i>
+          <span class="ms-1" x-text="updatingSelected ? 'Actualizando...' : 'Actualizar seleccionados'"></span>
         </button>
-        <button type="button" class="btn btn-outline-secondary" :class="{ 'active': viewMode === 'cards' }"
-          @click="viewMode = 'cards'">
-          <i class="bi bi-grid"></i> Cards
-        </button>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-outline-secondary" :class="{ 'active': viewMode === 'table' }"
+            @click="viewMode = 'table'">
+            <i class="bi bi-table"></i> Table
+          </button>
+          <button type="button" class="btn btn-outline-secondary" :class="{ 'active': viewMode === 'cards' }"
+            @click="viewMode = 'cards'">
+            <i class="bi bi-grid"></i> Cards
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Loading State -->
     <div x-show="loading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Cargando...</span>
+        <span class="visually-hidden">Loading...</span>
       </div>
-      <div class="text-secondary small mt-2">Cargando datasets...</div>
+      <div class="text-secondary small mt-2">Loading datasets...</div>
     </div>
 
     <!-- Error State -->
@@ -110,9 +129,9 @@
     <!-- Empty State -->
     <div x-show="!loading && !error && datasets.length === 0" class="text-center py-5">
       <i class="bi bi-folder-open" style="font-size: 48px; color: #ccc;"></i>
-      <div class="text-secondary mt-3">No hay datasets en el catálogo</div>
+      <div class="text-secondary mt-3">No datasets in the catalog</div>
       <button @click="refreshCatalog()" class="btn btn-primary mt-3">
-        <i class="bi bi-arrow-clockwise"></i> Indexar Datasets
+        <i class="bi bi-arrow-clockwise"></i> Index datasets
       </button>
     </div>
 
@@ -122,20 +141,35 @@
         <table class="table table-hover align-middle mb-0">
           <thead>
             <tr>
+              <th class="text-center" style="width: 36px;">
+                <input class="form-check-input" type="checkbox"
+                  :checked="allSelected"
+                  @change="toggleSelectAll($event)"
+                  :disabled="loading || datasets.length === 0"
+                  title="Seleccionar todos">
+              </th>
               <th>Dataset</th>
-              <th>Fuente</th>
-              <th>Filas</th>
-              <th>Años</th>
-              <th>Países</th>
-              <th>Completitud</th>
+              <th>Source</th>
+              <th>Rows</th>
+              <th>Years</th>
+              <th>Countries</th>
+              <th>Completeness</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <template x-for="dataset in datasets" :key="dataset.id">
               <tr>
+                <td class="text-center">
+                  <input class="form-check-input" type="checkbox"
+                    :checked="selectedDatasetIds.includes(String(dataset.id))"
+                    @change="toggleSelectDataset(dataset.id, $event)">
+                </td>
                 <td>
-                  <strong x-text="dataset.indicator_name"></strong>
+                  <div class="d-flex align-items-center gap-2">
+                    <strong x-text="dataset.indicator_name"></strong>
+                    <span class="badge bg-warning text-dark" x-show="dataset.is_edited">Edited</span>
+                  </div>
                   <div class="small text-muted" x-text="dataset.description || ''"></div>
                   <div class="tiny text-secondary" style="font-size: 0.75rem;" x-text="dataset.file_name"></div>
                 </td>
@@ -156,13 +190,20 @@
                     x-text="formatPercent(dataset.completeness_score)"></span>
                 </td>
                 <td class="text-end">
+                  <span class="me-2 text-primary" x-show="refreshingDatasetIds.includes(String(dataset.id))">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                  </span>
                   <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-secondary" :href="`/edit?dataset_id=${dataset.id}`"
+                      title="Editar dataset">
+                      <i class="bi bi-pencil-square"></i>
+                    </a>
                     <button @click="viewDataset(dataset.id)" class="btn btn-outline-primary"
-                      title="Ver detalles del dataset">
+                      title="View dataset details">
                       <i class="bi bi-eye"></i>
                     </button>
                     <button @click.stop="deleteDataset(dataset.id, dataset.indicator_name)"
-                      class="btn btn-outline-danger" title="Eliminar dataset">
+                      class="btn btn-outline-danger" title="Delete dataset">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
@@ -181,9 +222,23 @@
           <div class="card h-100" style="cursor: pointer;" @click="viewDataset(dataset.id)">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="card-title mb-0" x-text="dataset.indicator_name"></h6>
-                <span class="badge" :class="getCompletenessClass(dataset.completeness_score)"
-                  x-text="formatPercent(dataset.completeness_score)"></span>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="text-primary" x-show="refreshingDatasetIds.includes(String(dataset.id))">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                  </span>
+                  <div class="d-flex align-items-center gap-2">
+                    <h6 class="card-title mb-0" x-text="dataset.indicator_name"></h6>
+                    <span class="badge bg-warning text-dark" x-show="dataset.is_edited">Edited</span>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <a class="btn btn-outline-secondary btn-sm" @click.stop
+                    :href="`/edit?dataset_id=${dataset.id}`" title="Editar dataset">
+                    <i class="bi bi-pencil-square"></i>
+                  </a>
+                  <span class="badge" :class="getCompletenessClass(dataset.completeness_score)"
+                    x-text="formatPercent(dataset.completeness_score)"></span>
+                </div>
               </div>
               <div class="small text-muted mb-2" style="min-height: 2.5em;"
                 x-text="dataset.description || dataset.file_name"></div>
@@ -193,12 +248,12 @@
                 <span class="badge bg-secondary" x-text="dataset.topic"></span>
               </div>
               <div class="small">
-                <div><strong>Filas:</strong> <span x-text="formatNumber(dataset.row_count)"></span></div>
-                <div><strong>Columnas:</strong> <span x-text="dataset.column_count"></span></div>
+                <div><strong>Rows:</strong> <span x-text="formatNumber(dataset.row_count)"></span></div>
+                <div><strong>Columns:</strong> <span x-text="dataset.column_count"></span></div>
                 <div x-show="dataset.min_year && dataset.max_year">
-                  <strong>Años:</strong> <span x-text="dataset.min_year + '-' + dataset.max_year"></span>
+                  <strong>Years:</strong> <span x-text="dataset.min_year + '-' + dataset.max_year"></span>
                 </div>
-                <div><strong>Países:</strong> <span x-text="dataset.country_count || 'N/A'"></span></div>
+                <div><strong>Countries:</strong> <span x-text="dataset.country_count || 'N/A'"></span></div>
               </div>
             </div>
           </div>
@@ -223,7 +278,7 @@
           <!-- Loading Preview -->
           <div x-show="loadingPreview" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
-            <div class="text-secondary small mt-2">Cargando preview...</div>
+            <div class="text-secondary small mt-2">Loading preview...</div>
           </div>
 
           <!-- Dataset Info -->
@@ -231,11 +286,15 @@
             <ul class="nav nav-tabs mb-3" id="datasetTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-pane"
-                  type="button" role="tab">📋 Datos</button>
+                  type="button" role="tab">📋 Data</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="viz-tab" data-bs-toggle="tab" data-bs-target="#viz-pane" type="button"
-                  role="tab" @click="initChart()">📈 Visualización</button>
+                  role="tab" @click="initChart()">📈 Visualization</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes-pane"
+                  type="button" role="tab" @click="loadNotes()">📝 Notes</button>
               </li>
             </ul>
 
@@ -245,33 +304,33 @@
               <div class="tab-pane fade show active" id="data-pane" role="tabpanel">
                 <div class="row mb-4">
                   <div class="col-md-6">
-                    <h6>Información del Dataset</h6>
+                    <h6>Dataset information</h6>
                     <table class="table table-sm">
                       <tr>
-                        <td><strong>Fuente:</strong></td>
+                        <td><strong>Source:</strong></td>
                         <td><span class="badge bg-primary" x-text="currentDataset?.source?.toUpperCase()"></span></td>
                       </tr>
                       <tr>
-                        <td><strong>Tema:</strong></td>
+                        <td><strong>Topic:</strong></td>
                         <td><span class="badge bg-secondary" x-text="currentDataset?.topic"></span></td>
                       </tr>
                       <tr>
-                        <td><strong>Filas:</strong></td>
+                        <td><strong>Rows:</strong></td>
                         <td x-text="formatNumber(currentDataset?.row_count)"></td>
                       </tr>
                       <tr>
-                        <td><strong>Columnas:</strong></td>
+                        <td><strong>Columns:</strong></td>
                         <td x-text="currentDataset?.column_count"></td>
                       </tr>
                       <tr x-show="currentDataset?.min_year && currentDataset?.max_year">
-                        <td><strong>Rango años:</strong></td>
+                        <td><strong>Year range:</strong></td>
                         <td><span x-text="currentDataset?.min_year"></span> - <span
                             x-text="currentDataset?.max_year"></span></td>
                       </tr>
                     </table>
                   </div>
                   <div class="col-md-6">
-                    <h6>Países (<span x-text="currentDataset?.country_count || 0"></span>)</h6>
+                    <h6>Countries (<span x-text="currentDataset?.country_count || 0"></span>)</h6>
                     <div class="small" style="max-height: 200px; overflow-y: auto;">
                       <template x-if="currentDataset?.countries && currentDataset.countries.length > 0">
                         <div class="d-flex flex-wrap gap-1">
@@ -289,7 +348,7 @@
 
                 <!-- Preview Data -->
                 <div x-show="!loadingPreview && previewData">
-                  <h6>Preview (primeras <span x-text="previewData?.total_rows || 0"></span> filas)</h6>
+                  <h6>Preview (first <span x-text="previewData?.total_rows || 0"></span> rows)</h6>
                   <div style="max-height: 400px; overflow: auto;">
                     <table class="table table-sm table-striped">
                       <thead class="sticky-top bg-white">
@@ -317,19 +376,19 @@
               <div class="tab-pane fade" id="viz-pane" role="tabpanel">
                 <div class="card bg-light mb-3">
                   <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">Configuración del Gráfico</h6>
+                    <h6 class="card-subtitle mb-2 text-muted">Chart settings</h6>
                     <div class="row g-2 align-items-end">
                       <div class="col-md-3">
-                        <label class="form-label small fw-bold">Tipo</label>
+                        <label class="form-label small fw-bold">Type</label>
                         <select class="form-select form-select-sm" x-model="chartConfig.type" @change="updateChart()">
-                          <option value="line">Líneas</option>
-                          <option value="bar">Barras</option>
-                          <option value="scatter">Dispersión</option>
-                          <option value="pie">Pastel</option>
+                          <option value="line">Line</option>
+                          <option value="bar">Bar</option>
+                          <option value="scatter">Scatter</option>
+                          <option value="pie">Pie</option>
                         </select>
                       </div>
                       <div class="col-md-3">
-                        <label class="form-label small fw-bold">Eje X / Categoría</label>
+                        <label class="form-label small fw-bold">X Axis / Category</label>
                         <select class="form-select form-select-sm" x-model="chartConfig.x" @change="updateChart()">
                           <template x-for="col in previewData?.columns" :key="col">
                             <option :value="col" x-text="col"></option>
@@ -337,7 +396,7 @@
                         </select>
                       </div>
                       <div class="col-md-3">
-                        <label class="form-label small fw-bold">Eje Y / Valor</label>
+                        <label class="form-label small fw-bold">Y Axis / Value</label>
                         <select class="form-select form-select-sm" x-model="chartConfig.y" @change="updateChart()">
                           <template x-for="col in previewData?.columns" :key="col">
                             <option :value="col" x-text="col"></option>
@@ -345,9 +404,9 @@
                         </select>
                       </div>
                       <div class="col-md-3">
-                        <label class="form-label small fw-bold">Color / Agrupación</label>
+                        <label class="form-label small fw-bold">Color / Group</label>
                         <select class="form-select form-select-sm" x-model="chartConfig.color" @change="updateChart()">
-                          <option value="None">Ninguno</option>
+                          <option value="None">None</option>
                           <template x-for="col in previewData?.columns" :key="col">
                             <option :value="col" x-text="col"></option>
                           </template>
@@ -360,16 +419,69 @@
                 <div id="dynamic-chart" style="width: 100%; min-height: 400px;" class="border rounded p-2"></div>
               </div>
 
+              <!-- Tab 3: Notes -->
+              <div class="tab-pane fade" id="notes-pane" role="tabpanel">
+                <div x-show="loadingNotes" class="text-center py-4">
+                  <div class="spinner-border text-primary" role="status"></div>
+                  <div class="text-secondary small mt-2">Loading notes...</div>
+                </div>
+                <div x-show="notesError" class="alert alert-warning" role="alert">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  <span x-text="notesError"></span>
+                </div>
+                <div x-show="!loadingNotes && notesHtml" class="markdown-body" x-html="notesHtml"></div>
+                <div x-show="!loadingNotes && !notesHtml && !notesError" class="text-secondary">
+                  No notes available for this dataset.
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="closeModal()">Cerrar</button>
+          <button type="button" class="btn btn-secondary" @click="closeModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Versions Modal -->
+  <div class="modal fade" :class="{ 'show d-block': showVersionsModal }" tabindex="-1"
+    style="background: rgba(0,0,0,0.5);" x-show="showVersionsModal" @click.self="closeVersions()">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Versions for <span x-text="selectedIdentifier"></span></h5>
+          <button type="button" class="btn-close" @click="closeVersions()"></button>
+        </div>
+        <div class="modal-body">
+          <div x-show="versionsList.length === 0" class="text-center text-secondary py-4">No versions found</div>
+          <div x-show="versionsList.length > 0" class="list-group">
+            <template x-for="v in versionsList" :key="v.id">
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div><strong x-text="v.file_name"></strong></div>
+                  <div class="small text-secondary">Indexed: <span x-text="v.indexed_at"></span></div>
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <button @click="viewDataset(v.id)" class="btn btn-outline-primary">View</button>
+                  <button @click="deleteDataset(v.id, v.file_name)" class="btn btn-outline-danger">Delete</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeVersions()">Close</button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
 
 <script>
   document.addEventListener('alpine:init', () => {
@@ -377,6 +489,7 @@
       datasets: [],
       statistics: null,
       loading: false,
+      downloadingBackup: false,
       loadingPreview: false,
       error: null,
       success: null,
@@ -391,6 +504,12 @@
       showModal: false,
       currentDataset: null,
       previewData: null,
+      notesHtml: '',
+      notesError: '',
+      loadingNotes: false,
+      updatingSelected: false,
+      selectedDatasetIds: [],
+      refreshingDatasetIds: [],
 
       // Visualization State
       chartConfig: {
@@ -446,11 +565,14 @@
 
           if (data.status === 'success' && data.datasets) {
             this.datasets = data.datasets;
+            const ids = new Set(this.datasets.map(ds => String(ds.id)));
+            this.selectedDatasetIds = this.selectedDatasetIds.filter(id => ids.has(String(id)));
+            this.refreshingDatasetIds = this.refreshingDatasetIds.filter(id => ids.has(String(id)));
           } else {
-            this.error = data.message || 'No se pudo cargar los datasets';
+            this.error = data.message || 'Failed to load datasets';
           }
         } catch (err) {
-          this.error = 'Error al cargar datasets: ' + err.message;
+          this.error = 'Failed to load datasets: ' + err.message;
           console.error(err);
         } finally {
           this.loading = false;
@@ -462,6 +584,65 @@
         this.searchTimeout = setTimeout(() => {
           this.loadDatasets();
         }, 500);
+      },
+
+      get allSelected() {
+        return this.datasets.length > 0 && this.selectedDatasetIds.length === this.datasets.length;
+      },
+
+      get anySelected() {
+        return this.selectedDatasetIds.length > 0;
+      },
+
+      toggleSelectAll(event) {
+        const checked = event.target.checked;
+        if (checked) {
+          this.selectedDatasetIds = this.datasets.map(ds => String(ds.id));
+        } else {
+          this.selectedDatasetIds = [];
+        }
+      },
+
+      toggleSelectDataset(datasetId, event) {
+        const checked = event.target.checked;
+        const normalizedId = String(datasetId);
+        if (checked) {
+          if (!this.selectedDatasetIds.includes(normalizedId)) {
+            this.selectedDatasetIds.push(normalizedId);
+          }
+        } else {
+          this.selectedDatasetIds = this.selectedDatasetIds.filter(id => id !== normalizedId);
+        }
+      },
+
+      async refreshSelected() {
+        if (!this.anySelected || this.updatingSelected) return;
+        this.updatingSelected = true;
+        this.refreshingDatasetIds = [...this.selectedDatasetIds];
+        this.error = null;
+        this.success = null;
+
+        try {
+          const response = await fetch('/api/datasets/refresh-selected', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset_ids: this.selectedDatasetIds })
+          });
+          const data = await response.json();
+          if (data.status === 'success') {
+            await this.loadStatistics();
+            await this.loadDatasets();
+            this.success = `Actualizados: ${data.updated || 0}. Notas OWID: ${data.notes_updated || 0}.`;
+            setTimeout(() => { this.success = null }, 5000);
+          } else {
+            this.error = data.message || 'Failed to update selected datasets';
+          }
+        } catch (err) {
+          this.error = 'Failed to update selected datasets: ' + err.message;
+        } finally {
+          this.updatingSelected = false;
+          this.refreshingDatasetIds = [];
+        }
       },
 
       async refreshCatalog() {
@@ -477,13 +658,45 @@
           if (data.status === 'success') {
             await this.loadStatistics();
             await this.loadDatasets();
-            this.success = `Catálogo actualizado: ${data.stats.indexed} indexados, ${data.stats.skipped} sin cambios`;
+            this.success = `Catalog updated: ${data.stats.indexed} indexed, ${data.stats.skipped} unchanged`;
             setTimeout(() => { this.success = null }, 5000);
           }
         } catch (err) {
-          this.error = 'Error al actualizar catálogo: ' + err.message;
+          this.error = 'Failed to refresh catalog: ' + err.message;
         } finally {
           this.loading = false;
+        }
+      },
+
+      async downloadAll() {
+        if (this.downloadingBackup) return;
+        this.downloadingBackup = true;
+        this.error = null;
+        this.success = null;
+
+        try {
+          const response = await fetch('/api/datasets/backup');
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to download backup');
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'mises_data_backup.zip';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+
+          this.success = 'Backup download started';
+          setTimeout(() => { this.success = null }, 5000);
+        } catch (err) {
+          this.error = 'Failed to download backup: ' + err.message;
+        } finally {
+          this.downloadingBackup = false;
         }
       },
 
@@ -492,6 +705,9 @@
         this.loadingPreview = true;
         this.currentDataset = null;
         this.previewData = null;
+        this.notesHtml = '';
+        this.notesError = '';
+        this.loadingNotes = false;
 
         try {
           // Load dataset details
@@ -511,14 +727,35 @@
           }
         } catch (err) {
           console.error('Error loading dataset:', err);
-          this.error = 'Error al cargar dataset: ' + err.message;
+          this.error = 'Failed to load dataset: ' + err.message;
         } finally {
           this.loadingPreview = false;
         }
       },
 
+      async loadNotes() {
+        if (!this.currentDataset?.id) return;
+        this.loadingNotes = true;
+        this.notesError = '';
+        this.notesHtml = '';
+
+        try {
+          const res = await fetch(`/api/datasets/${this.currentDataset.id}/notes`);
+          const data = await res.json();
+          if (data.status === 'success') {
+            this.notesHtml = data.notes ? marked.parse(data.notes) : '';
+          } else {
+            this.notesError = data.message || 'Failed to load notes';
+          }
+        } catch (err) {
+          this.notesError = 'Failed to load notes: ' + err.message;
+        } finally {
+          this.loadingNotes = false;
+        }
+      },
+
       async deleteDataset(datasetId, datasetName) {
-        if (!confirm(`¿Está seguro que desea eliminar "${datasetName}"?\n\nEsto eliminará el archivo del disco y no se puede deshacer.`)) {
+        if (!confirm(`Are you sure you want to delete "${datasetName}"?\n\nThis will delete the file from disk and cannot be undone.`)) {
           return;
         }
 
@@ -532,14 +769,14 @@
             // Refresh the datasets list
             await this.loadStatistics();
             await this.loadDatasets();
-            this.success = 'Dataset eliminado correctamente';
+            this.success = 'Dataset deleted successfully';
             setTimeout(() => { this.success = null }, 5000);
           } else {
-            this.error = 'Error al eliminar dataset: ' + (data.message || 'Unknown error');
+            this.error = 'Failed to delete dataset: ' + (data.message || 'Unknown error');
           }
         } catch (err) {
           console.error('Error deleting dataset:', err);
-          this.error = 'Error al eliminar dataset: ' + err.message;
+          this.error = 'Failed to delete dataset: ' + err.message;
         }
       },
 
@@ -581,6 +818,9 @@
         this.previewData = null;
         this.chartConfig = { type: 'line', x: '', y: '', color: 'None' };
         document.getElementById('dynamic-chart').innerHTML = '';
+        this.notesHtml = '';
+        this.notesError = '';
+        this.loadingNotes = false;
       },
 
       // Visualization Logic
@@ -589,8 +829,11 @@
 
         // Try to guess reasonable defaults
         const cols = this.previewData.columns;
-        const yearCol = cols.find(c => c.toLowerCase().includes('year')) || cols[0];
-        const valCol = cols.find(c => !c.toLowerCase().includes('year') && !c.toLowerCase().includes('country') && !c.toLowerCase().includes('code')) || cols[1];
+        const yearCol = cols.find(c => {
+          const name = c.toLowerCase();
+          return name.includes('year') || name.includes('date') || name.includes('time');
+        }) || cols[0];
+        const valCol = cols.find(c => !c.toLowerCase().includes('year') && !c.toLowerCase().includes('country') && !c.toLowerCase().includes('code')) || cols[1] || cols[0];
         const countryCol = cols.find(c => c.toLowerCase().includes('country')) || 'None';
 
         this.chartConfig.x = yearCol;
@@ -603,6 +846,15 @@
       updateChart() {
         if (!this.previewData || !this.chartConfig.x || !this.chartConfig.y) return;
 
+        const xType = this.inferFieldType(this.chartConfig.x);
+        const yType = this.inferFieldType(this.chartConfig.y, true);
+
+        if (yType !== 'quantitative') {
+          document.getElementById('dynamic-chart').innerHTML =
+            '<div class="text-center text-secondary py-5">Select a numeric field for Y.</div>';
+          return;
+        }
+
         const spec = {
           "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
           "width": "container",
@@ -610,8 +862,8 @@
           "data": { "values": this.previewData.rows },
           "mark": { "tooltip": true },
           "encoding": {
-            "x": { "field": this.chartConfig.x, "type": "quantitative" },
-            "y": { "field": this.chartConfig.y, "type": "quantitative" },
+            "x": { "field": this.chartConfig.x, "type": xType },
+            "y": { "field": this.chartConfig.y, "type": yType },
             "tooltip": [
               { "field": this.chartConfig.x, "title": this.chartConfig.x },
               { "field": this.chartConfig.y, "title": this.chartConfig.y, "format": ",.2f" }
@@ -624,19 +876,30 @@
 
         if (this.chartConfig.type === 'line') {
           spec.mark = { type: "line", point: true, tooltip: true };
-          spec.encoding.x.type = isYear ? "quantitative" : "ordinal";
+          if (isYear) {
+            spec.encoding.x.type = "quantitative";
+            spec.encoding.x.sort = "ascending";
+          } else if (xType === 'temporal') {
+            spec.encoding.x.type = "temporal";
+          } else if (xType === 'quantitative') {
+            spec.encoding.x.type = "quantitative";
+          } else {
+            spec.encoding.x.type = "ordinal";
+          }
           spec.encoding.y.scale = { zero: false };
         } else if (this.chartConfig.type === 'bar') {
           spec.mark = "bar";
-          spec.encoding.x.type = "ordinal";
+          spec.encoding.x.type = xType === 'quantitative' ? 'ordinal' : xType;
         } else if (this.chartConfig.type === 'scatter') {
           spec.mark = { type: "point", size: 60, filled: true, tooltip: true };
-          spec.encoding.x.scale = { zero: false };
+          if (xType === 'quantitative') {
+            spec.encoding.x.scale = { zero: false };
+          }
           spec.encoding.y.scale = { zero: false };
         } else if (this.chartConfig.type === 'pie') {
           spec.mark = { type: "arc", outerRadius: 120, tooltip: true };
           spec.encoding.theta = { field: this.chartConfig.y, type: "quantitative" };
-          spec.encoding.color = { field: this.chartConfig.x, type: "nominal" };
+          spec.encoding.color = { field: this.chartConfig.x, type: xType === 'temporal' ? 'nominal' : xType };
           delete spec.encoding.x;
           delete spec.encoding.y;
         }
@@ -654,9 +917,39 @@
         vegaEmbed('#dynamic-chart', spec, { actions: { export: true, source: false, editor: false } });
       },
 
+      inferFieldType(field, requireNumeric = false) {
+        if (!this.previewData || !this.previewData.rows) return 'nominal';
+        const name = field.toLowerCase();
+        if (name.includes('year')) return 'quantitative';
+        if (name.includes('date') || name.includes('time')) return 'temporal';
+
+        const values = this.previewData.rows
+          .map(row => row[field])
+          .filter(v => v !== null && v !== undefined && v !== '');
+
+        if (values.length === 0) return requireNumeric ? 'nominal' : 'nominal';
+
+        const numericValues = values.filter(v => this.isNumericValue(v));
+        if (numericValues.length === values.length) return 'quantitative';
+
+        const dateValues = values.filter(v => !isNaN(Date.parse(v)));
+        if (dateValues.length === values.length) return 'temporal';
+
+        return 'nominal';
+      },
+
+      isNumericValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value);
+        if (typeof value !== 'string') return false;
+        const trimmed = value.trim();
+        if (!trimmed) return false;
+        const normalized = trimmed.replace(/,/g, '');
+        return Number.isFinite(Number(normalized));
+      },
+
       // Utility functions
       formatNumber(num) {
-        return num?.toLocaleString('es-ES') || '0';
+        return num?.toLocaleString('en-US') || '0';
       },
 
       formatSize(mb) {
@@ -671,7 +964,7 @@
 
       formatCell(value) {
         if (value === null || value === undefined) return 'N/A';
-        if (typeof value === 'number') return value.toLocaleString('es-ES');
+        if (typeof value === 'number') return value.toLocaleString('en-US');
         return String(value);
       },
 
@@ -684,38 +977,5 @@
     }));
   });
 </script>
-
-<!-- Versions Modal -->
-<div class="modal fade" :class="{ 'show d-block': showVersionsModal }" tabindex="-1"
-  style="background: rgba(0,0,0,0.5);" x-show="showVersionsModal" @click.self="closeVersions()">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Versions for <span x-text="selectedIdentifier"></span></h5>
-        <button type="button" class="btn-close" @click="closeVersions()"></button>
-      </div>
-      <div class="modal-body">
-        <div x-show="versionsList.length === 0" class="text-center text-secondary py-4">No versions found</div>
-        <div x-show="versionsList.length > 0" class="list-group">
-          <template x-for="v in versionsList" :key="v.id">
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <div><strong x-text="v.file_name"></strong></div>
-                <div class="small text-secondary">Indexed: <span x-text="v.indexed_at"></span></div>
-              </div>
-              <div class="btn-group btn-group-sm">
-                <button @click="viewDataset(v.id)" class="btn btn-outline-primary">View</button>
-                <button @click="deleteDataset(v.id, v.file_name)" class="btn btn-outline-danger">Delete</button>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="closeVersions()">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 {% endblock %}

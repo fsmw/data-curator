@@ -366,6 +366,18 @@ class DataCleaner:
             "date_columns": list(data.select_dtypes(include=["datetime"]).columns),
         }
 
+        country_cols = [
+            col
+            for col in data.columns
+            if "country" in col.lower() or "pais" in col.lower()
+        ]
+        if country_cols:
+            country_col = country_cols[0]
+            countries = data[country_col].dropna().astype(str).unique().tolist()
+            summary["country_column"] = country_col
+            summary["countries"] = countries[:200]
+            summary["country_count"] = len(countries)
+
         # Add year range if available
         year_cols = [col for col in data.columns if "year" in col.lower()]
         if year_cols:

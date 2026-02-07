@@ -18,8 +18,8 @@ api_bp = Blueprint(
 from . import search
 from . import datasets
 from . import download
-from . import compare
 from . import copilot
 from . import analysis
-from . import editorial
 from . import agent
+from . import visualization
+from . import data_formulator

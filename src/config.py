@@ -56,6 +56,18 @@ class Config:
         dir_name = self.config["directories"][dir_type]
         return self.data_root / dir_name
 
+    def get_rag_config(self) -> Dict[str, Any]:
+        """Get RAG configuration (embeddings, vector store, retrieval)."""
+        rag = self.config.get("rag") or {}
+        return {
+            "enabled": rag.get("enabled", False),
+            "top_k": rag.get("top_k", 5),
+            "embedding_provider": rag.get("embedding_provider", "openai"),
+            "embedding_model": rag.get("embedding_model"),
+            "embedding_base_url": rag.get("embedding_base_url") or os.getenv("OPENAI_BASE_URL"),
+            "chroma_persist_dir": self.data_root / "chroma_rag",
+        }
+
     def get_llm_config(self) -> Dict[str, Any]:
         """Get LLM configuration for GitHub Copilot SDK.
 

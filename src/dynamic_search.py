@@ -209,9 +209,14 @@ class OECDSearcher:
         ],
     }
 
+    BASE_DATAFLOW_URL = "https://stats.oecd.org/SDMX-JSON/dataflow"
+    _cached_dataflows: Optional[List[Dict[str, Any]]] = None
+    _cached_at: Optional[datetime] = None
+    _cache_ttl = timedelta(minutes=60)
+
     def search(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
         """
-        Search OECD datasets (currently using curated list).
+        Search OECD datasets using SDMX dataflows with a curated fallback.
 
         Args:
             query: Search term
@@ -223,7 +228,37 @@ class OECDSearcher:
         query_lower = query.lower().strip()
         results = []
 
-        # Search in curated datasets
+        try:
+            dataflows = self._get_dataflows()
+            for flow in dataflows:
+                flow_id = flow.get("id", "")
+                name = flow.get("name", "")
+                description = flow.get("description", "")
+                searchable = f"{flow_id} {name} {description}".lower()
+                if query_lower and query_lower not in searchable:
+                    continue
+
+                results.append({
+                    "id": f"oecd_{flow_id}",
+                    "name": name or flow_id,
+                    "description": description,
+                    "dataset": flow_id,
+                    "indicator_code": "",
+                    "tags": [query_lower] if query_lower else [],
+                    "source": "oecd",
+                    "remote": True,
+                    "url": f"https://data-explorer.oecd.org/vis?df[ds]={flow_id}",
+                })
+
+                if len(results) >= max_results:
+                    break
+        except Exception as e:
+            print(f"OECD dataflow search failed: {e}")
+
+        if results:
+            return results[:max_results]
+
+        # Fallback: curated datasets
         for keyword, datasets in self.COMMON_DATASETS.items():
             if keyword in query_lower:
                 for dataset in datasets:
@@ -234,6 +269,124 @@ class OECDSearcher:
                         "url": f"https://data-explorer.oecd.org/vis?tm=gdp&pg=0&snb=1&df[ds]={dataset['dataset']}",
                     }
                     results.append(indicator)
+
+        return results[:max_results]
+
+    def _get_dataflows(self) -> List[Dict[str, Any]]:
+        now = datetime.now()
+        if self._cached_dataflows and self._cached_at and (now - self._cached_at) < self._cache_ttl:
+            return self._cached_dataflows
+
+        response = requests.get(self.BASE_DATAFLOW_URL, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        dataflows = self._extract_dataflows(data)
+        self._cached_dataflows = dataflows
+        self._cached_at = now
+        return dataflows
+
+    def _extract_dataflows(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        flows = []
+
+        def normalize_name(name_val):
+            if isinstance(name_val, dict):
+                return name_val.get("en") or next(iter(name_val.values()), "")
+            if isinstance(name_val, list) and name_val:
+                return str(name_val[0])
+            return str(name_val) if name_val is not None else ""
+
+        def walk(obj):
+            if isinstance(obj, dict):
+                if "id" in obj and "name" in obj:
+                    flow_id = str(obj.get("id", ""))
+                    name = normalize_name(obj.get("name"))
+                    description = normalize_name(obj.get("description", ""))
+                    if flow_id and name:
+                        flows.append({
+                            "id": flow_id,
+                            "name": name,
+                            "description": description,
+                        })
+                for value in obj.values():
+                    walk(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    walk(item)
+
+        walk(data)
+
+        seen = set()
+        unique = []
+        for flow in flows:
+            flow_id = flow.get("id")
+            if not flow_id or flow_id in seen:
+                continue
+            seen.add(flow_id)
+            unique.append(flow)
+
+        return unique
+
+
+class WorldBankSearcher:
+    """Search World Bank Indicators API."""
+
+    BASE_URL = "https://api.worldbank.org/v2/indicator"
+
+    def __init__(self, timeout: int = 20):
+        self.timeout = timeout
+
+    def search(self, query: str, max_results: int = 100) -> List[Dict[str, Any]]:
+        query_lower = query.lower().strip()
+        results = []
+        page = 1
+        per_page = 200
+
+        while len(results) < max_results:
+            params = {
+                "format": "json",
+                "per_page": per_page,
+                "page": page,
+            }
+            if query_lower:
+                params["q"] = query_lower
+
+            response = requests.get(self.BASE_URL, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            if not isinstance(data, list) or len(data) < 2:
+                break
+
+            meta, indicators = data[0], data[1]
+            if not indicators:
+                break
+
+            for indicator in indicators:
+                ind_id = indicator.get("id", "")
+                name = indicator.get("name", "")
+                description = indicator.get("sourceNote", "") or indicator.get("sourceOrganization", "")
+                searchable = f"{ind_id} {name} {description}".lower()
+                if query_lower and query_lower not in searchable:
+                    continue
+
+                results.append({
+                    "id": f"worldbank_{ind_id}",
+                    "name": name,
+                    "description": description,
+                    "indicator_code": ind_id,
+                    "source": "worldbank",
+                    "remote": True,
+                    "url": f"https://api.worldbank.org/v2/country/all/indicator/{ind_id}",
+                    "tags": [query_lower] if query_lower else [],
+                })
+
+                if len(results) >= max_results:
+                    break
+
+            total_pages = int(meta.get("pages", page)) if isinstance(meta, dict) else page
+            if page >= total_pages:
+                break
+            page += 1
 
         return results[:max_results]
 
@@ -253,6 +406,7 @@ class DynamicSearcher:
         self.cache = SearchCache(ttl_minutes=cache_ttl_minutes)
         self.owid_searcher = OWIDSearcher()
         self.oecd_searcher = OECDSearcher()
+        self.worldbank_searcher = WorldBankSearcher()
 
     def search(
         self,
@@ -260,6 +414,7 @@ class DynamicSearcher:
         include_remote: bool = True,
         max_local: int = 100,
         max_remote: int = 100,
+        source_filter: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Perform hybrid search across local and remote sources.
@@ -273,7 +428,7 @@ class DynamicSearcher:
         Returns:
             Dict with local_results, remote_results, and metadata
         """
-        cache_key = f"{query}:{include_remote}:{max_local}:{max_remote}"
+        cache_key = f"{query}:{include_remote}:{max_local}:{max_remote}:{source_filter}"
 
         # Check cache first
         cached = self.cache.get(cache_key)
@@ -287,7 +442,7 @@ class DynamicSearcher:
         # 2. Remote searches (from APIs)
         remote_results = []
         if include_remote:
-            remote_results = self._search_remote(query, max_remote)
+            remote_results = self._search_remote(query, max_remote, source_filter=source_filter)
 
         # 3. Merge and prepare response
         result = {
@@ -301,6 +456,7 @@ class DynamicSearcher:
                 "local": len(local_results),
                 "owid": len([r for r in remote_results if r.get("source") == "owid"]),
                 "oecd": len([r for r in remote_results if r.get("source") == "oecd"]),
+                "worldbank": len([r for r in remote_results if r.get("source") == "worldbank"]),
             },
         }
 
@@ -332,25 +488,42 @@ class DynamicSearcher:
 
         return results[:max_results]
 
-    def _search_remote(self, query: str, max_per_source: int) -> List[Dict[str, Any]]:
+    def _search_remote(
+        self,
+        query: str,
+        max_per_source: int,
+        source_filter: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Search remote APIs in parallel."""
         results = []
+        source_filter = (source_filter or "").lower().strip()
 
         # Search OWID
-        try:
-            owid_results = self.owid_searcher.search(query, max_per_source)
-            results.extend(owid_results)
-            print(f"✓ Found {len(owid_results)} results from OWID")
-        except Exception as e:
-            print(f"✗ OWID search failed: {e}")
+        if not source_filter or source_filter == "owid":
+            try:
+                owid_results = self.owid_searcher.search(query, max_per_source)
+                results.extend(owid_results)
+                print(f"✓ Found {len(owid_results)} results from OWID")
+            except Exception as e:
+                print(f"✗ OWID search failed: {e}")
 
         # Search OECD
-        try:
-            oecd_results = self.oecd_searcher.search(query, max_per_source)
-            results.extend(oecd_results)
-            print(f"✓ Found {len(oecd_results)} results from OECD")
-        except Exception as e:
-            print(f"✗ OECD search failed: {e}")
+        if not source_filter or source_filter == "oecd":
+            try:
+                oecd_results = self.oecd_searcher.search(query, max_per_source)
+                results.extend(oecd_results)
+                print(f"✓ Found {len(oecd_results)} results from OECD")
+            except Exception as e:
+                print(f"✗ OECD search failed: {e}")
+
+        # Search World Bank
+        if not source_filter or source_filter == "worldbank":
+            try:
+                worldbank_results = self.worldbank_searcher.search(query, max_per_source)
+                results.extend(worldbank_results)
+                print(f"✓ Found {len(worldbank_results)} results from World Bank")
+            except Exception as e:
+                print(f"✗ World Bank search failed: {e}")
 
         return results
 

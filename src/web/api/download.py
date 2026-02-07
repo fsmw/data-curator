@@ -15,7 +15,7 @@ from ingestion import DataIngestionManager
 from cleaning import DataCleaner
 from metadata import MetadataGenerator
 from ai_packager import AIPackager
-from logger import get_logger
+from src.logger import get_logger
 
 from . import api_bp
 
@@ -191,36 +191,59 @@ def start_download() -> Response:
 
         # Generate metadata documentation
         generator = MetadataGenerator(config)
+        metadata_text = None
+        owid_metadata = None
 
-        try:
-            metadata_text = generator.generate_metadata(
-                topic=topic,
-                data_summary=data_summary,
-                source=source,
-                transformations=data_summary.get("transformations", []),
-                original_source_url=indicator_config.get("url", ""),
-                force_regenerate=False,
-            )
-        except Exception as e:
-            logger.warning(f"Metadata generation failed: {e}")
-            metadata_text = None
-
-        # Create AI-ready package (for OWID sources)
-        ai_package_files = {}
         if source.lower() == "owid" and indicator_config.get("slug"):
             try:
                 owid_source = manager.sources.get("owid")
                 if owid_source:
                     owid_metadata = owid_source.fetch_metadata(indicator_config["slug"])
-
                     if "error" not in owid_metadata:
                         ai_packager = AIPackager(output_path.parent)
-                        ai_package_files = ai_packager.enhance_existing_dataset(
-                            csv_path=output_path,
-                            metadata=owid_metadata,
-                            topic=topic,
-                        )
-                        logger.info(f"AI package created: {len(ai_package_files)} files")
+                        metadata_text = ai_packager.create_context_owid(owid_metadata)
+                        generator.save_metadata_for_dataset(output_path, metadata_text)
+            except Exception as e:
+                logger.warning(f"OWID metadata notes failed: {e}")
+
+        if metadata_text is None:
+            try:
+                metadata_text = generator.generate_metadata(
+                    topic=topic,
+                    data_summary=data_summary,
+                    source=source,
+                    transformations=data_summary.get("transformations", []),
+                    original_source_url=indicator_config.get("url", ""),
+                    dataset_info={
+                        "identifier": identifier,
+                        "indicator_id": indicator_config.get("id"),
+                        "indicator_name": indicator_name,
+                        "file_name": output_path.name,
+                    },
+                    force_regenerate=False,
+                )
+                generator.save_metadata_for_dataset(output_path, metadata_text)
+            except Exception as e:
+                logger.warning(f"Metadata generation failed: {e}")
+                metadata_text = None
+
+        # Create AI-ready package (for OWID sources)
+        ai_package_files = {}
+        if source.lower() == "owid" and indicator_config.get("slug"):
+            try:
+                if owid_metadata is None:
+                    owid_source = manager.sources.get("owid")
+                    if owid_source:
+                        owid_metadata = owid_source.fetch_metadata(indicator_config["slug"])
+
+                if owid_metadata and "error" not in owid_metadata:
+                    ai_packager = AIPackager(output_path.parent)
+                    ai_package_files = ai_packager.enhance_existing_dataset(
+                        csv_path=output_path,
+                        metadata=owid_metadata,
+                        topic=topic,
+                    )
+                    logger.info(f"AI package created: {len(ai_package_files)} files")
             except Exception as e:
                 logger.warning(f"AI packaging failed: {e}")
                 ai_package_files = {}

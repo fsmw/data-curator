@@ -4,24 +4,79 @@ Dataset API endpoints.
 Handles dataset CRUD operations, preview, statistics, and management.
 """
 
-from flask import request, jsonify, Response
+from flask import request, jsonify, Response, send_file, after_this_request
 import json
 import math
+import re
+import sqlite3
 import pandas as pd
 from pathlib import Path
 from io import StringIO
+import os
+import tempfile
+import shutil
+import zipfile
+from datetime import datetime
 
 from config import Config
 from dataset_catalog import DatasetCatalog
 from metadata import MetadataGenerator
 from cleaning import DataCleaner
-from logger import get_logger
+from src.logger import get_logger
 from utils.serialization import clean_nan_recursive
+from ingestion import OECDSource, OWIDSource
+from ai_packager import AIPackager
 import requests
 
 from . import api_bp
 
 logger = get_logger(__name__)
+
+
+def _format_dataset(ds: dict) -> dict:
+    dataset = dict(ds)
+    if dataset.get("countries_json"):
+        try:
+            dataset["countries"] = json.loads(dataset["countries_json"])
+        except Exception:
+            dataset["countries"] = []
+    else:
+        dataset["countries"] = []
+
+    if dataset.get("columns_json"):
+        try:
+            dataset["columns"] = json.loads(dataset["columns_json"])
+        except Exception:
+            dataset["columns"] = []
+    else:
+        dataset["columns"] = []
+
+    for key in [
+        "null_percentage",
+        "completeness_score",
+        "min_year",
+        "max_year",
+        "row_count",
+        "column_count",
+        "country_count",
+        "file_size_bytes",
+        "is_edited",
+    ]:
+        if key in dataset and (
+            dataset[key] is None
+            or (isinstance(dataset[key], float) and math.isnan(dataset[key]))
+        ):
+            dataset[key] = 0
+
+    return dataset
+
+
+def _add_directory_to_zip(zip_file: zipfile.ZipFile, directory: Path, arc_prefix: str) -> None:
+    for root, _, files in os.walk(directory):
+        for filename in files:
+            file_path = Path(root) / filename
+            arcname = Path(arc_prefix) / file_path.relative_to(directory)
+            zip_file.write(file_path, arcname.as_posix())
 
 
 @api_bp.route("/datasets")
@@ -62,46 +117,7 @@ def list_datasets() -> Response:
             results = catalog.search(query, filters=filters, limit=limit)
 
         # Format results
-        datasets = []
-        for ds in results:
-            # Clean up the dataset object
-            dataset = dict(ds)
-
-            # Parse JSON fields
-            if dataset.get("countries_json"):
-                try:
-                    dataset["countries"] = json.loads(dataset["countries_json"])
-                except:
-                    dataset["countries"] = []
-            else:
-                dataset["countries"] = []
-
-            if dataset.get("columns_json"):
-                try:
-                    dataset["columns"] = json.loads(dataset["columns_json"])
-                except:
-                    dataset["columns"] = []
-            else:
-                dataset["columns"] = []
-
-            # Replace None/NaN with 0 for numeric fields
-            for key in [
-                "null_percentage",
-                "completeness_score",
-                "min_year",
-                "max_year",
-                "row_count",
-                "column_count",
-                "country_count",
-                "file_size_bytes",
-            ]:
-                if key in dataset and (
-                    dataset[key] is None
-                    or (isinstance(dataset[key], float) and math.isnan(dataset[key]))
-                ):
-                    dataset[key] = 0
-
-            datasets.append(dataset)
+        datasets = [_format_dataset(ds) for ds in results]
 
         return jsonify(
             {"status": "success", "total": len(datasets), "datasets": datasets}
@@ -109,6 +125,90 @@ def list_datasets() -> Response:
 
     except Exception as e:
         logger.error(f"Error listing datasets: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/datasets/<int:dataset_id>")
+def get_dataset_detail(dataset_id: int) -> Response:
+    """Fetch a single dataset record."""
+    try:
+        config = Config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(dataset_id)
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        return jsonify({"status": "success", "dataset": _format_dataset(dataset)})
+
+    except Exception as e:
+        logger.error(f"Error getting dataset {dataset_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/datasets/refresh-selected", methods=["POST"])
+def refresh_selected_datasets() -> Response:
+    """Refresh selected datasets by re-indexing and updating OWID notes."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        dataset_ids = payload.get("dataset_ids") or []
+        if not isinstance(dataset_ids, list) or not dataset_ids:
+            return jsonify({"status": "error", "message": "Missing dataset_ids"}), 400
+
+        parsed_ids = []
+        for dataset_id in dataset_ids:
+            try:
+                parsed_ids.append(int(dataset_id))
+            except (TypeError, ValueError):
+                continue
+
+        if not parsed_ids:
+            return jsonify({"status": "error", "message": "Invalid dataset_ids"}), 400
+
+        config = Config()
+        catalog = DatasetCatalog(config)
+        generator = MetadataGenerator(config)
+        owid_source = OWIDSource(config.get_directory("raw"))
+
+        updated = 0
+        notes_updated = 0
+        errors = []
+
+        for dataset_id in parsed_ids:
+            dataset = catalog.get_dataset(dataset_id)
+            if not dataset:
+                errors.append({"id": dataset_id, "error": "Dataset not found"})
+                continue
+
+            file_path = Path(dataset["file_path"])
+            if not file_path.exists():
+                errors.append({"id": dataset_id, "error": "Dataset file not found"})
+                continue
+
+            catalog.index_dataset(file_path, force=True)
+            updated += 1
+
+            if (dataset.get("source") or "").lower() == "owid" and dataset.get("indicator_id"):
+                try:
+                    owid_metadata = owid_source.fetch_metadata(dataset["indicator_id"])
+                    if "error" not in owid_metadata:
+                        ai_packager = AIPackager(file_path.parent)
+                        metadata_text = ai_packager.create_context_owid(owid_metadata)
+                        generator.save_metadata_for_dataset(file_path, metadata_text)
+                        notes_updated += 1
+                except Exception as e:
+                    errors.append({"id": dataset_id, "error": f"OWID notes update failed: {e}"})
+
+        return jsonify(
+            {
+                "status": "success",
+                "updated": updated,
+                "notes_updated": notes_updated,
+                "errors": errors,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error refreshing selected datasets: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -207,6 +307,74 @@ def preview_dataset(dataset_id: int) -> Response:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@api_bp.route("/datasets/<int:dataset_id>/notes")
+def get_dataset_notes(dataset_id: int) -> Response:
+    """Get AI-generated notes for a dataset if available, generate on demand if missing."""
+    try:
+        config = Config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(dataset_id)
+
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        file_path = Path(dataset["file_path"])
+        generator = MetadataGenerator(config)
+        notes_path = generator.get_metadata_path_for_dataset(file_path)
+
+        if not notes_path.exists():
+            if (
+                (dataset.get("source") or "").lower() == "owid"
+                and dataset.get("indicator_id")
+            ):
+                try:
+                    owid_source = OWIDSource(config.get_directory("raw"))
+                    owid_metadata = owid_source.fetch_metadata(dataset["indicator_id"])
+                    if "error" not in owid_metadata:
+                        ai_packager = AIPackager(file_path.parent)
+                        metadata_text = ai_packager.create_context_owid(owid_metadata)
+                        notes_path = generator.save_metadata_for_dataset(file_path, metadata_text)
+                except Exception as e:
+                    logger.warning(f"OWID notes generation failed: {e}")
+
+        if not notes_path.exists():
+            topic_fallback = dataset.get("topic") or "general"
+            fallback_path = generator.metadata_dir / f"{topic_fallback}.md"
+            if fallback_path.exists():
+                notes_path = fallback_path
+            else:
+                df = catalog.get_preview_data(dataset_id, limit=500)
+                if df is None or df.empty:
+                    return jsonify({"status": "success", "notes": ""})
+
+                cleaner = DataCleaner(config)
+                data_summary = cleaner.get_data_summary(df)
+                metadata_text = generator.generate_metadata(
+                    topic=topic_fallback,
+                    data_summary=data_summary,
+                    source=dataset.get("source", "unknown"),
+                    transformations=[],
+                    original_source_url="",
+                    dataset_info={
+                        "identifier": dataset.get("indicator_id") or dataset.get("file_name"),
+                        "indicator_id": dataset.get("indicator_id"),
+                        "indicator_name": dataset.get("indicator_name"),
+                        "file_name": dataset.get("file_name"),
+                    },
+                    force_regenerate=False,
+                )
+                notes_path = generator.save_metadata_for_dataset(file_path, metadata_text)
+
+        with open(notes_path, "r", encoding="utf-8") as f:
+            notes = f.read()
+
+        return jsonify({"status": "success", "notes": notes, "path": str(notes_path)})
+
+    except Exception as e:
+        logger.error(f"Error fetching notes for dataset {dataset_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @api_bp.route("/remote/owid/preview")
 def preview_owid_remote() -> Response:
     """
@@ -286,6 +454,187 @@ def preview_owid_remote() -> Response:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@api_bp.route("/remote/worldbank/preview")
+def preview_worldbank_remote() -> Response:
+    """
+    Preview World Bank indicator data without saving to disk.
+
+    Query params:
+        indicator: World Bank indicator code (required)
+        countries: Semicolon-separated ISO3 codes (optional)
+        start_year: int (optional)
+        end_year: int (optional)
+        limit: max rows to return (default 200)
+    """
+    try:
+        indicator = request.args.get("indicator", "").strip()
+        if not indicator:
+            return jsonify({"status": "error", "message": "Missing 'indicator' parameter"}), 400
+
+        countries_arg = request.args.get("countries", "")
+        countries = (
+            ";".join([c.strip() for c in countries_arg.split(";") if c.strip()])
+            if countries_arg
+            else "all"
+        )
+        start_year = request.args.get("start_year", type=int)
+        end_year = request.args.get("end_year", type=int)
+        limit = request.args.get("limit", default=200, type=int)
+        limit = min(limit, 1000)
+
+        base = "https://api.worldbank.org/v2/country"
+        date_param = None
+        if start_year and end_year:
+            date_param = f"{start_year}:{end_year}"
+        elif start_year:
+            date_param = f"{start_year}:latest"
+        elif end_year:
+            date_param = f"earliest:{end_year}"
+
+        params = {"format": "json", "per_page": limit}
+        if date_param:
+            params["date"] = date_param
+
+        url = f"{base}/{countries}/indicator/{indicator}"
+
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        if not isinstance(data, list) or len(data) < 2:
+            return jsonify({"status": "success", "preview": {"columns": [], "rows": [], "total_rows": 0}})
+
+        rows = []
+        for record in data[1]:
+            if record.get("value") is None:
+                continue
+            rows.append({
+                "country": record.get("country", {}).get("value"),
+                "country_code": record.get("countryiso3code"),
+                "year": record.get("date"),
+                "value": record.get("value"),
+            })
+
+        series_map = {}
+        series_count = {}
+        for row in rows:
+            year = row.get("year")
+            value = row.get("value")
+            if year is None or value is None:
+                continue
+            try:
+                year_int = int(year)
+                value_float = float(value)
+            except (ValueError, TypeError):
+                continue
+            series_map[year_int] = series_map.get(year_int, 0.0) + value_float
+            series_count[year_int] = series_count.get(year_int, 0) + 1
+
+        series = [
+            {"x": year, "y": series_map[year] / series_count[year]}
+            for year in sorted(series_map.keys())
+            if series_count.get(year)
+        ]
+
+        preview = {
+            "columns": ["country", "country_code", "year", "value"],
+            "rows": clean_nan_recursive(rows),
+            "total_rows": len(rows),
+            "series": clean_nan_recursive(series),
+            "dataset_info": {"indicator": indicator, "source": "worldbank", "preview_limit": limit},
+        }
+
+        return jsonify({"status": "success", "preview": preview})
+
+    except Exception as e:
+        logger.error(f"Error previewing World Bank remote data: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/remote/oecd/preview")
+def preview_oecd_remote() -> Response:
+    """
+    Preview OECD dataset data without saving to disk.
+
+    Query params:
+        dataset: OECD dataset id (required)
+        indicator: indicator code within dataset (optional)
+        countries: Semicolon-separated ISO3 codes (optional)
+        start_year: int (optional)
+        end_year: int (optional)
+        limit: max rows to return (default 200)
+    """
+    try:
+        dataset = request.args.get("dataset", "").strip()
+        indicator = request.args.get("indicator", "").strip()
+        if not dataset:
+            return jsonify({"status": "error", "message": "Missing 'dataset' parameter"}), 400
+
+        countries_arg = request.args.get("countries", "")
+        countries = [c.strip() for c in countries_arg.split(";") if c.strip()] if countries_arg else None
+        start_year = request.args.get("start_year", type=int) or 2015
+        end_year = request.args.get("end_year", type=int) or 2024
+        limit = request.args.get("limit", default=200, type=int)
+        limit = min(limit, 1000)
+
+        config = Config()
+        oecd_source = OECDSource(config.get_directory("raw"))
+        df = oecd_source.fetch(
+            dataset=dataset,
+            indicator=indicator,
+            countries=countries,
+            start_year=start_year,
+            end_year=end_year,
+        )
+
+        if df is None or df.empty:
+            preview = {
+                "columns": ["country", "year", "value"],
+                "rows": [],
+                "total_rows": 0,
+                "series": [],
+                "dataset_info": {
+                    "dataset": dataset,
+                    "indicator": indicator,
+                    "source": "oecd",
+                    "preview_limit": limit,
+                },
+            }
+            return jsonify({"status": "success", "preview": preview})
+
+        df_preview = df.head(limit).copy()
+        rows = df_preview.to_dict(orient="records")
+
+        series_df = df.dropna(subset=["year", "value"]).groupby("year")["value"].mean().reset_index()
+        series = []
+        for _, row in series_df.iterrows():
+            try:
+                year_int = int(row["year"])
+                value_float = float(row["value"])
+            except (ValueError, TypeError):
+                continue
+            series.append({"x": year_int, "y": value_float})
+
+        preview = {
+            "columns": ["country", "year", "value"],
+            "rows": clean_nan_recursive(rows),
+            "total_rows": len(df),
+            "series": clean_nan_recursive(series),
+            "dataset_info": {
+                "dataset": dataset,
+                "indicator": indicator,
+                "source": "oecd",
+                "preview_limit": limit,
+            },
+        }
+
+        return jsonify({"status": "success", "preview": preview})
+
+    except Exception as e:
+        logger.error(f"Error previewing OECD remote data: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @api_bp.route("/chart/export-pdf")
 def export_chart_pdf() -> Response:
     """
@@ -320,6 +669,39 @@ def export_chart_pdf() -> Response:
 
     except Exception as e:
         logger.error(f"Error exporting chart PDF: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/chart/export-png")
+def export_chart_png() -> Response:
+    """
+    Export chart as PNG from OWID.
+
+    Query params:
+        slug: OWID chart slug (required)
+    """
+    try:
+        slug = request.args.get("slug", "").strip()
+        if not slug:
+            return jsonify(
+                {"status": "error", "message": "Missing 'slug' parameter"}
+            ), 400
+
+        owid_png_url = f"https://ourworldindata.org/grapher/{slug}.png"
+        resp = requests.get(owid_png_url, timeout=30)
+        resp.raise_for_status()
+
+        return Response(
+            resp.content,
+            mimetype="image/png",
+            headers={
+                "Content-Disposition": f'inline; filename="{slug}.png"',
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting chart PNG: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -368,11 +750,18 @@ def refresh_datasets() -> Response:
                         source=source,
                         transformations=[],
                         original_source_url=f"https://{source}.org",
+                        dataset_info={
+                            "identifier": ds.get("indicator_id") or ds.get("file_name"),
+                            "indicator_id": ds.get("indicator_id"),
+                            "indicator_name": ds.get("indicator_name"),
+                            "file_name": ds.get("file_name"),
+                        },
                         force_regenerate=force
                     )
                     
-                    # Save metadata
-                    metadata_gen.save_metadata(topic, metadata_content)
+                    # Save metadata using dataset filename stem
+                    file_path = Path(ds['file_path'])
+                    metadata_gen.save_metadata_for_dataset(file_path, metadata_content)
                     metadata_generated += 1
                     
                 except Exception as e:
@@ -409,6 +798,58 @@ def get_catalog_statistics() -> Response:
 
     except Exception as e:
         logger.error(f"Error getting catalog statistics: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/datasets/backup", methods=["GET"])
+def download_backup() -> Response:
+    """Download a zip backup of raw, clean, and metadata directories."""
+    try:
+        config = Config()
+        raw_dir = config.get_directory("raw")
+        clean_dir = config.get_directory("clean")
+        metadata_dir = config.get_directory("metadata")
+
+        missing_dirs = [
+            str(p)
+            for p in [raw_dir, clean_dir, metadata_dir]
+            if not p.exists()
+        ]
+        if len(missing_dirs) == 3:
+            return jsonify({
+                "status": "error",
+                "message": "No data directories found to back up."
+            }), 404
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        temp_path = Path(temp_file.name)
+        temp_file.close()
+
+        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+            if raw_dir.exists():
+                _add_directory_to_zip(zip_file, raw_dir, raw_dir.name)
+            if clean_dir.exists():
+                _add_directory_to_zip(zip_file, clean_dir, clean_dir.name)
+            if metadata_dir.exists():
+                _add_directory_to_zip(zip_file, metadata_dir, metadata_dir.name)
+
+        @after_this_request
+        def cleanup(response: Response) -> Response:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return response
+
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name="mises_data_backup.zip",
+            mimetype="application/zip",
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating backup zip: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -630,3 +1071,192 @@ def get_llm_models() -> Response:
     except Exception as e:
         logger.error(f"Error getting LLM models: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+SQL_SAMPLE_LIMIT = int(os.getenv("SMOOTHCSV_SQL_SAMPLE_LIMIT", "5000"))
+SQL_PREVIEW_LIMIT = int(os.getenv("SMOOTHCSV_SQL_PREVIEW_LIMIT", "200"))
+
+
+def _get_smoothcsv_db_path(config: Config) -> Path:
+    return config.data_root / "smoothcsv_cache.db"
+
+
+def _init_smoothcsv_db(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dataset_mapping (
+            dataset_id INTEGER PRIMARY KEY,
+            table_name TEXT NOT NULL,
+            file_hash TEXT,
+            sample_limit INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+
+
+def _smoothcsv_table_name(dataset_id: int) -> str:
+    return f"table{dataset_id:06d}"
+
+
+def _ensure_smoothcsv_table(
+    conn: sqlite3.Connection,
+    dataset: dict,
+    sample_limit: int,
+) -> str:
+    _init_smoothcsv_db(conn)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT table_name, file_hash, sample_limit FROM dataset_mapping WHERE dataset_id = ?",
+        (dataset["id"],),
+    )
+    row = cursor.fetchone()
+    table_name = row["table_name"] if row else _smoothcsv_table_name(dataset["id"])
+    current_hash = dataset.get("file_hash")
+    needs_reload = (
+        row is None
+        or row["file_hash"] != current_hash
+        or row["sample_limit"] != sample_limit
+    )
+
+    if needs_reload:
+        file_path = Path(dataset["file_path"])
+        if not file_path.exists():
+            raise FileNotFoundError(f"Dataset file not found: {file_path}")
+        df = pd.read_csv(file_path, nrows=sample_limit)
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        cursor.execute(
+            """
+            INSERT INTO dataset_mapping (dataset_id, table_name, file_hash, sample_limit)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(dataset_id) DO UPDATE SET
+                table_name = excluded.table_name,
+                file_hash = excluded.file_hash,
+                sample_limit = excluded.sample_limit,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (dataset["id"], table_name, current_hash, sample_limit),
+        )
+        conn.commit()
+
+    return table_name
+
+
+def _prepare_smoothcsv_sql(sql: str, limit: int) -> str:
+    sql = sql.strip().rstrip(";")
+    if not sql:
+        raise ValueError("Missing SQL query.")
+    if not sql.lower().startswith("select"):
+        raise ValueError("Only SELECT queries are supported.")
+    if not re.search(r"\blimit\b", sql, flags=re.IGNORECASE):
+        sql = f"{sql} LIMIT {limit}"
+    return sql
+
+
+@api_bp.route("/edit/sql/query", methods=["POST"])
+def edit_sql_query() -> Response:
+    """Run a SQL query against the selected dataset (sampled)."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        dataset_id = payload.get("dataset_id")
+        sql = payload.get("sql", "")
+        limit = int(payload.get("limit", SQL_PREVIEW_LIMIT))
+
+        if not dataset_id:
+            return jsonify({"status": "error", "message": "Missing dataset_id"}), 400
+
+        config = Config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(int(dataset_id))
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        db_path = _get_smoothcsv_db_path(config)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            table_name = _ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
+            cursor = conn.cursor()
+            cursor.execute("DROP VIEW IF EXISTS dataset")
+            cursor.execute(f'CREATE TEMP VIEW dataset AS SELECT * FROM "{table_name}"')
+
+            query_sql = _prepare_smoothcsv_sql(sql, limit)
+            cursor.execute(query_sql)
+            rows = cursor.fetchall()
+            columns = [col[0] for col in cursor.description] if cursor.description else []
+            values = [list(row) for row in rows]
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "columns": columns,
+                    "rows": values,
+                    "table_name": table_name,
+                    "sample_limit": SQL_SAMPLE_LIMIT,
+                    "query": query_sql,
+                }
+            )
+        finally:
+            conn.close()
+
+    except (ValueError, FileNotFoundError) as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    except Exception as exc:
+        logger.error("SQL query error: %s", exc, exc_info=True)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@api_bp.route("/datasets/<int:dataset_id>/fork", methods=["POST"])
+def fork_dataset(dataset_id: int) -> Response:
+    """Create a forked dataset marked as edited."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        fork_name = (payload.get("name") or "").strip()
+
+        config = Config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(dataset_id)
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        source_path = Path(dataset["file_path"])
+        if not source_path.exists():
+            return jsonify({"status": "error", "message": "Dataset file not found"}), 404
+
+        safe_base = fork_name or f"{source_path.stem}_edited"
+        safe_base = "".join(c if c.isalnum() or c in "-_" else "_" for c in safe_base).strip("_")
+        if not safe_base:
+            safe_base = f"dataset_{dataset_id}_edited"
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        dest_name = f"{safe_base}_{timestamp}.csv"
+        dest_path = source_path.parent / dest_name
+
+        shutil.copyfile(source_path, dest_path)
+        new_id = catalog.index_dataset(dest_path, force=True)
+        if not new_id:
+            return jsonify({"status": "error", "message": "Failed to index forked dataset"}), 500
+
+        conn = sqlite3.connect(catalog.db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE datasets SET is_edited = 1 WHERE id = ?", (new_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        return jsonify(
+            {
+                "status": "success",
+                "dataset": {
+                    "id": new_id,
+                    "file_name": dest_name,
+                    "file_path": str(dest_path),
+                },
+            }
+        )
+
+    except Exception as exc:
+        logger.error("Fork dataset error: %s", exc, exc_info=True)
+        return jsonify({"status": "error", "message": str(exc)}), 500

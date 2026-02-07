@@ -1,69 +1,105 @@
 """
 Data Transformation Agent.
-Responsible for generating Python code to transform datasets.
+
+Generates Python code to transform economic datasets.
+Supports both Python (Pandas) and SQL (DuckDB) transformations.
 """
 
-import json
 import logging
-from typing import Dict, Any, Optional
-from .base import BaseAgent
-from .prompts import TRANSFORM_AGENT_SYSTEM_PROMPT
+from typing import Dict, Any, Optional, List
+
+from .base import BaseAgent, AgentResponse, TableContext
+from .prompts import (
+    TRANSFORM_AGENT_SYSTEM_PROMPT_ES,
+    TRANSFORM_AGENT_SYSTEM_PROMPT_EN,
+    SQL_TRANSFORM_AGENT_SYSTEM_PROMPT_ES,
+    SQL_TRANSFORM_AGENT_SYSTEM_PROMPT_EN,
+)
+from .client import MisesLLMClient
 
 logger = logging.getLogger(__name__)
 
+
 class DataTransformAgent(BaseAgent):
     """
-    Agent specialized in writing Pandas code to transform data.
+    Agent specialized in writing Pandas/SQL code to transform data.
+    
+    Can generate Python transformations using Pandas or SQL queries
+    for DuckDB execution.
     """
 
-    def _get_system_prompt(self) -> str:
-        return TRANSFORM_AGENT_SYSTEM_PROMPT
-
-    async def generate_transform(self, query: str, data_summary: str) -> Dict[str, Any]:
+    def __init__(
+        self,
+        client: Optional[MisesLLMClient] = None,
+        language: str = "es",
+        mode: str = "python",
+        **kwargs
+    ):
         """
-        Generate a transformation plan and code.
+        Initialize the transform agent.
         
         Args:
-            query: User's goal (e.g. "Aggregate by year")
-            data_summary: String description of the input dataframe
+            client: LLM client
+            language: 'es' or 'en'
+            mode: 'python' for Pandas, 'sql' for DuckDB
+        """
+        self.mode = mode
+        super().__init__(
+            client=client,
+            name="DataTransformAgent",
+            language=language,
+            **kwargs
+        )
+
+    def _get_system_prompt(self) -> str:
+        """Get the appropriate prompt based on mode and language."""
+        if self.mode == "sql":
+            if self.language == "es":
+                return SQL_TRANSFORM_AGENT_SYSTEM_PROMPT_ES
+            return SQL_TRANSFORM_AGENT_SYSTEM_PROMPT_EN
+        else:
+            if self.language == "es":
+                return TRANSFORM_AGENT_SYSTEM_PROMPT_ES
+            return TRANSFORM_AGENT_SYSTEM_PROMPT_EN
+
+    def transform(
+        self,
+        goal: str,
+        tables: List[TableContext],
+        execute: bool = True
+    ) -> AgentResponse:
+        """
+        Generate and optionally execute a transformation.
+        
+        Args:
+            goal: Transformation goal in natural language
+            tables: Input data tables
+            execute: Whether to execute the generated code
             
         Returns:
-            Dict containing 'code', 'plan', etc.
+            AgentResponse with code and results
         """
-        
-        user_message = f"""
-[DATA SUMMARY]
-{data_summary}
+        return self.run(goal, tables, execute_code=execute)
 
-[GOAL]
-{query}
-
-Please generate the transformation plan and code. Response in JSON format.
-"""
-        # Execute LLM call
-        response = await self.run(user_message)
+    def set_mode(self, mode: str):
+        """
+        Switch between Python and SQL mode.
         
-        # Parse output
-        text = response.get('text', '')
-        try:
-            # simple cleanup for code blocks if the LLM puts json inside markdown
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[0].strip()
-            
-            result = json.loads(text)
-            return result
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse JSON from transform agent: {text}")
-            return {
-                "status": "error",
-                "message": "Failed to parse agent response",
-                "raw_text": text
-            }
-        except Exception as e:
-             logger.error(f"Error in transform agent: {e}")
-             return {
-                "status": "error",
-                "message": str(e)
-             }
+        Args:
+            mode: 'python' or 'sql'
+        """
+        if mode in ("python", "sql"):
+            self.mode = mode
+            self.system_prompt = self._get_system_prompt()
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Use 'python' or 'sql'.")
+
+
+class SQLTransformAgent(DataTransformAgent):
+    """
+    Convenience class for SQL-only transformations.
+    """
+    
+    def __init__(self, client: Optional[MisesLLMClient] = None, language: str = "es", **kwargs):
+        super().__init__(client=client, language=language, mode="sql", **kwargs)
+        self.name = "SQLTransformAgent"

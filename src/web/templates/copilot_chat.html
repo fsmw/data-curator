@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+  /* Alpine.js cloak for hiding elements until initialized */
+  [x-cloak] { display: none !important; }
+  
   /* Chat container must have fixed height for scroll to work */
   .chat-container {
     height: calc(100vh - 180px); /* Adjust based on header/footer height */
@@ -60,33 +63,533 @@
     to { transform: rotate(360deg); }
   }
   
-  /* Concept Shelf scrollbar */
-  .concept-shelf-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .concept-shelf-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .concept-shelf-scroll::-webkit-scrollbar-thumb {
-    background: #d1d1d1;
-    border-radius: 3px;
-  }
-  
   /* Hide elements with x-cloak until Alpine initializes */
   [x-cloak] {
     display: none !important;
+  }
+  
+  /* Code block styling */
+  .code-block-container {
+    position: relative;
+    margin: 0.5rem 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #1e1e1e;
+  }
+  
+  .code-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    background: #2d2d2d;
+    border-bottom: 1px solid #444;
+  }
+  
+  .code-block-lang {
+    font-size: 0.7rem;
+    color: #888;
+    font-family: monospace;
+    text-transform: uppercase;
+  }
+  
+  .code-block-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .code-block-actions button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .code-block-actions .btn-copy {
+    background: #444;
+    color: #ccc;
+  }
+  
+  .code-block-actions .btn-copy:hover {
+    background: #555;
+  }
+  
+  .code-block-actions .btn-run {
+    background: #28a745;
+    color: white;
+  }
+  
+  .code-block-actions .btn-run:hover {
+    background: #218838;
+  }
+  
+  .code-block-content {
+    padding: 0.75rem;
+    margin: 0;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  
+  .code-block-content code {
+    color: #d4d4d4;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  }
+  
+  /* Quality Card styling */
+  .quality-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    background: white;
+    overflow: hidden;
+  }
+  
+  .quality-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .quality-bar {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+  }
+  
+  .quality-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  
+  .quality-issues {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .quality-issue {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+  }
+  
+  /* Data Table styling */
+  .data-table-container {
+    margin: 0.5rem 0;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .data-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+  }
+  
+  .data-table th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+  }
+  
+  .data-table td {
+    padding: 0.3rem 0.6rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .data-table tr:hover {
+    background: #f8f9fa;
+  }
+  
+  /* Execution Result styling */
+  .execution-result {
+    margin: 0.5rem 0;
+    border: 1px solid #28a745;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  
+  .execution-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    font-size: 0.8rem;
+  }
+  
+  .execution-result-body {
+    max-height: 250px;
+    overflow: auto;
+  }
+  
+  .execution-error {
+    border-color: #dc3545;
+  }
+  
+  .execution-error .execution-result-header {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  }
+  
+  /* Enhanced Thinking Process */
+  .thinking-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+  }
+  
+  .thinking-step-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  
+  .thinking-step-success .thinking-step-icon {
+    background: #d4edda;
+    color: #28a745;
+  }
+  
+  .thinking-step-error .thinking-step-icon {
+    background: #f8d7da;
+    color: #dc3545;
+  }
+  
+  .thinking-step-pending .thinking-step-icon {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .thinking-step-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  
+  .thinking-step-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .thinking-step-time {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-left: auto;
+  }
+  
+  .thinking-step-details {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.2rem;
+  }
+  
+  .thinking-code-preview {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.7rem;
+    margin-top: 0.3rem;
+    max-height: 80px;
+    overflow: auto;
+  }
+  
+  .thinking-summary {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .thinking-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  
+  /* Action buttons bar */
+  .agent-actions-bar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: linear-gradient(to right, #f8f9fa, #fff);
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+  }
+  
+  .agent-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s ease;
+    color: #495057;
+  }
+  
+  .agent-action-btn:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .agent-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .agent-action-btn.active {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+  }
+  
+  /* Delete thread button */
+  .delete-thread-btn {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  
+  .thread-card:hover .delete-thread-btn {
+    opacity: 1;
+  }
+  
+  .delete-thread-btn:hover {
+    color: #dc3545 !important;
+  }
+  
+  /* Dataset dropdown option */
+  .dataset-option {
+    transition: background-color 0.1s ease;
+  }
+
+  .dataset-option:hover {
+    background-color: #f8f9fa;
+  }
+
+  .dataset-option:last-child {
+    border-bottom: none !important;
+  }
+  
+  /* Chart Builder styles */
+  .chart-builder-modal {
+    max-width: 900px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .chart-type-selector {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  
+  .chart-type-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 80px;
+  }
+  
+  .chart-type-btn:hover {
+    border-color: #0d6efd;
+    background: #f8f9ff;
+  }
+  
+  .chart-type-btn.active {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: white;
+  }
+  
+  .chart-type-btn i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .chart-type-btn span {
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  
+  .encoding-shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .encoding-slot {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 80px;
+    transition: all 0.15s ease;
+    background: #fafafa;
+  }
+  
+  .encoding-slot:hover {
+    border-color: #0d6efd;
+    background: #f8f9ff;
+  }
+  
+  .encoding-slot.dragover {
+    border-color: #0d6efd;
+    background: #e8f0ff;
+    border-style: solid;
+  }
+  
+  .encoding-slot.filled {
+    border-style: solid;
+    border-color: #28a745;
+    background: #f0fff4;
+  }
+  
+  .encoding-slot-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+  }
+  
+  .encoding-slot-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .encoding-slot-field .field-name {
+    font-weight: 500;
+    font-size: 0.85rem;
+  }
+  
+  .encoding-slot-field .field-type {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    background: #e9ecef;
+  }
+  
+  .encoding-slot-placeholder {
+    color: #adb5bd;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  
+  .chart-preview-container {
+    min-height: 300px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dee2e6;
+  }
+  
+  .chart-preview-placeholder {
+    text-align: center;
+    color: #6c757d;
+  }
+  
+  .chart-preview-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+  }
+  
+  /* Derive field modal */
+  .source-field-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .source-field-checkbox:hover {
+    border-color: #0d6efd;
+  }
+  
+  .source-field-checkbox.checked {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+  }
+  
+  /* Visualization Canvas */
+  .canvas-chart-card {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .canvas-chart-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  
+  .canvas-chart-card.ring-2 {
+    box-shadow: 0 0 0 2px #0d6efd !important;
   }
 </style>
 <div x-data="copilotChat()" x-init="init()" class="chat-container d-flex flex-row overflow-hidden">
 
   <!-- Sidebar: Data Threads -->
-  <div class="d-flex flex-column border-end bg-light" style="width: 250px; min-width: 250px;" x-show="showThreads"
-    x-transition>
+  <div class="d-flex flex-column border-end bg-light threads-sidebar" 
+       :style="showThreads ? 'width: 250px; min-width: 250px;' : 'display: none !important;'"
+       x-transition>
     <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
       <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-3"></i> Data Threads</h6>
-      <button class="btn btn-sm btn-link text-secondary" @click="showThreads = false">
+      <button class="btn btn-sm btn-link text-secondary" @click="showThreads = false" title="Ocultar panel">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
@@ -99,15 +602,47 @@
 
       <!-- Thread List -->
       <template x-for="thread in threads" :key="thread.id">
-        <div class="card mb-2 cursor-pointer thread-card"
+        <div class="card mb-2 cursor-pointer thread-card position-relative"
           :class="activeThreadId === thread.id ? 'border-primary bg-white shadow-sm' : 'border-0 bg-transparent'"
           @click="switchThread(thread.id)">
           <div class="card-body p-2">
-            <div class="d-flex justify-content-between">
-              <span class="small fw-bold text-truncate" x-text="thread.title || 'New Analysis'"></span>
-              <small class="text-muted" x-text="formatTime(thread.timestamp)"></small>
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex align-items-center gap-1 flex-grow-1" style="min-width: 0;">
+                <!-- Content type icon -->
+                <i class="bi text-primary" style="font-size: 0.8rem;"
+                   :class="thread.charts?.length ? 'bi-bar-chart' : (thread.messages?.length > 2 ? 'bi-chat-dots' : 'bi-file-text')"></i>
+                <span class="small fw-bold text-truncate" x-text="thread.title || 'New Analysis'"></span>
+              </div>
+              <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                <small class="text-muted" x-text="formatTime(thread.timestamp)"></small>
+                <button class="btn btn-link btn-sm text-secondary p-0 ms-1 rename-thread-btn" 
+                        @click.stop="renameThread(thread.id)" 
+                        title="Renombrar thread"
+                        style="font-size: 0.65rem; line-height: 1; opacity: 0.5;"
+                        @mouseenter="$el.style.opacity = 1"
+                        @mouseleave="$el.style.opacity = 0.5">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-link btn-sm text-danger p-0 delete-thread-btn" 
+                        @click.stop="deleteThread(thread.id)" 
+                        title="Eliminar thread"
+                        style="font-size: 0.65rem; line-height: 1; opacity: 0.5;"
+                        @mouseenter="$el.style.opacity = 1"
+                        @mouseleave="$el.style.opacity = 0.5">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
             </div>
-            <p class="small text-secondary mb-0 text-truncate" x-text="thread.lastMessage || 'Empty thread'"></p>
+            <p class="small text-secondary mb-0 text-truncate" style="padding-left: 1rem;" x-text="thread.lastMessage || 'Empty thread'"></p>
+            <!-- Badges for content types -->
+            <div class="d-flex gap-1 mt-1" style="padding-left: 1rem;">
+              <span x-show="thread.charts?.length" class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 0.6rem;">
+                <i class="bi bi-graph-up"></i> <span x-text="thread.charts?.length"></span> charts
+              </span>
+              <span x-show="thread.messages?.length > 0" class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size: 0.6rem;">
+                <i class="bi bi-chat"></i> <span x-text="thread.messages?.length || 0"></span> msgs
+              </span>
+            </div>
           </div>
         </div>
       </template>
@@ -131,12 +666,6 @@
         </div>
 
         <div class="d-flex gap-2">
-          <button class="btn btn-sm" 
-                  :class="showConcepts ? 'btn-secondary' : 'btn-outline-secondary'"
-                  @click="showConcepts = !showConcepts; console.log('Concepts toggled:', showConcepts)">
-            <i class="bi" :class="showConcepts ? 'bi-layout-sidebar-inset-reverse' : 'bi-layout-sidebar-reverse'"></i>
-            Concepts
-          </button>
           <button class="btn btn-outline-secondary btn-sm" @click="clearChat()" :disabled="messages.length === 0">
             <i class="bi bi-trash"></i>
           </button>
@@ -150,16 +679,129 @@
         <i class="bi bi-exclamation-triangle"></i>
         <strong>GitHub Copilot SDK not available.</strong> Install with: <code>pip install github-copilot-sdk</code>
       </div>
+    </div>
 
-      <div x-show="health_status" class="alert mt-2 mb-0"
-        :class="health_status?.status === 'healthy' ? 'alert-success' : 'alert-warning'">
-        <div class="d-flex justify-content-between">
-          <span>
-            <i class="bi"
-              :class="health_status?.status === 'healthy' ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
-            Status: <strong x-text="health_status?.status"></strong>
-          </span>
-          <button class="btn-close" @click="health_status = null"></button>
+    <!-- Agent Actions Bar -->
+    <div class="agent-actions-bar" x-show="activeDataset">
+      <button class="agent-action-btn" 
+              @click="runAgentAction('quality')" 
+              :disabled="loading || agentLoading"
+              :class="{'active': agentLoading === 'quality'}">
+        <i class="bi bi-clipboard-check"></i>
+        <span>Calidad</span>
+        <span x-show="agentLoading === 'quality'" class="spinner-border spinner-border-sm ms-1"></span>
+      </button>
+      <button class="agent-action-btn" 
+              @click="runAgentAction('transform')" 
+              :disabled="loading || agentLoading"
+              :class="{'active': agentLoading === 'transform'}">
+        <i class="bi bi-arrow-repeat"></i>
+        <span>Transformar</span>
+      </button>
+      <button class="agent-action-btn" 
+              @click="runAgentAction('report')" 
+              :disabled="loading || agentLoading"
+              :class="{'active': agentLoading === 'report'}">
+        <i class="bi bi-file-earmark-text"></i>
+        <span>Reporte</span>
+      </button>
+      <button class="agent-action-btn" 
+              @click="runAgentAction('explore')" 
+              :disabled="loading || agentLoading"
+              :class="{'active': agentLoading === 'explore'}">
+        <i class="bi bi-search"></i>
+        <span>Explorar</span>
+      </button>
+      <button class="agent-action-btn" 
+              @click="runAgentAction('clean')" 
+              :disabled="loading || agentLoading || !qualityReport"
+              :class="{'active': agentLoading === 'clean'}"
+              title="Primero ejecuta Calidad para detectar problemas">
+        <i class="bi bi-brush"></i>
+        <span>Limpiar</span>
+      </button>
+      <div style="border-left: 1px solid #dee2e6; height: 24px;"></div>
+      <button class="agent-action-btn" 
+              @click="openCanvasView()" 
+              :disabled="!activeDataset && !canvasCharts.length"
+              title="Abrir canvas de visualización (con gráficos actuales si hay)">
+        <i class="bi bi-bar-chart-line"></i>
+        <span>Visualizar</span>
+      </button>
+      <button class="agent-action-btn" 
+              title="Gráfico de correlación con 2 datasets (cruce como Compare)">
+      </button>
+      <button class="agent-action-btn" 
+              @click="showDeriveField = true" 
+              :disabled="!activeDataset"
+              title="Derivar nuevo campo con IA">
+        <i class="bi bi-plus-circle"></i>
+        <span>Derivar</span>
+      </button>
+    </div>
+    
+    <!-- Quality Report Card (shown after quality analysis) -->
+    <div x-show="qualityReport" class="px-3 pt-2" x-transition>
+      <div class="quality-card">
+        <div class="quality-card-header">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clipboard-data"></i>
+            <span class="fw-bold">Calidad de Datos</span>
+            <span class="badge bg-light text-dark" x-text="activeDataset ? activeDataset.name : ''"></span>
+          </div>
+          <button class="btn btn-sm btn-link text-white p-0" @click="qualityReport = null">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="p-2">
+          <!-- Quality Score Bar -->
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="small text-muted">Puntuación:</span>
+            <div class="quality-bar flex-grow-1">
+              <div class="quality-bar-fill" 
+                   :style="`width: ${qualityReport ? qualityReport.score : 0}%; background: ${getQualityColor(qualityReport ? qualityReport.score : 0)}`">
+              </div>
+            </div>
+            <span class="fw-bold" :style="`color: ${getQualityColor(qualityReport ? qualityReport.score : 0)}`" 
+                  x-text="(qualityReport ? qualityReport.score : 0) + '%'"></span>
+          </div>
+          
+          <!-- Issues List -->
+          <div class="quality-issues" x-show="qualityReport && qualityReport.issues && qualityReport.issues.length > 0">
+            <template x-for="(issue, idx) in (qualityReport && qualityReport.issues ? qualityReport.issues.slice(0, 5) : [])" :key="'issue-' + idx">
+              <div class="quality-issue">
+                <i class="bi" :class="getIssueIcon(issue.severity)"></i>
+                <span class="flex-grow-1" x-text="issue.message"></span>
+                <span class="badge" :class="getIssueBadgeClass(issue.severity)" x-text="issue.severity"></span>
+              </div>
+            </template>
+            <div x-show="qualityReport && qualityReport.issues && qualityReport.issues.length > 5" class="text-muted small text-center pt-1">
+              + <span x-text="qualityReport && qualityReport.issues ? qualityReport.issues.length - 5 : 0"></span> más problemas
+            </div>
+          </div>
+          
+          <!-- No Issues -->
+          <div x-show="qualityReport && qualityReport.issues && qualityReport.issues.length === 0" class="text-center text-success small py-2">
+            <i class="bi bi-check-circle-fill me-1"></i> ¡Sin problemas detectados!
+          </div>
+          
+          <!-- Actions -->
+          <div class="d-flex gap-2 mt-2 pt-2 border-top">
+            <button class="btn btn-sm btn-outline-primary flex-grow-1" 
+                    @click="runAgentAction('clean')" 
+                    :disabled="agentLoading || !(qualityReport && qualityReport.issues && qualityReport.issues.length)">
+              <i class="bi bi-brush"></i> Limpiar Automático
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @click="showQualityDetails = !showQualityDetails">
+              <i class="bi" :class="showQualityDetails ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+            </button>
+          </div>
+          
+          <!-- Detailed Report (collapsible) -->
+          <div x-show="showQualityDetails" x-collapse class="mt-2 pt-2 border-top">
+            <pre class="small bg-light p-2 rounded" style="max-height: 200px; overflow: auto; font-size: 0.75rem;" 
+                 x-text="JSON.stringify(qualityReport, null, 2)"></pre>
+          </div>
         </div>
       </div>
     </div>
@@ -206,9 +848,61 @@
                         </div>
                       </template>
 
-                      <!-- Message content - Show when we have content -->
+                      <!-- Message content - Show when we have content (inline [GRAFICAR:N] → botón junto a cada Gráfico:) -->
                       <template x-if="msg.content">
-                        <div :class="msg.error ? 'text-danger' : 'markdown-body'" x-html="formatMessage(msg.content)"></div>
+                        <div :class="msg.error ? 'text-danger' : 'markdown-body'" x-html="formatMessage(msg.content, index, msg.chart_suggestions)"></div>
+                      </template>
+
+                      <!-- Gráficos propuestos: botón Graficar por cada sugerencia -->
+                      <template x-if="msg.chart_suggestions && msg.chart_suggestions.length > 0">
+                        <div class="mt-3 pt-3 border-top border-secondary">
+                          <small class="d-block mb-2 fw-bold text-secondary">
+                            <i class="bi bi-bar-chart-line me-1"></i>Gráficos propuestos
+                          </small>
+                          <div class="d-flex flex-column gap-2">
+                            <template x-for="(chart, idx) in msg.chart_suggestions" :key="idx">
+                              <div class="d-flex align-items-center justify-content-between gap-2 p-2 rounded bg-light">
+                                <span class="small text-break" x-text="chart.title || chart.description || ('Gráfico ' + (idx + 1))"></span>
+                                <button type="button" class="btn btn-sm btn-primary flex-shrink-0"
+                                        @click="openChartFromSuggestion(chart)"
+                                        title="Abrir canvas y generar este gráfico">
+                                </button>
+                              </div>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+
+                      <!-- Retry button for timeout errors -->
+                      <template x-if="msg.canRetry">
+                        <div class="mt-3 d-flex gap-2 flex-wrap">
+                          <button class="btn btn-sm btn-outline-primary" 
+                                  @click="retryMessage(msg.originalPrompt)">
+                            <i class="bi bi-arrow-clockwise"></i> Retry
+                          </button>
+                          <button class="btn btn-sm btn-outline-success" 
+                                  @click="retryWithFasterModel(msg.originalPrompt)">
+                            <i class="bi bi-lightning"></i> Retry with faster model
+                          </button>
+                        </div>
+                      </template>
+
+                      <!-- Retry info badge (when backend used fallback) -->
+                      <template x-if="msg.retryInfo && msg.retryInfo.used_fallback">
+                        <div class="mt-2">
+                          <span class="badge bg-warning text-dark">
+                            <i class="bi bi-arrow-repeat"></i> Used fallback: <span x-text="msg.retryInfo.model_used"></span>
+                          </span>
+                        </div>
+                      </template>
+
+                      <!-- Tool fallback badge -->
+                      <template x-if="msg.fallbackUsed">
+                        <div class="mt-2">
+                          <span class="badge bg-info text-dark">
+                            <i class="bi bi-tools"></i> Tool fallback used
+                          </span>
+                        </div>
                       </template>
 
                       <!-- Error without content -->
@@ -225,7 +919,7 @@
                       <small class="text-muted d-flex align-items-center gap-1">
                         <i class="bi bi-brain"></i>
                         <span class="fw-bold">Thinking Process</span>
-                        <span class="badge bg-secondary bg-opacity-50" x-text="msg.thinking.length + ' step' + (msg.thinking.length > 1 ? 's' : '')"></span>
+                        <span class="badge bg-secondary bg-opacity-50" x-text="(msg.thinking ? msg.thinking.length : 0) + ' step' + ((msg.thinking && msg.thinking.length > 1) ? 's' : '')"></span>
                       </small>
                       <i class="bi text-muted" :class="msg.showThinking ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
                     </div>
@@ -279,7 +973,7 @@
       <div x-show="suggestions.length > 0 && !loading" class="mt-4 animate__animated animate__fadeIn">
         <small class="text-secondary text-uppercase fw-bold ms-1" style="font-size: 0.7rem;">Suggested Actions</small>
         <div class="d-flex flex-wrap gap-2 mt-2">
-          <template x-for="suggestion in suggestions" :key="suggestion.question">
+          <template x-for="(suggestion, sugIdx) in suggestions" :key="'sug-' + sugIdx">
             <button class="btn btn-sm btn-outline-info rounded-pill d-flex align-items-center gap-2"
               @click="sendQuick(suggestion.question)">
               <i class="bi" :class="getSuggestionIcon(suggestion.type)"></i>
@@ -323,6 +1017,71 @@
         </div>
       </div>
     </div>
+    
+    <!-- Visualization Canvas -->
+    <div x-show="canvasCharts.length > 0" 
+         x-cloak
+         class="border-top bg-light"
+         :class="canvasFullscreen ? 'position-fixed top-0 start-0 w-100 h-100' : ''"
+         :style="canvasFullscreen ? 'z-index: 1100;' : ''">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-white">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-bar-chart-fill text-primary"></i>
+          <span class="fw-bold small">Visualization Canvas</span>
+          <span class="badge bg-secondary" x-text="canvasCharts.length + ' chart(s)'"></span>
+        </div>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary" @click="canvasFullscreen = !canvasFullscreen" 
+                  :title="canvasFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
+            <i class="bi" :class="canvasFullscreen ? 'bi-fullscreen-exit' : 'bi-arrows-fullscreen'"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" @click="exportActiveChart()" title="Export PNG">
+            <i class="bi bi-download"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" @click="clearCanvas()" title="Clear All">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Charts Container -->
+      <div class="p-3" :style="canvasFullscreen ? 'height: calc(100vh - 50px); overflow-y: auto;' : 'max-height: 350px; overflow-y: auto;'">
+        <div class="d-flex gap-3 flex-wrap">
+          <template x-for="chart in canvasCharts" :key="chart.id">
+            <div class="canvas-chart-card bg-white rounded shadow-sm border position-relative"
+                 :class="activeChartId === chart.id ? 'ring-2 ring-primary' : ''"
+                 @click="activeChartId = chart.id"
+                 style="min-width: 300px; max-width: 450px; flex: 1;">
+              <!-- Chart Header -->
+              <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-graph-up text-primary"></i>
+                  <span class="small fw-bold text-truncate" style="max-width: 200px;" x-text="chart.title || 'Untitled Chart'"></span>
+                </div>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-link text-secondary p-0" @click.stop="editChartInBuilder(chart)" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-link text-danger p-0" @click.stop="removeChartFromCanvas(chart.id)" title="Remove">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- Chart Preview -->
+              <div class="p-2" :id="'canvas-chart-' + chart.id" style="min-height: 200px; max-width: 100%; overflow: hidden;">
+                <div class="d-flex justify-content-center align-items-center h-100">
+                  <span class="spinner-border spinner-border-sm text-secondary"></span>
+                </div>
+              </div>
+              <!-- Chart Footer -->
+              <div class="px-3 py-1 border-top bg-light">
+                <small class="text-muted" x-text="new Date(chart.timestamp).toLocaleTimeString()"></small>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
 
     <!-- Input Area -->
     <div class="p-3 bg-white border-top">
@@ -350,7 +1109,7 @@
             <small class="text-secondary">
               <i class="bi bi-info-circle"></i>
               <span x-show="!activeDataset">Load a dataset to unlock visual tools.</span>
-              <span x-show="activeDataset">Exploring: <strong x-text="activeDataset.name"></strong></span>
+              <span x-show="activeDataset">Exploring: <strong x-text="activeDataset ? activeDataset.name : ''"></strong></span>
             </small>
           </div>
           <div class="d-flex align-items-center gap-2">
@@ -372,89 +1131,335 @@
 
   </div>
 
-  <!-- Right Sidebar: Concept Shelf -->
-  <div class="d-flex flex-column border-start bg-light" 
-       style="width: 250px; min-width: 250px;" 
-       x-cloak
-       x-show="showConcepts"
-       x-transition.duration.200ms>
-    <div class="p-3 border-bottom">
-      <h6 class="mb-0 fw-bold"><i class="bi bi-database"></i> Concept Shelf</h6>
-    </div>
-
-    <!-- Dataset Selector -->
-    <div class="p-3 border-bottom bg-white">
-      <label class="small text-muted mb-1 d-flex align-items-center justify-content-between">
-        <span>Active Dataset</span>
-        <button class="btn btn-link btn-sm p-0 text-muted" @click="fetchAvailableDatasets()" :disabled="loadingDatasets">
-          <i class="bi" :class="loadingDatasets ? 'bi-arrow-repeat spin' : 'bi-arrow-clockwise'"></i>
+  <!-- Chart Builder Modal -->
+  <div x-cloak
+       :style="showChartBuilder ? 'display: flex;' : 'display: none !important;'"
+       class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+       style="background: rgba(0,0,0,0.6); z-index: 1050;"
+       @click.self="showChartBuilder = false"
+       @keydown.escape.window="showChartBuilder = false">
+    <div class="bg-white rounded-3 shadow-lg chart-builder-modal">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+        <h5 class="mb-0"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Chart Builder</h5>
+        <button class="btn btn-link text-muted p-0" @click="showChartBuilder = false">
+          <i class="bi bi-x-lg"></i>
         </button>
-      </label>
-      <select class="form-select form-select-sm" x-model="selectedDatasetId" @change="loadDatasetFields()" :disabled="loadingDatasets">
-        <option value="">Select a dataset...</option>
-        <template x-for="ds in availableDatasets" :key="ds.id">
-          <option :value="ds.id" x-text="`${ds.name} (${ds.source})`"></option>
-        </template>
-      </select>
-      <div x-show="loadingDatasets" class="text-center text-muted small mt-2">
-        <span class="spinner-border spinner-border-sm me-1"></span> Loading datasets...
-      </div>
-      <div x-show="!loadingDatasets && availableDatasets.length === 0" class="text-center text-muted small mt-2">
-        <i class="bi bi-inbox"></i> No datasets found
-      </div>
-    </div>
-
-    <!-- Fields List -->
-    <div class="flex-grow-1 overflow-auto p-2">
-      <!-- Loading state -->
-      <div x-show="loadingFields" class="text-center text-muted mt-5 small">
-        <span class="spinner-border spinner-border-sm me-1"></span> Loading fields...
       </div>
       
-      <!-- No dataset selected -->
-      <div x-show="!activeDataset && !loadingFields" class="text-center text-muted mt-5 small">
-        <i class="bi bi-arrow-up-circle fs-4 mb-2 d-block"></i>
-        Select a dataset<br>to view concepts
-      </div>
-
-      <!-- Dataset info header -->
-      <div x-show="activeDataset && !loadingFields" class="mb-2 p-2 bg-primary bg-opacity-10 rounded small">
-        <div class="fw-bold text-truncate" x-text="activeDataset?.name"></div>
-        <div class="text-muted d-flex justify-content-between">
-          <span x-text="activeDataset?.source"></span>
-          <span x-text="(activeDataset?.rowCount || 0).toLocaleString() + ' rows'"></span>
-        </div>
-      </div>
-
-      <!-- Fields -->
-      <template x-for="field in fields" :key="field.id || field.name">
-        <div class="card mb-2 shadow-sm field-card cursor-grab" 
-             draggable="true" 
-             @dragstart="dragField($event, field)"
-             :class="{'border-primary': field.semanticType === 'quantitative'}">
-          <div class="card-body p-2 d-flex align-items-center">
-            <i class="bi me-2" :class="[getFieldIcon(field.type), getFieldIconColor(field.type)]"></i>
-            <div class="overflow-hidden flex-grow-1">
-              <div class="fw-bold small text-truncate" x-text="field.name"></div>
-              <div class="d-flex gap-2 align-items-center">
-                <span class="badge rounded-pill" 
-                      :class="getFieldBadgeClass(field.type)"
-                      style="font-size: 0.6rem;" 
-                      x-text="field.type"></span>
-                <span x-show="field.uniqueCount" 
-                      class="text-muted" 
-                      style="font-size: 0.6rem;" 
-                      x-text="field.uniqueCount + ' unique'"></span>
+      <!-- Body -->
+      <div class="p-3">
+        <div class="row g-3">
+          <!-- Left: Config -->
+          <div class="col-md-5">
+            <!-- Chart Type Selector -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Tipo de Gráfico</label>
+              <div class="chart-type-selector">
+                <template x-for="tpl in chartTemplates" :key="tpl.id">
+                  <button class="chart-type-btn" 
+                          :class="{'active': chartConfig.template === tpl.id}"
+                          @click="chartConfig.template = tpl.id">
+                    <i :class="tpl.icon"></i>
+                    <span x-text="tpl.name"></span>
+                  </button>
+                </template>
               </div>
             </div>
-            <i class="bi bi-grip-vertical ms-auto text-black-50 handle"></i>
+            
+            <!-- Encoding Shelf -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Encodings</label>
+              <p class="text-muted small mb-2">Selecciona campos:</p>
+              <div class="encoding-shelf">
+                <!-- X Axis -->
+                <div class="encoding-slot" 
+                     :class="{'filled': chartEncodings.x, 'dragover': encodingDragover === 'x'}"
+                     @dragover.prevent="encodingDragover = 'x'"
+                     @dragleave="encodingDragover = null"
+                     @drop="dropFieldToEncoding($event, 'x')">
+                  <div class="encoding-slot-label">X Axis (Horizontal)</div>
+                  <div x-show="chartEncodings.x" class="encoding-slot-field">
+                    <span class="field-name" x-text="chartEncodings.x?.field"></span>
+                    <span class="field-type" x-text="chartEncodings.x?.type"></span>
+                    <button class="btn btn-link btn-sm p-0 text-danger" @click="chartEncodings.x = null">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                  <div x-show="!chartEncodings.x" class="encoding-slot-placeholder">
+                    <select class="form-select form-select-sm" @change="setEncoding('x', $event.target.value); $event.target.value = ''">
+                      <option value="">Seleccionar...</option>
+                      <template x-for="f in fields" :key="f.name">
+                        <option :value="f.name" x-text="f.name"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+                
+                <!-- Y Axis -->
+                <div class="encoding-slot"
+                     :class="{'filled': chartEncodings.y, 'dragover': encodingDragover === 'y'}"
+                     @dragover.prevent="encodingDragover = 'y'"
+                     @dragleave="encodingDragover = null"
+                     @drop="dropFieldToEncoding($event, 'y')">
+                  <div class="encoding-slot-label">Y Axis (Vertical)</div>
+                  <div x-show="chartEncodings.y" class="encoding-slot-field">
+                    <span class="field-name" x-text="chartEncodings.y?.field"></span>
+                    <span class="field-type" x-text="chartEncodings.y?.type"></span>
+                    <button class="btn btn-link btn-sm p-0 text-danger" @click="chartEncodings.y = null">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                  <div x-show="!chartEncodings.y" class="encoding-slot-placeholder">
+                    <select class="form-select form-select-sm" @change="setEncoding('y', $event.target.value); $event.target.value = ''">
+                      <option value="">Seleccionar...</option>
+                      <template x-for="f in fields" :key="f.name">
+                        <option :value="f.name" x-text="f.name"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+                
+                <!-- Color -->
+                <div class="encoding-slot"
+                     :class="{'filled': chartEncodings.color, 'dragover': encodingDragover === 'color'}"
+                     @dragover.prevent="encodingDragover = 'color'"
+                     @dragleave="encodingDragover = null"
+                     @drop="dropFieldToEncoding($event, 'color')">
+                  <div class="encoding-slot-label">Color</div>
+                  <div x-show="chartEncodings.color" class="encoding-slot-field">
+                    <span class="field-name" x-text="chartEncodings.color?.field"></span>
+                    <span class="field-type" x-text="chartEncodings.color?.type"></span>
+                    <button class="btn btn-link btn-sm p-0 text-danger" @click="chartEncodings.color = null">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                  <div x-show="!chartEncodings.color" class="encoding-slot-placeholder">
+                    <select class="form-select form-select-sm" @change="setEncoding('color', $event.target.value); $event.target.value = ''">
+                      <option value="">Opcional...</option>
+                      <template x-for="f in fields" :key="f.name">
+                        <option :value="f.name" x-text="f.name"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+                
+                <!-- Size -->
+                <div class="encoding-slot"
+                     :class="{'filled': chartEncodings.size, 'dragover': encodingDragover === 'size'}"
+                     @dragover.prevent="encodingDragover = 'size'"
+                     @dragleave="encodingDragover = null"
+                     @drop="dropFieldToEncoding($event, 'size')">
+                  <div class="encoding-slot-label">Size</div>
+                  <div x-show="chartEncodings.size" class="encoding-slot-field">
+                    <span class="field-name" x-text="chartEncodings.size?.field"></span>
+                    <span class="field-type" x-text="chartEncodings.size?.type"></span>
+                    <button class="btn btn-link btn-sm p-0 text-danger" @click="chartEncodings.size = null">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                  <div x-show="!chartEncodings.size" class="encoding-slot-placeholder">
+                    <select class="form-select form-select-sm" @change="setEncoding('size', $event.target.value); $event.target.value = ''">
+                      <option value="">Opcional...</option>
+                      <template x-for="f in fields" :key="f.name">
+                        <option :value="f.name" x-text="f.name"></option>
+                      </template>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- NL Instruction -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Instrucción (opcional)</label>
+              <textarea class="form-control" rows="2" 
+                        placeholder="Ej: Mostrar solo top 10 países..."
+                        x-model="chartConfig.nlInstruction"></textarea>
+            </div>
+            
+            <!-- Title -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Título</label>
+              <input type="text" class="form-control" 
+                     placeholder="Título del gráfico"
+                     x-model="chartConfig.title">
+            </div>
+          </div>
+          
+          <!-- Right: Preview -->
+          <div class="col-md-7">
+            <label class="form-label small fw-bold text-uppercase text-muted">Preview</label>
+            <div class="chart-preview-container" id="vega-chart-preview">
+              <div x-show="!chartPreviewSpec" class="chart-preview-placeholder">
+                <i class="bi bi-bar-chart-line d-block"></i>
+                <span>Selecciona campos para X e Y</span>
+              </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="d-flex gap-2 mt-3 justify-content-end">
+              <button class="btn btn-outline-secondary" @click="resetChartBuilder()">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
+              </button>
+              <button class="btn btn-primary" 
+                      @click="generateChart()"
+                      :disabled="!canGenerateChart || chartLoading">
+                <span x-show="chartLoading" class="spinner-border spinner-border-sm me-1"></span>
+                <i x-show="!chartLoading" class="bi bi-play-fill me-1"></i>
+                Generar
+              </button>
+            </div>
           </div>
         </div>
-      </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Derive Field Modal -->
+  <div x-cloak
+       :style="showDeriveField ? 'display: flex;' : 'display: none !important;'"
+       class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+       style="background: rgba(0,0,0,0.6); z-index: 1050;"
+       @click.self="showDeriveField = false"
+       @keydown.escape.window="showDeriveField = false">
+    <div class="bg-white rounded-3 shadow-lg p-4" style="max-width: 550px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Derivar Nuevo Campo</h5>
+        <button class="btn btn-link text-muted p-0" @click="showDeriveField = false">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
       
-      <!-- Field count -->
-      <div x-show="fields.length > 0" class="text-center text-muted small mt-2 pb-2">
-        <span x-text="fields.length + ' field' + (fields.length !== 1 ? 's' : '')"></span>
+      <!-- Body -->
+      <div>
+        <!-- Field Name -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Nombre del Campo</label>
+          <input type="text" class="form-control" 
+                 placeholder="ej: growth_rate"
+                 x-model="deriveConfig.fieldName">
+        </div>
+        
+        <!-- Source Fields -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Campos Fuente</label>
+          <div class="d-flex flex-wrap gap-2">
+            <template x-for="f in fields" :key="f.name">
+              <label class="source-field-checkbox"
+                     :class="{'checked': deriveConfig.sourceFields.includes(f.name)}">
+                <input type="checkbox" class="d-none" 
+                       :value="f.name"
+                       :checked="deriveConfig.sourceFields.includes(f.name)"
+                       @change="toggleSourceField(f.name)">
+                <i class="bi" :class="deriveConfig.sourceFields.includes(f.name) ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+                <span x-text="f.name"></span>
+              </label>
+            </template>
+          </div>
+        </div>
+        
+        <!-- Description -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Descripción (NL)</label>
+          <textarea class="form-control" rows="3" 
+                    placeholder="Describe qué debe calcular este campo. Ej: Calcular el crecimiento porcentual anual del PIB"
+                    x-model="deriveConfig.description"></textarea>
+          <div class="form-text">
+            <i class="bi bi-lightbulb me-1"></i>
+            Sugerencias: "crecimiento anual", "ranking", "media móvil 5 años", "diferencia entre X e Y"
+          </div>
+        </div>
+        
+        <!-- Preview -->
+        <div x-show="derivePreview.length > 0" class="mb-3">
+          <label class="form-label small fw-bold">Preview</label>
+          <div class="table-responsive border rounded" style="max-height: 150px; overflow-y: auto;">
+            <table class="table table-sm table-striped mb-0" style="font-size: 0.8rem;">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <template x-for="col in Object.keys(derivePreview[0] || {})" :key="col">
+                    <th x-text="col" class="text-nowrap"></th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(row, idx) in derivePreview" :key="idx">
+                  <tr>
+                    <template x-for="col in Object.keys(row)" :key="col">
+                      <td x-text="typeof row[col] === 'number' ? row[col].toFixed(2) : row[col]"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Generated Code -->
+        <div x-show="deriveCode" class="mb-3">
+          <label class="form-label small fw-bold">Código Generado</label>
+          <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.75rem;" x-text="deriveCode"></pre>
+        </div>
+        
+        <!-- Error -->
+        <div x-show="deriveError" class="alert alert-danger py-2 small" x-text="deriveError"></div>
+        
+        <!-- Actions -->
+        <div class="d-flex gap-2 justify-content-end mt-4">
+          <button class="btn btn-outline-secondary" @click="previewDeriveField()" :disabled="deriveLoading">
+            <span x-show="deriveLoading" class="spinner-border spinner-border-sm me-1"></span>
+            <i x-show="!deriveLoading" class="bi bi-eye me-1"></i>
+            Preview
+          </button>
+          <button class="btn btn-primary" 
+                  @click="applyDeriveField()" 
+                  :disabled="!derivePreview.length || deriveLoading">
+            <i class="bi bi-plus-lg me-1"></i>
+            Crear Campo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Modal -->
+  <div x-cloak
+       :style="confirmModal.show ? 'display: flex;' : 'display: none !important;'"
+       class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+       style="background: rgba(0,0,0,0.5); z-index: 1050;"
+       @click.self="confirmModal.show = false"
+       @keydown.escape.window="confirmModal.show = false">
+    <div class="bg-white rounded-3 shadow-lg p-4" style="max-width: 400px; width: 90%;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform scale-95"
+         x-transition:enter-end="opacity-100 transform scale-100">
+      <div class="d-flex align-items-start mb-3">
+        <div class="rounded-circle p-2 me-3" :class="confirmModal.isAlert ? 'bg-warning bg-opacity-10' : 'bg-danger bg-opacity-10'">
+          <i class="bi" :class="confirmModal.isAlert ? 'bi-info-circle text-warning' : 'bi-exclamation-triangle text-danger'" style="font-size: 1.5rem;"></i>
+        </div>
+        <div>
+          <h5 class="mb-1" x-text="confirmModal.title"></h5>
+          <p class="text-muted mb-0 small" x-text="confirmModal.message"></p>
+        </div>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <template x-if="confirmModal.isAlert">
+          <button class="btn btn-secondary btn-sm px-4" @click="confirmModal.show = false">
+            Entendido
+          </button>
+        </template>
+        <template x-if="!confirmModal.isAlert">
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm px-3" @click="confirmModal.show = false; confirmModal.onCancel && confirmModal.onCancel()">
+              Cancelar
+            </button>
+            <button class="btn btn-danger btn-sm px-3" @click="confirmModal.onConfirm && confirmModal.onConfirm(); confirmModal.show = false">
+              <i class="bi bi-trash me-1"></i> Eliminar
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -474,6 +1479,16 @@
       activeThreadId: null,
       showThreads: true,
 
+      // Confirmation Modal State
+      confirmModal: {
+        show: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        onCancel: null,
+        isAlert: false
+      },
+
       // Concept Binding State
       showConcepts: true,
       showEncoding: false,
@@ -485,9 +1500,62 @@
       loadingFields: false,
       encodings: { x: null, y: null, color: null },
       draggingOver: false,
+      
+      // Dataset Search State
+      datasetSearchQuery: '',
+      datasetDropdownOpen: false,
 
       // Suggestions State
       suggestions: [],
+
+      // Agent State
+      agentLoading: null,       // Current agent action being executed
+      qualityReport: null,      // Last quality report
+      showQualityDetails: false,// Show detailed quality JSON
+      lastAgentResult: null,    // Last agent result for display
+
+      // Chart Builder State
+      showChartBuilder: false,
+      chartLoading: false,
+      chartPreviewSpec: null,
+      encodingDragover: null,
+      chartTemplates: [
+        { id: 'line', name: 'Líneas', icon: 'bi bi-graph-up' },
+        { id: 'bar', name: 'Barras', icon: 'bi bi-bar-chart' },
+        { id: 'scatter', name: 'Dispersión', icon: 'bi bi-bullseye' },
+        { id: 'heatmap', name: 'Heatmap', icon: 'bi bi-grid-3x3' },
+        { id: 'boxplot', name: 'Box Plot', icon: 'bi bi-box' },
+        { id: 'area', name: 'Área', icon: 'bi bi-graph-down' }
+      ],
+      chartConfig: {
+        template: 'line',
+        title: '',
+        nlInstruction: ''
+      },
+      chartEncodings: {
+        x: null,
+        y: null,
+        color: null,
+        size: null
+      },
+      
+      // Derive Field State
+      showDeriveField: false,
+      deriveLoading: false,
+      derivePreview: [],
+      deriveCode: '',
+      deriveError: '',
+      deriveConfig: {
+        fieldName: '',
+        sourceFields: [],
+        description: ''
+      },
+      
+      // Visualization Canvas State
+      showCanvas: false,
+      canvasCharts: [],  // [{id, spec, title, timestamp, datasetId}]
+      activeChartId: null,
+      canvasFullscreen: false,
 
       // Model Selection State
       availableModels: [],
@@ -501,7 +1569,8 @@
       abortController: null,
       requestStartTime: null,      // Track request start time
       elapsedTimer: null,          // Timer for elapsed time display
-      requestTimeout: 45000,       // 45s timeout (configurable)
+      requestTimeout: 120000,      // 120s timeout (backend handles retries + fallbacks)
+      retryInfo: null,             // Info about retries/fallbacks from backend
 
       init() {
     console.log('Copilot Chat initialized');
@@ -525,13 +1594,16 @@
       this.fetchModels();
     }
     
-    // Load available datasets for Concept Shelf
+    // Load available datasets
     this.fetchAvailableDatasets();
     
     // Scroll to bottom after loading messages
     this.$nextTick(() => {
       this.scrollToBottom(true);
     });
+
+    // Botones "Graficar" inline (desde [GRAFICAR:N] en el mensaje) llaman a este handler
+    window.copilotGraficar = (msgIndex, chartIndex) => this.graficarByIndex(msgIndex, chartIndex);
   },
 
   // --- Dataset Management ---
@@ -652,11 +1724,72 @@
       }));
       this.sessionId = thread.sessionId;
       this.suggestions = []; // Clear suggestions on switch
+      
+      // Load thread charts into canvas
+      this.loadThreadCharts();
+      
       // Scroll to bottom after DOM updates
       this.$nextTick(() => {
         this.scrollToBottom(true);
       });
     }
+  },
+
+  deleteThread(threadId) {
+    // Prevent deleting the last thread
+    if (this.threads.length <= 1) {
+      this.showConfirmModal(
+        'No se puede eliminar',
+        'No puedes eliminar el último thread. Crea uno nuevo primero.',
+        null,
+        null,
+        true // isAlert
+      );
+      return;
+    }
+    
+    // Show confirmation modal
+    this.showConfirmModal(
+      'Eliminar thread',
+      '¿Eliminar este thread? Esta acción no se puede deshacer.',
+      () => {
+        const threadIndex = this.threads.findIndex(t => t.id === threadId);
+        if (threadIndex === -1) return;
+        
+        // Remove the thread
+        this.threads.splice(threadIndex, 1);
+        
+        // If we deleted the active thread, switch to another one
+        if (this.activeThreadId === threadId) {
+          this.switchThread(this.threads[0].id);
+        }
+        
+        // Save to localStorage
+        this.saveThreads();
+      }
+    );
+  },
+  
+  renameThread(threadId) {
+    const thread = this.threads.find(t => t.id === threadId);
+    if (!thread) return;
+    
+    const newName = prompt('Nuevo nombre para el thread:', thread.title || 'New Analysis');
+    if (newName && newName.trim()) {
+      thread.title = newName.trim();
+      this.saveThreads();
+    }
+  },
+
+  showConfirmModal(title, message, onConfirm, onCancel = null, isAlert = false) {
+    this.confirmModal = {
+      show: true,
+      title,
+      message,
+      onConfirm,
+      onCancel,
+      isAlert
+    };
   },
 
   updateCurrentThread(data) {
@@ -729,7 +1862,8 @@
       timestamp: new Date(),
       thinking: [],           // Array to store thinking steps
       showThinking: false,    // Collapsed by default
-      tools: []              // Tools used
+      tools: [],             // Tools used
+      fallbackUsed: false    // Backend fallback tool context
     }) - 1;
 
     this.loading = true;
@@ -749,8 +1883,10 @@
         this.abortController.abort();
         this.streamStatus = '';
         this.messages[assistantIndex].loading = false;
-        this.messages[assistantIndex].content = `⏱️ Request timeout after ${this.requestTimeout/1000} seconds. The model might be overloaded. Try again or use a faster model.`;
+        this.messages[assistantIndex].content = `⏱️ **Request timeout**\n\nThe AI model took too long to respond. This can happen when:\n- The model is overloaded\n- Your request is complex\n\n**Suggestions:**\n- 🔄 Try again with the button below\n- ⚡ Use a faster model (GPT-4.1 or Claude Haiku)\n- 📝 Simplify your question`;
         this.messages[assistantIndex].error = true;
+        this.messages[assistantIndex].canRetry = true;
+        this.messages[assistantIndex].originalPrompt = userMessage;
         this.loading = false;
         this.stopElapsedTimer();
         this.scrollToBottom();
@@ -836,6 +1972,10 @@
                   this.streamStatus = `🔧 Using ${data.tool_use.name}...`;
                 }
 
+                if (data.fallback_used) {
+                  this.messages[assistantIndex].fallbackUsed = true;
+                }
+
                 // Capture tool result
                 if (data.tool_result) {
                   this.messages[assistantIndex].thinking.push({
@@ -849,6 +1989,14 @@
                 // Update Session ID if new
                 if (data.session_id) {
                   this.sessionId = data.session_id;
+                }
+
+                // Capture retry info from backend
+                if (data.retry_info) {
+                  this.messages[assistantIndex].retryInfo = data.retry_info;
+                  if (data.retry_info.used_fallback) {
+                    this.streamStatus = `🔄 Using fallback: ${data.retry_info.model_used}`;
+                  }
                 }
 
                 if (!data.thinking && !data.tool_use && !data.tool_result) {
@@ -873,6 +2021,13 @@
       this.streamStatus = '';
       this.stopElapsedTimer();
 
+      // 3b. Parse chart_suggestions from content (bloque ```chart_suggestions ... ```)
+      const parsed = this.parseChartSuggestionsFromContent(fullContent);
+      if (parsed.suggestions && parsed.suggestions.length > 0) {
+        this.messages[assistantIndex].chart_suggestions = parsed.suggestions;
+        this.messages[assistantIndex].content = parsed.content;
+      }
+
       // 4. Update Thread State
       this.updateCurrentThread();
 
@@ -885,8 +2040,10 @@
       if (error.name === 'AbortError') {
         console.log('Request aborted by user');
       } else {
-        this.messages[assistantIndex].content = `Error: ${error.message}`;
+        this.messages[assistantIndex].content = `⚠️ **Error:** ${error.message}\n\nTry again or use a faster model.`;
         this.messages[assistantIndex].error = true;
+        this.messages[assistantIndex].canRetry = true;
+        this.messages[assistantIndex].originalPrompt = userMessage;
       }
     } finally {
       this.loading = false;
@@ -933,6 +2090,758 @@
     this.inputMessage = message;
     this.sendMessage();
   },
+
+  // --- Agent Actions ---
+  
+  async runAgentAction(action) {
+    if (!this.activeDataset || this.agentLoading) return;
+    
+    this.agentLoading = action;
+    
+    try {
+      // Get dataset data for agent
+      const dataResponse = await fetch(`/api/datasets/${this.activeDataset.id}/preview?limit=500`);
+      const dataResult = await dataResponse.json();
+      
+      if (dataResult.status !== 'success') {
+        throw new Error('Failed to load dataset data');
+      }
+      
+      // Handle both response formats: dataResult.data or dataResult.preview.rows
+      const rows = dataResult.data || (dataResult.preview && dataResult.preview.rows) || [];
+      
+      switch (action) {
+        case 'quality':
+          await this.runQualityAgent(rows);
+          break;
+        case 'transform':
+          await this.promptTransformAgent();
+          break;
+        case 'report':
+          await this.runReportAgent(rows);
+          break;
+        case 'explore':
+          await this.runExploreAgent(rows);
+          break;
+        case 'clean':
+          await this.runCleanAgent(rows);
+          break;
+      }
+    } catch (error) {
+      console.error(`Agent ${action} error:`, error);
+      this.addAgentMessage(`Error en agente ${action}: ${error.message}`, true);
+    } finally {
+      this.agentLoading = null;
+    }
+  },
+  
+  async runQualityAgent(rows) {
+    const response = await fetch('/api/agent/quality', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: rows,
+        table_name: this.activeDataset.name
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success' || result.status === 'ok') {
+      // Parse quality report from content
+      this.qualityReport = this.parseQualityReport(result);
+      this.addAgentMessage(
+        `📊 **Análisis de Calidad Completado**\n\n` +
+        `Puntuación: **${this.qualityReport.score}%**\n` +
+        `Problemas detectados: ${this.qualityReport.issues.length}\n\n` +
+        (result.content || '')
+      );
+    } else {
+      throw new Error(result.message || 'Quality analysis failed');
+    }
+  },
+  
+  parseQualityReport(result) {
+    // Try to extract quality metrics from the response
+    const report = {
+      score: 75, // Default
+      issues: []
+    };
+    
+    // Handle quality_report format from /api/agent/quality
+    const qr = result.quality_report || result.result_data || {};
+    
+    // Extract stats
+    if (qr.estadisticas) {
+      const stats = qr.estadisticas;
+      
+      // Check for nulls
+      const totalNulls = stats.nulos_totales || 0;
+      const totalCells = (stats.filas || 1) * (stats.columnas || 1);
+      const nullPct = (totalNulls / totalCells) * 100;
+      
+      if (nullPct > 0) {
+        report.issues.push({
+          type: 'nulls',
+          severity: nullPct > 10 ? 'high' : nullPct > 5 ? 'medium' : 'low',
+          message: `${nullPct.toFixed(1)}% valores nulos (${totalNulls} celdas)`
+        });
+        report.score = Math.max(0, report.score - nullPct * 2);
+      }
+      
+      // Check for duplicates
+      const dups = stats.duplicados || 0;
+      if (dups > 0) {
+        report.issues.push({
+          type: 'duplicates',
+          severity: dups > 100 ? 'medium' : 'low',
+          message: `${dups} filas duplicadas`
+        });
+        report.score = Math.max(0, report.score - 5);
+      }
+    }
+    
+    // Use issues from response if available
+    if (qr.issues && qr.issues.length > 0) {
+      report.issues = qr.issues.map(issue => ({
+        type: issue.type || 'unknown',
+        severity: issue.severity || 'low',
+        message: issue.message || issue.descripcion || String(issue)
+      }));
+    }
+    
+    // Determine score based on calidad_general
+    if (qr.calidad_general) {
+      switch (qr.calidad_general.toLowerCase()) {
+        case 'excelente': report.score = 95; break;
+        case 'buena': report.score = 80; break;
+        case 'regular': report.score = 60; break;
+        case 'mala': report.score = 40; break;
+        case 'critica': report.score = 20; break;
+      }
+    }
+    
+    // Fallback: Parse from content if available
+    const content = result.content || '';
+    
+    // Look for null values in content
+    const nullMatch = content.match(/(\d+(?:\.\d+)?)\s*%?\s*(?:nulos|nulls|missing)/i);
+    if (nullMatch && report.issues.length === 0) {
+      const nullPct = parseFloat(nullMatch[1]);
+      if (nullPct > 0) {
+        report.issues.push({
+          type: 'nulls',
+          severity: nullPct > 10 ? 'high' : nullPct > 5 ? 'medium' : 'low',
+          message: `${nullPct.toFixed(1)}% valores nulos detectados`
+        });
+        report.score = Math.max(0, report.score - nullPct * 2);
+      }
+    }
+    
+    report.score = Math.max(0, Math.min(100, Math.round(report.score)));
+    return report;
+  },
+  
+  async promptTransformAgent() {
+    // Add a message asking for transformation
+    this.addAgentMessage(
+      '🔄 **Transformación de Datos**\n\n' +
+      '¿Qué transformación deseas aplicar? Ejemplos:\n' +
+      '- "Agrupar por país y calcular promedio de PIB"\n' +
+      '- "Filtrar solo datos de Argentina"\n' +
+      '- "Crear columna con crecimiento porcentual"'
+    );
+    
+    // Focus input
+    document.querySelector('input[x-model="inputMessage"]')?.focus();
+  },
+  
+  async runReportAgent(rows) {
+    const response = await fetch('/api/agent/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: rows,
+        table_name: this.activeDataset.name,
+        goal: `Genera un reporte analítico sobre ${this.activeDataset.name}`
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success' || result.status === 'ok') {
+      // Format report content
+      let reportContent = '';
+      if (result.report) {
+        const r = result.report;
+        reportContent = `## ${r.titulo || 'Análisis de Datos'}\n\n`;
+        if (r.resumen_ejecutivo) reportContent += `**Resumen:** ${r.resumen_ejecutivo}\n\n`;
+        if (r.contexto) reportContent += `**Contexto:** ${r.contexto}\n\n`;
+        if (r.conclusiones) reportContent += `**Conclusiones:** ${r.conclusiones}\n\n`;
+      } else {
+        reportContent = result.content || 'Reporte completado';
+      }
+      this.addAgentMessage(`📝 **Reporte Generado**\n\n${reportContent}`);
+    } else {
+      throw new Error(result.message || 'Report generation failed');
+    }
+  },
+  
+  async runExploreAgent(rows) {
+    const response = await fetch('/api/agent/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: rows,
+        table_name: this.activeDataset.name,
+        context: `Dataset: ${this.activeDataset.name} con ${rows.length} filas`
+      })
+    });
+    
+    const result = await response.json();
+    
+    if ((result.status === 'success' || result.status === 'ok') && result.suggestions) {
+      this.suggestions = result.suggestions;
+      this.addAgentMessage(
+        `🔭 **Sugerencias de Exploración**\n\n` +
+        `He analizado el dataset y encontré ${result.suggestions.length} sugerencias. ` +
+        `Puedes seleccionar una de las opciones sugeridas abajo.`
+      );
+    } else if (result.status === 'success' || result.status === 'ok') {
+      // No suggestions but still ok
+      this.addAgentMessage(
+        `🔭 **Exploración Completada**\n\n` +
+        (result.content || 'El dataset ha sido analizado. Puedes hacer preguntas específicas sobre los datos.')
+      );
+    } else {
+      throw new Error(result.message || 'Exploration failed');
+    }
+  },
+  
+  async runCleanAgent(rows) {
+    if (!this.qualityReport || this.qualityReport.issues.length === 0) {
+      this.addAgentMessage('ℹ️ No hay problemas de calidad para limpiar. Ejecuta primero el análisis de calidad.');
+      return;
+    }
+    
+    const response = await fetch('/api/agent/clean', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: rows,
+        table_name: this.activeDataset.name,
+        issues: this.qualityReport.issues.map(i => i.type).join(', ')
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success' || result.status === 'ok') {
+      // Show code if available
+      let message = '🧹 **Limpieza de Datos**\n\n';
+      
+      if (result.code) {
+        message += 'Código generado para limpiar:\n\n```python\n' + result.code + '\n```\n\n';
+      }
+      
+      if (result.result_data) {
+        const cleanedCount = Array.isArray(result.result_data) ? result.result_data.length : 0;
+        message += `✅ Datos limpiados: ${cleanedCount} filas resultantes`;
+      }
+      
+      message += '\n\n' + (result.content || '');
+      
+      this.addAgentMessage(message);
+      this.qualityReport = null; // Clear after cleaning
+    } else {
+      throw new Error(result.message || 'Cleaning failed');
+    }
+  },
+  
+  addAgentMessage(content, isError = false) {
+    this.messages.push({
+      role: 'assistant',
+      content: content,
+      timestamp: new Date(),
+      error: isError,
+      isAgentResponse: true,
+      thinking: [],
+      tools: []
+    });
+    this.updateCurrentThread();
+    this.$nextTick(() => this.scrollToBottom());
+  },
+  
+  getQualityColor(score) {
+    if (score >= 80) return '#28a745';
+    if (score >= 60) return '#ffc107';
+    if (score >= 40) return '#fd7e14';
+    return '#dc3545';
+  },
+  
+  getIssueIcon(severity) {
+    switch (severity) {
+      case 'high': return 'bi-exclamation-circle-fill text-danger';
+      case 'medium': return 'bi-exclamation-triangle-fill text-warning';
+      case 'low': return 'bi-info-circle-fill text-info';
+      default: return 'bi-circle text-muted';
+    }
+  },
+  
+  getIssueBadgeClass(severity) {
+    switch (severity) {
+      case 'high': return 'bg-danger';
+      case 'medium': return 'bg-warning text-dark';
+      case 'low': return 'bg-info';
+      default: return 'bg-secondary';
+    }
+  },
+  
+  // ============================================
+  // Chart Builder Functions
+  // ============================================
+  
+  get canGenerateChart() {
+    return this.chartEncodings.x && this.chartEncodings.y;
+  },
+  
+  setEncoding(channel, fieldName) {
+    if (!fieldName) return;
+    
+    const field = this.fields.find(f => f.name === fieldName);
+    if (!field) return;
+    
+    // Infer Vega-Lite type from field type and semantic type
+    let vegaType = 'nominal';
+    const fieldType = (field.type || '').toLowerCase();
+    const semanticType = (field.semanticType || '').toLowerCase();
+    
+    // Check for quantitative types
+    if (fieldType === 'integer' || fieldType === 'float' || fieldType === 'number' ||
+        fieldType === 'quantitative' || semanticType === 'quantitative' ||
+        fieldType.includes('int') || fieldType.includes('float') || fieldType.includes('numeric')) {
+      vegaType = 'quantitative';
+    }
+    // Check for temporal types
+    else if (fieldType === 'temporal' || semanticType === 'temporal' ||
+             fieldType === 'datetime' || fieldType === 'date' ||
+             fieldName.toLowerCase().includes('year') || 
+             fieldName.toLowerCase().includes('date') || 
+             fieldName.toLowerCase().includes('fecha') ||
+             fieldName.toLowerCase().includes('time')) {
+      vegaType = 'temporal';
+    }
+    // Check for geographic types - use nominal
+    else if (fieldType === 'geographic' || semanticType === 'geographic') {
+      vegaType = 'nominal';
+    }
+    
+    this.chartEncodings[channel] = {
+      field: fieldName,
+      type: vegaType
+    };
+  },
+  
+  dropFieldToEncoding(event, channel) {
+    event.preventDefault();
+    this.encodingDragover = null;
+    
+    try {
+      const fieldData = JSON.parse(event.dataTransfer.getData('application/json'));
+      if (fieldData && fieldData.name) {
+        this.setEncoding(channel, fieldData.name);
+      }
+    } catch (e) {
+      console.error('Drop failed:', e);
+    }
+  },
+  
+  resetChartBuilder() {
+    this.chartEncodings = { x: null, y: null, color: null, size: null };
+    this.chartConfig = { template: 'line', title: '', nlInstruction: '' };
+    this.chartPreviewSpec = null;
+    
+    // Clear the preview container
+    const previewEl = document.getElementById('vega-chart-preview');
+    if (previewEl) {
+      previewEl.innerHTML = '<div class="chart-preview-placeholder"><i class="bi bi-bar-chart-line d-block"></i><span>Selecciona campos para X e Y</span></div>';
+    }
+  },
+  
+  async generateChart() {
+    if (!this.canGenerateChart || !this.activeDataset) return;
+    
+    this.chartLoading = true;
+    
+    try {
+      // Fetch dataset preview if we don't have it
+      let dataRows = [];
+      if (this.activeDataset.preview && this.activeDataset.preview.rows) {
+        dataRows = this.activeDataset.preview.rows;
+      } else {
+        const previewRes = await fetch(`/api/datasets/${this.activeDataset.id}/preview`);
+        const previewData = await previewRes.json();
+        if (previewData.status === 'success' || previewData.status === 'ok') {
+          dataRows = previewData.preview?.rows || previewData.rows || [];
+        }
+      }
+      
+      // Prepare encodings for API
+      const encodings = {};
+      for (const [channel, enc] of Object.entries(this.chartEncodings)) {
+        if (enc && enc.field) {
+          encodings[channel] = enc;
+        }
+      }
+      
+      // Call API to generate chart spec
+      const response = await fetch('/api/viz/generate-chart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template: this.chartConfig.template,
+          encodings: encodings,
+          data: dataRows.slice(0, 500), // Limit data for performance
+          title: this.chartConfig.title || `${this.activeDataset.name}`,
+          width: 450,
+          height: 280,
+          nl_instruction: this.chartConfig.nlInstruction
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.status === 'ok' && result.spec) {
+        this.chartPreviewSpec = result.spec;
+        
+        // Render with Vega-Embed in modal
+        await this.renderVegaChart(result.spec);
+        
+        // Add to canvas
+        const chartTitle = this.chartConfig.title || `${this.activeDataset.name} - ${this.chartConfig.template}`;
+        this.addChartToCanvas(result.spec, chartTitle);
+        
+        // Close modal after success
+        this.showChartBuilder = false;
+      } else {
+        throw new Error(result.message || 'Failed to generate chart');
+      }
+    } catch (error) {
+      console.error('Chart generation error:', error);
+      alert('Error generando gráfico: ' + error.message);
+    } finally {
+      this.chartLoading = false;
+    }
+  },
+  
+  async renderVegaChart(spec) {
+    const previewEl = document.getElementById('vega-chart-preview');
+    if (!previewEl) return;
+    
+    // Load vega-embed if not already loaded
+    if (typeof vegaEmbed === 'undefined') {
+      // Add Vega scripts dynamically
+      await this.loadVegaScripts();
+    }
+    
+    try {
+      previewEl.innerHTML = '';
+      await vegaEmbed(previewEl, spec, {
+        actions: { source: false, compiled: false, editor: false },
+        theme: 'latimes'
+      });
+    } catch (e) {
+      console.error('Vega render error:', e);
+      previewEl.innerHTML = '<div class="text-danger p-3">Error renderizando gráfico</div>';
+    }
+  },
+  
+  async loadVegaScripts() {
+    return new Promise((resolve, reject) => {
+      if (typeof vegaEmbed !== 'undefined') {
+        resolve();
+        return;
+      }
+      
+      // Load vega, vega-lite, and vega-embed in correct order
+      const loadScript = (src) => {
+        return new Promise((res, rej) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = res;
+          script.onerror = rej;
+          document.head.appendChild(script);
+        });
+      };
+      
+      (async () => {
+        try {
+          await loadScript('https://cdn.jsdelivr.net/npm/vega@5');
+          await loadScript('https://cdn.jsdelivr.net/npm/vega-lite@5');
+          await loadScript('https://cdn.jsdelivr.net/npm/vega-embed@6');
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      })();
+    });
+  },
+  
+  // ============================================
+  // Visualization Canvas Functions
+  // ============================================
+  
+  addChartToCanvas(spec, title) {
+    const chartId = 'chart_' + Date.now();
+    // Deep clone spec to ensure it's serializable (remove any non-JSON data)
+    const cleanSpec = JSON.parse(JSON.stringify(spec));
+    
+    const chartData = {
+      id: chartId,
+      spec: cleanSpec,
+      title: title || 'Untitled Chart',
+      timestamp: Date.now(),
+      datasetId: this.activeDataset?.id
+    };
+    
+    this.canvasCharts.unshift(chartData);
+    this.activeChartId = chartId;
+    this.showCanvas = true;
+    
+    // Save to thread
+    this.saveChartToThread(chartData);
+    
+    // Render chart after DOM update
+    this.$nextTick(() => {
+      this.renderCanvasChart(chartData);
+    });
+  },
+  
+  async renderCanvasChart(chart) {
+    const el = document.getElementById('canvas-chart-' + chart.id);
+    if (!el) return;
+    
+    // Load vega if needed
+    if (typeof vegaEmbed === 'undefined') {
+      await this.loadVegaScripts();
+    }
+    
+    try {
+      el.innerHTML = '';
+      const fitSpec = JSON.parse(JSON.stringify(chart.spec || {}));
+      fitSpec.width = 320;
+      fitSpec.height = 200;
+      fitSpec.autosize = { type: 'fit', contains: 'padding' };
+
+      await vegaEmbed(el, fitSpec, {
+        actions: { source: false, compiled: false, editor: false },
+        theme: 'latimes',
+        renderer: 'svg'
+      });
+    } catch (e) {
+      console.error('Canvas chart render error:', e);
+      el.innerHTML = '<div class="text-danger small p-2">Error rendering</div>';
+    }
+  },
+  
+  removeChartFromCanvas(chartId) {
+    this.canvasCharts = this.canvasCharts.filter(c => c.id !== chartId);
+    if (this.activeChartId === chartId) {
+      this.activeChartId = this.canvasCharts[0]?.id || null;
+    }
+    // Update thread storage
+    this.saveThreadCharts();
+  },
+  
+  clearCanvas() {
+    if (confirm('¿Eliminar todos los gráficos del canvas?')) {
+      this.canvasCharts = [];
+      this.activeChartId = null;
+      this.saveThreadCharts();
+    }
+  },
+  
+  async exportActiveChart() {
+    if (!this.activeChartId) return;
+    
+    const el = document.getElementById('canvas-chart-' + this.activeChartId);
+    if (!el) return;
+    
+    try {
+      // Get the SVG or canvas element
+      const svg = el.querySelector('svg');
+      if (svg) {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          
+          const link = document.createElement('a');
+          link.download = `chart_${this.activeChartId}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        };
+        
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      }
+    } catch (e) {
+      console.error('Export error:', e);
+      alert('Error exporting chart');
+    }
+  },
+  
+  editChartInBuilder(chart) {
+    // Load chart back into builder for editing
+    this.chartPreviewSpec = chart.spec;
+    this.chartConfig.title = chart.title;
+    this.showChartBuilder = true;
+    
+    // Render in modal
+    this.$nextTick(() => {
+      this.renderVegaChart(chart.spec);
+    });
+  },
+  
+  saveChartToThread(chartData) {
+    const thread = this.threads.find(t => t.id === this.activeThreadId);
+    if (thread) {
+      if (!thread.charts) thread.charts = [];
+      thread.charts.push(chartData);
+      this.saveThreads();
+    }
+  },
+  
+  saveThreadCharts() {
+    const thread = this.threads.find(t => t.id === this.activeThreadId);
+    if (thread) {
+      thread.charts = this.canvasCharts;
+      this.saveThreads();
+    }
+  },
+  
+  loadThreadCharts() {
+    const thread = this.threads.find(t => t.id === this.activeThreadId);
+    if (thread && thread.charts) {
+      this.canvasCharts = thread.charts;
+      this.activeChartId = this.canvasCharts[0]?.id || null;
+      
+      // Render all charts
+      this.$nextTick(() => {
+        for (const chart of this.canvasCharts) {
+          this.renderCanvasChart(chart);
+        }
+      });
+    } else {
+      this.canvasCharts = [];
+      this.activeChartId = null;
+    }
+  },
+  
+  // ============================================
+  // Derive Field Functions
+  // ============================================
+  
+  toggleSourceField(fieldName) {
+    const idx = this.deriveConfig.sourceFields.indexOf(fieldName);
+    if (idx >= 0) {
+      this.deriveConfig.sourceFields.splice(idx, 1);
+    } else {
+      this.deriveConfig.sourceFields.push(fieldName);
+    }
+    // Clear preview when changing fields
+    this.derivePreview = [];
+    this.deriveCode = '';
+    this.deriveError = '';
+  },
+  
+  async previewDeriveField() {
+    if (!this.deriveConfig.description || !this.activeDataset) return;
+    
+    this.deriveLoading = true;
+    this.deriveError = '';
+    
+    try {
+      // Get dataset rows
+      let dataRows = [];
+      if (this.activeDataset.preview && this.activeDataset.preview.rows) {
+        dataRows = this.activeDataset.preview.rows;
+      } else {
+        const previewRes = await fetch(`/api/datasets/${this.activeDataset.id}/preview`);
+        const previewData = await previewRes.json();
+        if (previewData.status === 'success' || previewData.status === 'ok') {
+          dataRows = previewData.preview?.rows || previewData.rows || [];
+        }
+      }
+      
+      const response = await fetch('/api/viz/derive-field', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows: dataRows,
+          field_name: this.deriveConfig.fieldName || 'derived_field',
+          source_fields: this.deriveConfig.sourceFields,
+          description: this.deriveConfig.description,
+          preview_only: true
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.status === 'ok') {
+        this.derivePreview = result.preview || [];
+        this.deriveCode = result.code || '';
+      } else {
+        this.deriveError = result.error || result.message || 'Error generando campo';
+      }
+    } catch (error) {
+      console.error('Derive field error:', error);
+      this.deriveError = error.message;
+    } finally {
+      this.deriveLoading = false;
+    }
+  },
+  
+  async applyDeriveField() {
+    if (!this.derivePreview.length) return;
+    
+    // Add the derived field to the fields list
+    const fieldName = this.deriveConfig.fieldName || 'derived_field';
+    
+    // Infer type from preview
+    let fieldType = 'string';
+    if (this.derivePreview.length > 0 && this.derivePreview[0][fieldName] !== undefined) {
+      const sampleValue = this.derivePreview[0][fieldName];
+      if (typeof sampleValue === 'number') {
+        fieldType = 'float';
+      }
+    }
+    
+    this.fields.push({
+      name: fieldName,
+      type: fieldType,
+      uniqueCount: null,
+      isDerived: true,
+      derivedFrom: this.deriveConfig.sourceFields,
+      derivedCode: this.deriveCode
+    });
+    
+    // Add message to chat
+    this.addAgentMessage(`✅ Campo derivado **${fieldName}** creado.\n\n\`\`\`python\n${this.deriveCode}\n\`\`\``);
+    
+    // Reset and close modal
+    this.deriveConfig = { fieldName: '', sourceFields: [], description: '' };
+    this.derivePreview = [];
+    this.deriveCode = '';
+    this.deriveError = '';
+    this.showDeriveField = false;
+  },
     
     async checkHealth() {
     try {
@@ -978,6 +2887,41 @@
       this.elapsedTimer = null;
     }
     this.requestStartTime = null;
+  },
+
+  // --- Retry Logic ---
+  
+  async retryMessage(originalPrompt) {
+    if (!originalPrompt) return;
+    this.inputMessage = originalPrompt;
+    await this.sendMessage();
+  },
+  
+  async retryWithFasterModel(originalPrompt) {
+    if (!originalPrompt) return;
+    
+    // Find a faster model
+    const fasterModels = ['gpt-4.1', 'claude-haiku-4.5', 'gpt-5-mini'];
+    const currentModel = this.selectedModel;
+    
+    // Try to find a faster model that's different from current
+    for (const fastModel of fasterModels) {
+      if (this.models.some(m => m.id === fastModel) && fastModel !== currentModel) {
+        this.selectedModel = fastModel;
+        break;
+      }
+    }
+    
+    // Also try the first model if it's faster
+    if (this.models.length > 0 && !fasterModels.includes(currentModel)) {
+      const firstFast = this.models.find(m => fasterModels.includes(m.id));
+      if (firstFast) {
+        this.selectedModel = firstFast.id;
+      }
+    }
+    
+    this.inputMessage = originalPrompt;
+    await this.sendMessage();
   },
 
     // --- Concept Binding Logic ---
@@ -1027,6 +2971,63 @@
       } finally {
         this.loadingFields = false;
       }
+    },
+
+    // Computed property for filtered datasets (fuzzy search)
+    get filteredDatasets() {
+      if (!this.datasetSearchQuery.trim()) {
+        return this.availableDatasets;
+      }
+      
+      const query = this.datasetSearchQuery.toLowerCase().trim();
+      const words = query.split(/\s+/);
+      
+      return this.availableDatasets.filter(ds => {
+        const searchText = `${ds.name} ${ds.source}`.toLowerCase();
+        // All words must match (fuzzy AND)
+        return words.every(word => searchText.includes(word));
+      }).slice(0, 15); // Limit results for performance
+    },
+
+    // Select a dataset from dropdown
+    selectDataset(ds) {
+      this.selectedDatasetId = ds.id;
+      this.datasetSearchQuery = ds.name;
+      this.datasetDropdownOpen = false;
+      this.loadDatasetFields();
+    },
+
+    // Select first filtered result on Enter
+    selectFirstFilteredDataset() {
+      const filtered = this.filteredDatasets;
+      if (filtered.length > 0) {
+        this.selectDataset(filtered[0]);
+      }
+    },
+
+    // Clear dataset selection
+    clearDatasetSelection() {
+      this.selectedDatasetId = '';
+      this.datasetSearchQuery = '';
+      this.activeDataset = null;
+      this.fields = [];
+    },
+
+    openCanvasView() {
+      const params = new URLSearchParams();
+      if (this.selectedDatasetId) {
+        params.append('dataset_id', this.selectedDatasetId);
+      }
+      // Pasar los gráficos del canvas al abrir /visualizepg para que se carguen allí
+      if (this.canvasCharts && this.canvasCharts.length > 0) {
+        try {
+          sessionStorage.setItem('copilot_canvas_charts', JSON.stringify(this.canvasCharts));
+        } catch (e) {
+          console.warn('No se pudieron guardar los gráficos para el canvas:', e);
+        }
+      }
+      const url = `/visualizepg${params.toString() ? `?${params.toString()}` : ''}`;
+      window.open(url, '_blank');
     },
 
     // Map backend types to display types
@@ -1134,7 +3135,42 @@
     }
   },
 
-  formatMessage(text) {
+  parseChartSuggestionsFromContent(content) {
+    if (!content || typeof content !== 'string') return { content: content || '', suggestions: [] };
+    const regex = /```chart_suggestions\s*([\s\S]*?)```/i;
+    const match = content.match(regex);
+    if (!match) return { content, suggestions: [] };
+    try {
+      const raw = match[1].trim();
+      const suggestions = JSON.parse(raw);
+      const arr = Array.isArray(suggestions) ? suggestions : (suggestions.chart_suggestions || []);
+      const cleanContent = content.replace(regex, '').replace(/\n{3,}/g, '\n\n').trim();
+      return { content: cleanContent, suggestions: arr };
+    } catch (e) {
+      return { content, suggestions: [] };
+    }
+  },
+
+  openChartFromSuggestion(suggestion) {
+    if (!suggestion) return;
+    try {
+      sessionStorage.setItem('copilot_chart_intent', JSON.stringify(suggestion));
+      const params = new URLSearchParams();
+      if (suggestion.dataset_ids && suggestion.dataset_ids[0]) params.set('dataset_id', suggestion.dataset_ids[0]);
+      params.set('chart_intent', JSON.stringify(suggestion));
+      window.open('/visualizepg' + (params.toString() ? '?' + params.toString() : ''), '_blank');
+    } catch (e) {
+      console.error('Error opening chart from suggestion:', e);
+    }
+  },
+
+  graficarByIndex(msgIndex, chartIndex) {
+    const msg = this.messages[msgIndex];
+    if (msg && msg.chart_suggestions && msg.chart_suggestions[chartIndex])
+      this.openChartFromSuggestion(msg.chart_suggestions[chartIndex]);
+  },
+
+  formatMessage(text, msgIndex, chartSuggestions) {
     if (!text) return '';
     
     // Check if it's an error message
@@ -1146,15 +3182,157 @@
     }
     
     // Use marked if available, otherwise simple formatting
+    let html = text;
     if (window.marked) {
       try {
-        // Configure marked to be safe? (DOMPurify should be used ideally)
-        return window.marked.parse(text);
+        html = window.marked.parse(text);
       } catch (e) {
         console.error('Marked error', e);
+        html = text.replace(/\n/g, '<br>');
+      }
+    } else {
+      html = text.replace(/\n/g, '<br>');
+    }
+    
+    // Reemplazar [GRAFICAR:N] por botón "Graficar" inline (junto a cada "Gráfico: ..." en el texto)
+    if (chartSuggestions && chartSuggestions.length > 0 && typeof msgIndex === 'number') {
+      const safeIdx = Math.max(0, msgIndex);
+      html = html.replace(/\[GRAFICAR:(\d+)\]/gi, (_, n) => {
+        const chartIdx = parseInt(n, 10);
+        if (chartIdx < 0 || chartIdx >= chartSuggestions.length) return '';
+      });
+    }
+    
+    // Enhance code blocks with copy/run buttons
+    html = this.enhanceCodeBlocks(html);
+    
+    return html;
+  },
+  
+  enhanceCodeBlocks(html) {
+    // Find all <pre><code> blocks and enhance them
+    const codeBlockRegex = /<pre><code(?:\s+class="language-(\w+)")?>([\s\S]*?)<\/code><\/pre>/gi;
+    
+    let blockIndex = 0;
+    const self = this;
+    
+    return html.replace(codeBlockRegex, (match, lang, code) => {
+      const language = lang || 'code';
+      const blockId = `code-block-${Date.now()}-${blockIndex++}`;
+      const decodedCode = self.decodeHtml(code.trim());
+      const isExecutable = ['python', 'py', 'sql'].includes(language.toLowerCase());
+      
+      // Check if this is a Vega-Lite spec (JSON with $schema or mark property)
+      if (language.toLowerCase() === 'json' || language.toLowerCase() === 'vega-lite' || language.toLowerCase() === 'vega') {
+        try {
+          const parsed = JSON.parse(decodedCode);
+          if (parsed.$schema?.includes('vega') || parsed.mark || parsed.layer || parsed.encoding) {
+            // This is a Vega-Lite spec - render as chart
+            const chartId = `inline-chart-${Date.now()}-${blockIndex}`;
+            
+            // Store spec for later rendering and canvas adding
+            if (!window.inlineChartSpecs) window.inlineChartSpecs = {};
+            window.inlineChartSpecs[chartId] = parsed;
+            
+            // Schedule rendering after DOM update
+            setTimeout(() => self.renderInlineChart(chartId, parsed), 100);
+            
+            return `
+              <div class="inline-chart-container mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <small class="text-muted"><i class="bi bi-bar-chart-fill"></i> Visualization</small>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('${blockId}').style.display = document.getElementById('${blockId}').style.display === 'none' ? 'block' : 'none'" title="Ver código">
+                      <i class="bi bi-code-slash"></i>
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="window.addInlineChartToCanvas && window.addInlineChartToCanvas('${chartId}')" title="Agregar al canvas">
+                      <i class="bi bi-plus-lg"></i> Canvas
+                    </button>
+                  </div>
+                </div>
+                <div id="${chartId}" class="inline-chart" style="min-height: 200px; background: #fafafa; border-radius: 8px; padding: 10px;"></div>
+                <div id="${blockId}" class="code-block-container mt-2" style="display: none;">
+                  <div class="code-block-header">
+                    <span class="code-block-lang">vega-lite</span>
+                    <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copiar">
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </div>
+                  <pre class="code-block-content"><code>${code}</code></pre>
+                </div>
+              </div>
+            `;
+          }
+        } catch (e) {
+          // Not valid JSON, fall through to normal code block
+        }
+      }
+      
+      return `
+        <div class="code-block-container" id="${blockId}">
+          <div class="code-block-header">
+            <span class="code-block-lang">${language}</span>
+            <div class="code-block-actions">
+              <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copiar código">
+                <i class="bi bi-clipboard"></i> Copiar
+              </button>
+              ${isExecutable ? `
+                <button class="btn-run" onclick="window.runCode('${blockId}', '${language}')" title="Ejecutar código">
+                  <i class="bi bi-play-fill"></i> Ejecutar
+                </button>
+              ` : ''}
+            </div>
+          </div>
+          <pre class="code-block-content"><code>${code}</code></pre>
+        </div>
+      `;
+    });
+  },
+  
+  async renderInlineChart(chartId, spec, retryCount = 0) {
+    const container = document.getElementById(chartId);
+    if (!container) {
+      // Retry up to 10 times with increasing delay (DOM may not be ready yet)
+      if (retryCount < 10) {
+        setTimeout(() => this.renderInlineChart(chartId, spec, retryCount + 1), 100 * (retryCount + 1));
+      } else {
+        console.warn('Chart container not found after retries:', chartId);
+      }
+      return;
+    }
+    
+    // Load Vega libraries if not already loaded
+    if (typeof vegaEmbed === 'undefined') {
+      container.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Loading chart libraries...</div>';
+      try {
+        await this.loadVegaScripts();
+      } catch (e) {
+        console.error('Failed to load Vega:', e);
+        container.innerHTML = '<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load chart libraries</div>';
+        return;
       }
     }
-    return text.replace(/\n/g, '<br>');
+    
+    // Clone spec and set reasonable dimensions
+    const chartSpec = JSON.parse(JSON.stringify(spec));
+    chartSpec.width = chartSpec.width || 400;
+    chartSpec.height = chartSpec.height || 250;
+    
+    try {
+      await vegaEmbed(container, chartSpec, {
+        actions: { source: false, compiled: false, editor: false },
+        theme: 'latimes'
+      });
+    } catch (err) {
+      console.error('Vega-Lite render error:', err);
+      container.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> Error: ${err.message}</div>`;
+    }
+  },
+  
+  decodeHtml(html) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
   },
 
   formatTime(dateStr) {
@@ -1182,5 +3360,223 @@
   }
   }
 }
+
+// Global functions for code block actions
+window.copyCode = function(blockId) {
+  const block = document.getElementById(blockId);
+  if (!block) return;
+  
+  const codeElement = block.querySelector('code');
+  if (!codeElement) return;
+  
+  const code = codeElement.textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    // Update button to show success
+    const btn = block.querySelector('.btn-copy');
+    if (btn) {
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check"></i> Copiado';
+      btn.style.background = '#28a745';
+      btn.style.color = 'white';
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    }
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
+};
+
+window.runCode = async function(blockId, language) {
+  const block = document.getElementById(blockId);
+  if (!block) {
+    console.error('Code block not found:', blockId);
+    return;
+  }
+  
+  const codeElement = block.querySelector('code');
+  if (!codeElement) {
+    console.error('Code element not found in block');
+    return;
+  }
+  
+  const code = codeElement.textContent;
+  const btn = block.querySelector('.btn-run');
+  
+  // Get Alpine component - find the one with activeDataset
+  let chatComponent = null;
+  const alpineRoots = document.querySelectorAll('[x-data]');
+  for (const root of alpineRoots) {
+    if (root._x_dataStack && root._x_dataStack[0] && 'activeDataset' in root._x_dataStack[0]) {
+      chatComponent = root._x_dataStack[0];
+      break;
+    }
+  }
+  
+  if (!chatComponent) {
+    alert('Error: No se pudo acceder al estado de la aplicación');
+    return;
+  }
+  
+  if (!chatComponent.activeDataset) {
+    alert('Por favor, selecciona un dataset primero');
+    return;
+  }
+  
+  // Update button to show loading
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Ejecutando...';
+  }
+  
+  try {
+    // Fetch dataset data
+    const dataResponse = await fetch(`/api/datasets/${chatComponent.activeDataset.id}/preview?limit=500`);
+    const dataResult = await dataResponse.json();
+    
+    if (dataResult.status !== 'success') {
+      throw new Error('Failed to load dataset data');
+    }
+    
+    // Handle both response formats
+    const rows = dataResult.data || (dataResult.preview && dataResult.preview.rows) || [];
+    
+    // Execute via transform endpoint
+    const endpoint = language.toLowerCase() === 'sql' ? '/api/agent/transform/sql' : '/api/agent/transform';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: rows,
+        table_name: chatComponent.activeDataset.name,
+        goal: `Execute this code:\n${code}`
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === 'success' || result.status === 'ok') {
+      // Display result in chat with HTML table
+      let message = '✅ **Código Ejecutado**\n\n';
+      
+      if (result.result_data && Array.isArray(result.result_data) && result.result_data.length > 0) {
+        const rows = result.result_data;
+        const headers = Object.keys(rows[0]);
+        const tableId = `result-table-${Date.now()}`;
+        
+        message += `Resultado: **${rows.length} filas**\n\n`;
+        message += `<div class="execution-result">`;
+        message += `<div class="execution-result-header">`;
+        message += `<span><i class="bi bi-table"></i> Datos (${rows.length} filas × ${headers.length} columnas)</span>`;
+        message += `<button class="btn btn-sm btn-light" onclick="window.downloadTableCSV('${tableId}', '${chatComponent.activeDataset?.name || 'result'}.csv')">`;
+        message += `<i class="bi bi-download"></i> CSV</button>`;
+        message += `</div>`;
+        message += `<div class="execution-result-body">`;
+        message += `<table class="data-table" id="${tableId}">`;
+        message += `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+        message += `<tbody>`;
+        
+        const displayRows = rows.slice(0, 50);
+        displayRows.forEach(row => {
+          message += `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`;
+        });
+        
+        message += `</tbody></table>`;
+        message += `</div></div>`;
+        
+        if (rows.length > 50) {
+          message += `\n*Mostrando 50 de ${rows.length} filas*`;
+        }
+        
+        // Store full data for download
+        window._tableData = window._tableData || {};
+        window._tableData[tableId] = rows;
+      } else if (result.content) {
+        message += result.content;
+      }
+      
+      chatComponent.addAgentMessage(message);
+    } else {
+      throw new Error(result.message || 'Execution failed');
+    }
+  } catch (error) {
+    console.error('Code execution error:', error);
+    chatComponent.addAgentMessage(`❌ Error al ejecutar: ${error.message}`, true);
+  } finally {
+    // Reset button
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-play-fill"></i> Ejecutar';
+    }
+  }
+};
+
+// Download table data as CSV
+window.downloadTableCSV = function(tableId, filename) {
+  const data = window._tableData && window._tableData[tableId];
+  if (!data || data.length === 0) {
+    alert('No hay datos para descargar');
+    return;
+  }
+  
+  const headers = Object.keys(data[0]);
+  let csv = headers.join(',') + '\n';
+  
+  data.forEach(row => {
+    csv += headers.map(h => {
+      const val = row[h];
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      // Escape quotes and wrap in quotes if contains comma
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }).join(',') + '\n';
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+};
+
+// Add inline chart from chat to canvas
+window.addInlineChartToCanvas = function(chartId) {
+  const spec = window.inlineChartSpecs && window.inlineChartSpecs[chartId];
+  if (!spec) {
+    console.error('Chart spec not found:', chartId);
+    return;
+  }
+  
+  // Find the Alpine component
+  const mainEl = document.querySelector('[x-data]');
+  if (!mainEl || !mainEl._x_dataStack) {
+    console.error('Alpine component not found');
+    return;
+  }
+  
+  const component = mainEl._x_dataStack[0];
+  if (component && typeof component.addChartToCanvas === 'function') {
+    component.addChartToCanvas(spec, 'Chat Visualization');
+    
+    // Show feedback
+    const btn = event.target.closest('button');
+    if (btn) {
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check"></i> Added';
+      btn.classList.remove('btn-outline-primary');
+      btn.classList.add('btn-success');
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-primary');
+      }, 2000);
+    }
+  }
+};
 </script>
 {% endblock %}

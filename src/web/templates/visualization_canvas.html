@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="editPage" class="row g-3">
+  <div class="col-lg-3">
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 text-uppercase small">Concept Shelf</h6>
+        <span class="badge bg-light text-dark" x-text="filteredDatasets.length"></span>
+      </div>
+      <input class="form-control form-control-sm" placeholder="Buscar dataset" x-model="searchQuery"
+        @input="applyFilter()" />
+      <div class="list-group mt-2" style="max-height: 520px; overflow-y: auto;">
+        <template x-for="dataset in filteredDatasets" :key="dataset.id">
+          <button type="button" class="list-group-item list-group-item-action"
+            :class="{ 'active': selectedDataset && selectedDataset.id === dataset.id }"
+            @click="selectDataset(dataset)">
+            <div class="d-flex align-items-center gap-2">
+              <div class="fw-semibold" x-text="dataset.indicator_name"></div>
+              <span class="badge bg-warning text-dark" x-show="dataset.is_edited">Edited</span>
+            </div>
+            <div class="small text-muted" x-text="dataset.file_name"></div>
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <h6 class="text-uppercase small mb-2">SmoothCSV URL</h6>
+      <template x-if="selectedDataset">
+        <div class="d-grid gap-2">
+          <input class="form-control form-control-sm" x-model="smoothcsvOptions.location"
+            placeholder="Location (e.g. 10:3-20:5)">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small">Delimiter</label>
+              <input class="form-control form-control-sm" x-model="smoothcsvOptions.delimiter" placeholder="comma/tab">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Quote</label>
+              <input class="form-control form-control-sm" x-model="smoothcsvOptions.quote" placeholder="double/single">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Quote mode</label>
+              <input class="form-control form-control-sm" x-model="smoothcsvOptions.quoteMode"
+                placeholder="minimal/always">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Encoding</label>
+              <input class="form-control form-control-sm" x-model="smoothcsvOptions.encoding" placeholder="UTF-8">
+            </div>
+          </div>
+          <div>
+            <label class="form-label small">SmoothCSV URL</label>
+            <div class="input-group input-group-sm">
+              <input class="form-control" x-model="smoothcsvUrl" readonly>
+              <button class="btn btn-outline-secondary" type="button" @click="copySmoothcsvUrl">Copiar</button>
+            </div>
+          </div>
+        </div>
+      </template>
+      <div class="text-secondary small" x-show="!selectedDataset">
+        Seleccione un dataset para generar la URL.
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-9">
+    <div class="card p-3 mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+          <h5 class="mb-1" x-text="selectedDataset ? selectedDataset.indicator_name : 'Seleccione un dataset'"></h5>
+          <div class="text-secondary small" x-text="selectedDataset ? selectedDataset.file_name : ''"></div>
+          <div class="text-secondary small" x-show="tableName">
+            Tabla SQL: <span x-text="tableName"></span> (alias: dataset)
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-secondary btn-sm"
+            :href="selectedDataset ? `/visualizepg?dataset_id=${selectedDataset.id}` : '#'"
+            :class="{ 'disabled': !selectedDataset }">
+            PyGWalker
+          </a>
+          <button class="btn btn-outline-primary btn-sm" @click="runSql()" :disabled="!selectedDataset || sqlRunning">
+            Recargar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Data Grid</h6>
+        <div class="text-secondary small" x-show="sampleLimit">
+          Muestra: primeros <span x-text="sampleLimit"></span> registros
+        </div>
+      </div>
+      <div class="row g-2 align-items-center mb-2">
+        <div class="col-md-6">
+          <input class="form-control form-control-sm" x-model="forkName"
+            placeholder="Nombre del fork (opcional)">
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-outline-success btn-sm w-100" @click="saveAs()"
+            :disabled="!selectedDataset || forking">
+            <span x-show="!forking">Guardar como</span>
+            <span x-show="forking" class="spinner-border spinner-border-sm" role="status"></span>
+          </button>
+        </div>
+        <div class="col-md-3 text-end small text-secondary" x-show="forkStatus" x-text="forkStatus"></div>
+      </div>
+      <div class="alert alert-warning py-2" x-show="datasetLoadError" x-text="datasetLoadError"></div>
+      <div id="edit-grid" style="height: 520px;"></div>
+      <div class="text-center py-3" x-show="gridLoading">
+        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+      </div>
+      <div class="mt-2 small text-muted">
+        <a href="https://datagridxl.com" target="_blank" rel="noopener">
+          <img
+            src="https://github.com/DataGridXL/DataGridXL2/blob/master/images/dgxl-logo-icon.svg?raw=true"
+            alt="DataGridXL" style="width: 18px; height: 18px;">
+          DataGridXL
+        </a>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <h6>SQL Row Filter</h6>
+      <div class="input-group">
+        <input class="form-control" x-model="whereClause"
+          placeholder="e.g. country = 'Chile' AND year >= 2000">
+        <button class="btn btn-primary" @click="runRowFilter()" :disabled="!selectedDataset || sqlRunning">
+          Aplicar
+        </button>
+        <button class="btn btn-outline-secondary" @click="clearFilter()" :disabled="sqlRunning">
+          Limpiar
+        </button>
+      </div>
+      <div class="small text-secondary mt-2">Usa sintaxis SQL WHERE (sin SELECT).</div>
+    </div>
+
+    <div class="card p-3">
+      <h6>SQL Console</h6>
+      <textarea class="form-control" rows="4" x-model="sqlQuery"></textarea>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-primary" @click="runSql()" :disabled="!selectedDataset || sqlRunning">
+          Ejecutar
+        </button>
+        <button class="btn btn-outline-secondary" @click="resetSql()" :disabled="sqlRunning">
+          Reset
+        </button>
+      </div>
+      <div class="alert alert-warning mt-2" x-show="sqlError" x-text="sqlError"></div>
+      <div class="text-secondary small mt-2" x-show="lastQuery" x-text="lastQuery"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.datagridxl.com/datagridxl2.js"></script>
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('editPage', () => ({
+      datasets: [],
+      filteredDatasets: [],
+      searchQuery: '',
+      selectedDataset: null,
+      tableName: '',
+      sampleLimit: null,
+      previewLimit: 200,
+      grid: null,
+      gridLoading: false,
+      sqlRunning: false,
+      sqlError: '',
+      sqlQuery: '',
+      lastQuery: '',
+      whereClause: '',
+      forkName: '',
+      forkStatus: '',
+      forking: false,
+      datasetLoadError: '',
+      smoothcsvOptions: {
+        location: '',
+        delimiter: '',
+        quote: '',
+        quoteMode: '',
+        encoding: ''
+      },
+      initialDatasetId: {{ dataset_id if dataset_id is not none else 'null' }},
+
+      init() {
+        console.info('[edit] init dataset', this.initialDatasetId);
+        if (this.initialDatasetId) {
+          this.bootstrapDataset(this.initialDatasetId);
+        }
+        this.loadDatasets();
+      },
+
+      get smoothcsvUrl() {
+        if (!this.selectedDataset) return '';
+        const filePath = this.selectedDataset.file_path || this.selectedDataset.file_name || '';
+        if (!filePath) return '';
+        const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+        let url = `smoothcsv://file${normalizedPath}`;
+        if (this.smoothcsvOptions.location) {
+          url += `:${this.smoothcsvOptions.location}`;
+        }
+        const params = new URLSearchParams();
+        if (this.smoothcsvOptions.delimiter) params.append('delimiter', this.smoothcsvOptions.delimiter);
+        if (this.smoothcsvOptions.quote) params.append('quote', this.smoothcsvOptions.quote);
+        if (this.smoothcsvOptions.quoteMode) params.append('quotemode', this.smoothcsvOptions.quoteMode);
+        if (this.smoothcsvOptions.encoding) params.append('encoding', this.smoothcsvOptions.encoding);
+        const query = params.toString();
+        if (query) url += `?${query}`;
+        return url;
+      },
+
+      applyFilter() {
+        const needle = this.searchQuery.trim().toLowerCase();
+        if (!needle) {
+          this.filteredDatasets = [...this.datasets];
+          return;
+        }
+        this.filteredDatasets = this.datasets.filter((dataset) => {
+          const name = (dataset.indicator_name || '').toLowerCase();
+          const file = (dataset.file_name || '').toLowerCase();
+          return name.includes(needle) || file.includes(needle);
+        });
+      },
+
+      async bootstrapDataset(datasetId) {
+        if (!datasetId) return;
+        console.info('[edit] bootstrap dataset', datasetId);
+        const detail = await this.fetchDataset(datasetId);
+        if (detail) {
+          this.selectDataset(detail);
+        } else {
+          this.datasetLoadError = `No se pudo cargar dataset ${datasetId}`;
+          console.warn('[edit] dataset not found', datasetId);
+        }
+      },
+
+      async fetchDataset(datasetId) {
+        try {
+          const response = await fetch(`/api/datasets/${datasetId}`);
+          const data = await response.json();
+          if (data.status === 'success' && data.dataset) {
+            return data.dataset;
+          }
+        } catch (err) {
+          console.error('Failed to fetch dataset detail', err);
+        }
+        return null;
+      },
+
+      async loadDatasets() {
+        try {
+          const response = await fetch('/api/datasets?limit=300');
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.datasets = data.datasets || [];
+            this.applyFilter();
+            if (this.initialDatasetId) {
+              let initial = this.datasets.find((ds) => ds.id === this.initialDatasetId);
+              if (!initial) {
+                const detail = await this.fetchDataset(this.initialDatasetId);
+                if (detail) {
+                  this.datasets = [detail, ...this.datasets];
+                  this.applyFilter();
+                  initial = detail;
+                }
+              }
+              if (initial) this.selectDataset(initial);
+              this.initialDatasetId = null;
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load datasets', err);
+        }
+      },
+
+      selectDataset(dataset) {
+        this.selectedDataset = dataset;
+        this.tableName = '';
+        this.sampleLimit = null;
+        this.whereClause = '';
+        this.sqlError = '';
+        this.sqlQuery = `SELECT * FROM dataset LIMIT ${this.previewLimit}`;
+        this.runSql();
+      },
+
+      setGridData(columns, rows) {
+        const gridData = [columns, ...rows];
+        const container = document.getElementById('edit-grid');
+        if (!this.grid) {
+          this.grid = new DataGridXL('edit-grid', { data: gridData });
+          return;
+        }
+        if (typeof this.grid.setData === 'function') {
+          this.grid.setData(gridData);
+          return;
+        }
+        container.innerHTML = '';
+        this.grid = new DataGridXL('edit-grid', { data: gridData });
+      },
+
+      async executeSql(query) {
+        if (!this.selectedDataset) return;
+        this.sqlRunning = true;
+        this.gridLoading = true;
+        this.sqlError = '';
+        try {
+          const response = await fetch('/api/edit/sql/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              dataset_id: this.selectedDataset.id,
+              sql: query,
+              limit: this.previewLimit
+            })
+          });
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.tableName = data.table_name || '';
+            this.sampleLimit = data.sample_limit || null;
+            this.setGridData(data.columns || [], data.rows || []);
+            this.lastQuery = data.query || query;
+          } else {
+            this.sqlError = data.message || 'SQL error';
+          }
+        } catch (err) {
+          this.sqlError = err.message || 'SQL error';
+        } finally {
+          this.sqlRunning = false;
+          this.gridLoading = false;
+        }
+      },
+
+      runSql() {
+        if (!this.sqlQuery) return;
+        this.executeSql(this.sqlQuery);
+      },
+
+      runRowFilter() {
+        const where = this.whereClause.trim();
+        const base = 'SELECT * FROM dataset';
+        const query = where ? `${base} WHERE ${where}` : base;
+        this.sqlQuery = `${query} LIMIT ${this.previewLimit}`;
+        this.executeSql(this.sqlQuery);
+      },
+
+      clearFilter() {
+        this.whereClause = '';
+        this.resetSql();
+      },
+
+      resetSql() {
+        this.sqlQuery = `SELECT * FROM dataset LIMIT ${this.previewLimit}`;
+        this.executeSql(this.sqlQuery);
+      },
+
+      async saveAs() {
+        if (!this.selectedDataset || this.forking) return;
+        this.forking = true;
+        this.forkStatus = '';
+        try {
+          const response = await fetch(`/api/datasets/${this.selectedDataset.id}/fork`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: this.forkName })
+          });
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.forkStatus = `Fork creado: ${data.dataset.file_name}`;
+            this.initialDatasetId = data.dataset.id;
+            await this.loadDatasets();
+          } else {
+            this.forkStatus = data.message || 'No se pudo crear el fork';
+          }
+        } catch (err) {
+          this.forkStatus = err.message || 'No se pudo crear el fork';
+        } finally {
+          this.forking = false;
+        }
+      },
+
+      async copySmoothcsvUrl() {
+        if (!this.smoothcsvUrl) return;
+        try {
+          await navigator.clipboard.writeText(this.smoothcsvUrl);
+        } catch (err) {
+          console.error('Clipboard copy failed', err);
+        }
+      }
+    }));
+  });
+</script>
+{% endblock %}

@@ -8,7 +8,7 @@ from flask import request, jsonify, Response
 from config import Config
 from searcher import IndicatorSearcher
 from dynamic_search import DynamicSearcher
-from logger import get_logger
+from src.logger import get_logger
 
 from . import api_bp
 
@@ -77,6 +77,10 @@ def search_api() -> Response:
     source_filter = request.args.get("source", "").lower().strip()
     topic_filter = request.args.get("topic", "").lower().strip()
     include_remote = request.args.get("include_remote", "true").lower() == "true"
+    page = request.args.get("page", default=1, type=int)
+    per_page = request.args.get("per_page", default=25, type=int)
+    page = max(page, 1)
+    per_page = max(min(per_page, 100), 1)
 
     try:
         config = Config()
@@ -95,7 +99,11 @@ def search_api() -> Response:
         if query:
             dynamic_searcher = DynamicSearcher(config, cache_ttl_minutes=5)
             # We fetch everything (remote=True) and filter later
-            dyn_results = dynamic_searcher.search(query, include_remote=include_remote)
+            dyn_results = dynamic_searcher.search(
+                query,
+                include_remote=include_remote,
+                source_filter=source_filter or None,
+            )
             
             # Map standard structure
             for r in dyn_results["local_results"] + dyn_results["remote_results"]:
@@ -107,7 +115,12 @@ def search_api() -> Response:
                     "tags": ", ".join(r.get("tags", [])) if isinstance(r.get("tags", []), list) else r.get("tags", ""),
                     "remote": r.get("remote", False),
                     "slug": r.get("slug"),
-                    "url": r.get("url")
+                    "url": r.get("url"),
+                    "indicator_code": r.get("indicator_code"),
+                    "dataset": r.get("dataset"),
+                    "code": r.get("code"),
+                    "database": r.get("database"),
+                    "table": r.get("table"),
                 }
                 all_results.append(formatted)
         else:
@@ -167,9 +180,18 @@ def search_api() -> Response:
             s = r.get("source", "UNKNOWN").lower()
             sources_count[s] = sources_count.get(s, 0) + 1
 
+        total_results = len(filtered_results)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paged_results = filtered_results[start_idx:end_idx]
+        total_pages = (total_results + per_page - 1) // per_page
+
         return jsonify({
-            "results": filtered_results, 
-            "total": len(filtered_results), 
+            "results": paged_results,
+            "total": total_results,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
             "query": query,
             "sources": sources_count
         })
