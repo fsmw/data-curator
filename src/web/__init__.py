@@ -53,10 +53,14 @@ def create_app() -> Flask:
     # Initialize Flask-Admin
     from src.admin_views import (
         SecureAdminIndexView, DatasetAdminView,
-        DatasetColumnAdminView, IndicatorAdminView, 
-        UserAdminView, RoleAdminView
+        DatasetColumnAdminView, IndicatorAdminView,
+        UserAdminView, RoleAdminView,
+        UserDatasetAccessAdminView, UserWorkspaceAdminView
     )
-    from src.models import Dataset, DatasetColumn, Indicator, Role
+    from src.models import (
+        Dataset, DatasetColumn, Indicator, Role,
+        UserDatasetAccess, UserWorkspace
+    )
 
     admin = Admin(
         app,
@@ -70,6 +74,11 @@ def create_app() -> Flask:
     admin.add_view(IndicatorAdminView(Indicator, db.session))
     admin.add_view(UserAdminView(User, db.session))
     admin.add_view(RoleAdminView(Role, db.session))
+    admin.add_view(UserDatasetAccessAdminView(UserDatasetAccess, db.session,
+                                             name='Permissions',
+                                             category='Access Control'))
+    admin.add_view(UserWorkspaceAdminView(UserWorkspace, db.session,
+                                         name='Workspaces'))
 
     # Register blueprints
     app.register_blueprint(ui_bp)
