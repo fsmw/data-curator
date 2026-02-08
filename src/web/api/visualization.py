@@ -26,23 +26,23 @@ from . import api_bp
 
 SEMANTIC_TYPES = {
     "geographic": {
-        "patterns": ["lat", "long", "longitude", "latitude", "país", "country", "state", "provincia", "región"],
+        "patterns": ["lat", "long", "longitude", "latitude", "country", "state", "province", "region"],
         "description": "Geographic coordinate or region"
     },
     "temporal": {
-        "patterns": ["año", "year", "fecha", "date", "month", "mes", "day", "día", "time", "hora", "quarter", "trim"],
+        "patterns": ["year", "date", "month", "day", "time", "quarter", "trim"],
         "description": "Time or date field"
     },
     "currency": {
-        "patterns": ["precio", "price", "cost", "costo", "salary", "salario", "gdp", "pib", "ingreso", "income", "revenue"],
+        "patterns": ["price", "cost", "salary", "gdp", "income", "revenue"],
         "description": "Monetary value"
     },
     "percentage": {
-        "patterns": ["pct", "percent", "%", "rate", "tasa", "porcentaje", "ratio"],
+        "patterns": ["pct", "percent", "%", "rate", "ratio"],
         "description": "Percentage or proportion"
     },
     "categorical": {
-        "patterns": ["id", "code", "código", "category", "type", "tipo"],
+        "patterns": ["id", "code", "category", "type"],
         "description": "Category or grouping field"
     }
 }
@@ -166,7 +166,7 @@ CHART_TEMPLATES = {
         "id": "line",
         "name": "Line",
         "icon": "bi-graph-up",
-        "description": "Series temporales y tendencias",
+        "description": "Time series and trends",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "opacity", "column", "row"],
         "spec_template": {
@@ -179,7 +179,7 @@ CHART_TEMPLATES = {
         "id": "line_dotted",
         "name": "Dotted Line",
         "icon": "bi-graph-up",
-        "description": "Lineas con puntos",
+        "description": "Lines with points",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "opacity", "column", "row"],
         "spec_template": {
@@ -192,7 +192,7 @@ CHART_TEMPLATES = {
         "id": "bar",
         "name": "Bar",
         "icon": "bi-bar-chart",
-        "description": "Comparaciones categoricas",
+        "description": "Categorical comparisons",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "opacity", "column", "row"],
         "spec_template": {
@@ -205,7 +205,7 @@ CHART_TEMPLATES = {
         "id": "bar_grouped",
         "name": "Grouped Bar",
         "icon": "bi-bar-chart-steps",
-        "description": "Comparaciones agrupadas",
+        "description": "Grouped comparisons",
         "required_encodings": ["x", "y", "color"],
         "optional_encodings": ["column", "row"],
         "spec_template": {
@@ -219,7 +219,7 @@ CHART_TEMPLATES = {
         "id": "bar_stacked",
         "name": "Stacked Bar",
         "icon": "bi-bar-chart",
-        "description": "Comparaciones apiladas",
+        "description": "Stacked comparisons",
         "required_encodings": ["x", "y", "color"],
         "optional_encodings": ["column", "row"],
         "spec_template": {
@@ -232,7 +232,7 @@ CHART_TEMPLATES = {
         "id": "histogram",
         "name": "Histogram",
         "icon": "bi-bar-chart",
-        "description": "Distribucion de frecuencias",
+        "description": "Frequency distribution",
         "required_encodings": ["x"],
         "optional_encodings": ["color", "column", "row"],
         "spec_template": {
@@ -246,7 +246,7 @@ CHART_TEMPLATES = {
         "id": "scatter",
         "name": "Scatter",
         "icon": "bi-bullseye",
-        "description": "Correlaciones entre variables",
+        "description": "Variable correlations",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "size", "shape", "column", "row"],
         "spec_template": {
@@ -259,7 +259,7 @@ CHART_TEMPLATES = {
         "id": "heatmap",
         "name": "Heatmap",
         "icon": "bi-grid-3x3",
-        "description": "Matrices y distribuciones 2D",
+        "description": "2D matrices and distributions",
         "required_encodings": ["x", "y", "color"],
         "optional_encodings": ["column", "row"],
         "spec_template": {
@@ -273,7 +273,7 @@ CHART_TEMPLATES = {
         "id": "boxplot",
         "name": "Box Plot",
         "icon": "bi-box",
-        "description": "Distribucion y outliers",
+        "description": "Distribution and outliers",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "column", "row"],
         "spec_template": {
@@ -287,7 +287,7 @@ CHART_TEMPLATES = {
         "id": "area",
         "name": "Area",
         "icon": "bi-graph-down",
-        "description": "Tendencias acumulativas",
+        "description": "Cumulative trends",
         "required_encodings": ["x", "y"],
         "optional_encodings": ["color", "column", "row"],
         "spec_template": {
@@ -300,7 +300,7 @@ CHART_TEMPLATES = {
         "id": "pie",
         "name": "Pie Chart",
         "icon": "bi-pie-chart",
-        "description": "Proporciones y partes del todo",
+        "description": "Proportions and parts of whole",
         "required_encodings": ["theta", "color"],
         "optional_encodings": ["column", "row"],
         "spec_template": {

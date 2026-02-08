@@ -1,4 +1,4 @@
-"""Flask-Admin custom views."""
+"""Flask-Admin custom views with RBAC."""
 
 from flask_admin import Admin, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
@@ -139,31 +139,53 @@ class IndicatorAdminView(ModelView):
 class UserAdminView(ModelView):
     """User management admin view."""
 
-    column_list = ['id', 'username', 'email', 'is_admin', 'is_active', 'created_at', 'last_login']
-    column_filters = ['is_admin', 'is_active']
+    column_list = ['id', 'username', 'email', 'is_active', 'created_at', 'last_login', 'roles']
+    column_filters = ['is_active', 'roles']
     column_searchable_list = ['username', 'email']
 
     column_labels = {
         'id': 'ID',
         'username': 'Username',
         'email': 'Email',
-        'is_admin': 'Admin',
         'is_active': 'Active',
         'created_at': 'Created',
-        'last_login': 'Last Login'
+        'last_login': 'Last Login',
+        'roles': 'Roles'
     }
 
-    form_columns = ['username', 'email', 'is_admin', 'is_active']
-
-    # Password handling
-    form_extra_fields = {
-        'password': 'PasswordField'
+    form_columns = ['username', 'email', 'password', 'is_active', 'roles']
+    
+    # Custom formatter for roles
+    column_formatters = {
+        'roles': lambda v, c, m, p: ', '.join([role.name for role in m.roles]) if m.roles else 'No roles'
     }
 
     def on_model_change(self, form, model, is_created):
         """Hash password when creating or updating user."""
-        if is_created or hasattr(form, 'password') and form.password.data:
+        if hasattr(form, 'password') and form.password.data:
             model.set_password(form.password.data)
 
     can_view_details = True
+    page_size = 50
+
+
+class RoleAdminView(ModelView):
+    """Role management admin view."""
+    
+    column_list = ['id', 'name', 'description', 'users']
+    column_searchable_list = ['name']
+    
+    column_labels = {
+        'id': 'ID',
+        'name': 'Role Name',
+        'description': 'Description',
+        'users': 'Users'
+    }
+    
+    form_columns = ['name', 'description']
+    
+    column_formatters = {
+        'users': lambda v, c, m, p: str(m.users.count()) + ' users'
+    }
+    
     page_size = 50

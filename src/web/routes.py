@@ -19,6 +19,7 @@ from flask import (
     request,
     Response,
 )
+from flask_login import login_required
 
 # Import base configuration
 import sys

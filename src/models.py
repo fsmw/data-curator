@@ -1,9 +1,32 @@
-"""SQLAlchemy models for Flask-Admin."""
+"""SQLAlchemy models for Flask-Admin with Role-Based Access Control."""
 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from typing import List
 
 db = SQLAlchemy()
+
+# Association table for many-to-many relationship between User and Role
+user_roles = db.Table('user_roles',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('role_id', db.Integer, db.ForeignKey('roles.id'), primary_key=True)
+)
+
+
+class Role(db.Model):
+    """Role model for RBAC."""
+    
+    __tablename__ = 'roles'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+    
+    def __repr__(self):
+        return f'<Role {self.name}>'
+    
+    def __str__(self):
+        return self.name
 
 
 class Dataset(db.Model):
@@ -88,7 +111,7 @@ class Indicator(db.Model):
 
 
 class User(db.Model):
-    """User model for authentication."""
+    """User model for authentication with roles."""
 
     __tablename__ = 'users'
 
@@ -96,10 +119,13 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    
+    # Relationships
+    roles = db.relationship('Role', secondary=user_roles, lazy='dynamic',
+                           backref=db.backref('users', lazy=True))
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -117,12 +143,25 @@ class User(db.Model):
         from flask_bcrypt import check_password_hash
         return check_password_hash(self.password_hash, password)
 
+    def has_role(self, role_name):
+        """Check if user has a specific role."""
+        return any(role.name == role_name for role in self.roles)
+    
+    @property
+    def is_admin(self):
+        """Check if user is admin."""
+        return self.has_role('admin')
+
+    # Flask-Login required methods
+    @property
     def is_authenticated(self):
         return True
 
+    @property
     def is_active_user(self):
         return self.is_active
 
+    @property
     def is_anonymous(self):
         return False
 
