@@ -70,9 +70,9 @@ class DatasetColumn(db.Model):
 
 class Indicator(db.Model):
     """Indicator configuration model."""
-    
+
     __tablename__ = 'indicators_config'
-    
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     indicator_id = db.Column(db.String(100), unique=True, nullable=False)
     name = db.Column(db.String(255), nullable=False)
@@ -82,6 +82,49 @@ class Indicator(db.Model):
     tags = db.Column(db.Text)  # JSON array
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Indicator {self.name}>'
+
+
+class User(db.Model):
+    """User model for authentication."""
+
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+
+    def __repr__(self):
+        return f'<User {self.username}>'
+
+    def __str__(self):
+        return self.username
+
+    def set_password(self, password):
+        """Hash and set user password."""
+        from flask_bcrypt import generate_password_hash
+        self.password_hash = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self, password):
+        """Check if password matches."""
+        from flask_bcrypt import check_password_hash
+        return check_password_hash(self.password_hash, password)
+
+    def is_authenticated(self):
+        return True
+
+    def is_active_user(self):
+        return self.is_active
+
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)

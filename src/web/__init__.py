@@ -1,9 +1,17 @@
 import os
 from flask import Flask
 from flask_admin import Admin
+from flask_login import LoginManager
 
 from .routes import ui_bp
 from .api import api_bp  # New API Blueprint
+from .auth import auth_bp
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
 
 
 def create_app() -> Flask:
@@ -32,13 +40,20 @@ def create_app() -> Flask:
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Initialize SQLAlchemy
-    from src.models import db
+    from src.models import db, User
     db.init_app(app)
+
+    # Initialize Flask-Login
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
 
     # Initialize Flask-Admin
     from src.admin_views import (
         SecureAdminIndexView, DatasetAdminView,
-        DatasetColumnAdminView, IndicatorAdminView
+        DatasetColumnAdminView, IndicatorAdminView, UserAdminView
     )
     from src.models import Dataset, DatasetColumn, Indicator
 
@@ -52,10 +67,12 @@ def create_app() -> Flask:
     admin.add_view(DatasetAdminView(Dataset, db.session))
     admin.add_view(DatasetColumnAdminView(DatasetColumn, db.session))
     admin.add_view(IndicatorAdminView(Indicator, db.session))
+    admin.add_view(UserAdminView(User, db.session))
 
     # Register blueprints
     app.register_blueprint(ui_bp)
     app.register_blueprint(api_bp)  # New: API routes under /api/*
+    app.register_blueprint(auth_bp)
 
     app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
     return app

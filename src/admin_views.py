@@ -3,16 +3,20 @@
 from flask_admin import Admin, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
-from flask import flash, redirect, url_for
+from flask import flash, redirect, url_for, request
 from markupsafe import Markup
+from flask_login import current_user
 
 
 class SecureAdminIndexView(AdminIndexView):
-    """Secure admin index view."""
-    
+    """Secure admin index view with authentication."""
+
     def is_accessible(self):
-        # Add authentication here if needed
-        return True
+        return current_user.is_authenticated and current_user.is_admin
+
+    def inaccessible_callback(self, name, **kwargs):
+        # Redirect to login page if user doesn't have access
+        return redirect(url_for('auth.login', next=request.url))
 
 
 class DatasetAdminView(ModelView):
@@ -114,11 +118,11 @@ class DatasetColumnAdminView(ModelView):
 
 class IndicatorAdminView(ModelView):
     """Indicator configuration admin view."""
-    
+
     column_list = ['indicator_id', 'name', 'source', 'topic', 'active', 'created_at']
     column_filters = ['source', 'topic', 'active']
     column_searchable_list = ['indicator_id', 'name', 'description']
-    
+
     column_labels = {
         'indicator_id': 'Indicator ID',
         'name': 'Name',
@@ -126,7 +130,40 @@ class IndicatorAdminView(ModelView):
         'topic': 'Topic',
         'active': 'Active'
     }
-    
+
     form_columns = ['indicator_id', 'name', 'description', 'source', 'topic', 'tags', 'active']
-    
+
+    page_size = 50
+
+
+class UserAdminView(ModelView):
+    """User management admin view."""
+
+    column_list = ['id', 'username', 'email', 'is_admin', 'is_active', 'created_at', 'last_login']
+    column_filters = ['is_admin', 'is_active']
+    column_searchable_list = ['username', 'email']
+
+    column_labels = {
+        'id': 'ID',
+        'username': 'Username',
+        'email': 'Email',
+        'is_admin': 'Admin',
+        'is_active': 'Active',
+        'created_at': 'Created',
+        'last_login': 'Last Login'
+    }
+
+    form_columns = ['username', 'email', 'is_admin', 'is_active']
+
+    # Password handling
+    form_extra_fields = {
+        'password': 'PasswordField'
+    }
+
+    def on_model_change(self, form, model, is_created):
+        """Hash password when creating or updating user."""
+        if is_created or hasattr(form, 'password') and form.password.data:
+            model.set_password(form.password.data)
+
+    can_view_details = True
     page_size = 50
