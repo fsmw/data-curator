@@ -45,7 +45,6 @@ def create_app() -> Flask:
     admin = Admin(
         app,
         name='Data Curator Admin',
-        template_mode='bootstrap4',
         index_view=SecureAdminIndexView()
     )
 
