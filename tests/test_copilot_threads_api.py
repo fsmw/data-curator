@@ -67,20 +67,20 @@ def test_copilot_threads_update_rejects_invalid_charts(client, auth_user):
     assert data["message"] == "Invalid charts payload"
 
 
-def test_copilot_threads_user_scope(client, auth_user, other_user):
+def test_copilot_threads_user_scope(client, auth_user, other_user, login):
     create = client.post("/api/copilot/threads")
     thread_id = create.get_json()["thread"]["id"]
 
-    other_user.login(client)
+    login("otheruser", "otherpass")
     resp = client.put(f"/api/copilot/threads/{thread_id}", json={"title": "Nope"})
     assert resp.status_code == 404
 
 
-def test_copilot_threads_user_scope_delete(client, auth_user, other_user):
+def test_copilot_threads_user_scope_delete(client, auth_user, other_user, login):
     create = client.post("/api/copilot/threads")
     thread_id = create.get_json()["thread"]["id"]
 
-    other_user.login(client)
+    login("otheruser", "otherpass")
     resp = client.delete(f"/api/copilot/threads/{thread_id}")
     assert resp.status_code == 404
 
