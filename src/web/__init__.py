@@ -33,10 +33,11 @@ def create_app() -> Flask:
             app.secret_key = "dev-secret"
             print("Warning: FLASK_SECRET_KEY not set and secrets unavailable. Using weak fallback key.")
 
-    # Configure SQLAlchemy
+    # Configure SQLAlchemy - use absolute path to ensure consistency
     from src.config import Config
     config = Config()
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{config.data_root / 'datasets_catalog.db'}"
+    db_path = (config.data_root / 'datasets_catalog.db').absolute()
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Initialize SQLAlchemy
