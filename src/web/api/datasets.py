@@ -80,9 +80,11 @@ def _add_directory_to_zip(zip_file: zipfile.ZipFile, directory: Path, arc_prefix
 
 
 @api_bp.route("/datasets")
+@login_required
 def list_datasets() -> Response:
     """
     List and search datasets in the catalog.
+    Returns only datasets visible to the current user.
 
     Query params:
         q: Search query (optional)
@@ -101,6 +103,10 @@ def list_datasets() -> Response:
         topic = request.args.get("topic", "")
         limit = int(request.args.get("limit", 100))
 
+        # Get current user
+        from flask_login import current_user
+        user_id = current_user.id if current_user.is_authenticated else None
+
         # Build filters
         filters = {}
         if source:
@@ -108,16 +114,49 @@ def list_datasets() -> Response:
         if topic:
             filters["topic"] = topic
 
-        # If user wants latest-per-identifier, use specialized method
+        # Get datasets visible to user using PermissionService
+        from src.services import PermissionService
+        accessible_datasets = PermissionService.get_user_datasets(user_id, include_public=True)
+
+        # Filter by query, source, topic
+        filtered_results = []
+        for dataset in accessible_datasets:
+            # Apply text search
+            if query:
+                search_text = f"{dataset.indicator_name} {dataset.description or ''} {dataset.source or ''}".lower()
+                if query.lower() not in search_text:
+                    continue
+            
+            # Apply source filter
+            if source and dataset.source != source:
+                continue
+            
+            # Apply topic filter
+            if topic and dataset.topic != topic:
+                continue
+            
+            filtered_results.append(dataset)
+            
+            if len(filtered_results) >= limit:
+                break
+
+        # If user wants latest-per-identifier, filter further
         latest_only = request.args.get("latest", "false").lower() == "true"
         if latest_only:
-            results = catalog.latest_per_identifier()
-        else:
-            # Search datasets
-            results = catalog.search(query, filters=filters, limit=limit)
+            # Group by indicator_id and keep latest
+            from collections import defaultdict
+            by_indicator = defaultdict(list)
+            for ds in filtered_results:
+                by_indicator[ds.indicator_id].append(ds)
+            
+            filtered_results = []
+            for indicator_id, datasets in by_indicator.items():
+                # Sort by modified_at or created_at desc
+                datasets.sort(key=lambda x: x.modified_at or x.created_at or '', reverse=True)
+                filtered_results.append(datasets[0])
 
         # Format results
-        datasets = [_format_dataset(ds) for ds in results]
+        datasets = [_format_dataset(ds) for ds in filtered_results]
 
         return jsonify(
             {"status": "success", "total": len(datasets), "datasets": datasets}
