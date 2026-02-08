@@ -18,14 +18,12 @@ def migrate_database():
     app = create_app()
 
     with app.app_context():
-        # Create all new tables
+        # Use the same database path as SQLAlchemy
+        db_path = Path(app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', ''))
+        
+        # Create all new tables first
         db.create_all()
         print("✓ Created new tables (UserWorkspace, UserDatasetAccess)")
-
-        # Check if we need to add columns to existing datasets table
-        from src.config import Config
-        config = Config()
-        db_path = config.data_root / "datasets_catalog.db"
 
         if db_path.exists():
             print(f"\nMigrating existing database: {db_path}")
