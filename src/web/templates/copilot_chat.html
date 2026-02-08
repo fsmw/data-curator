@@ -1702,6 +1702,9 @@
   async loadThreads() {
     try {
       const response = await fetch('/api/copilot/threads');
+      if (!response.ok) {
+        throw new Error('Failed to load threads');
+      }
       const data = await response.json();
 
       if (data.status === 'success' && Array.isArray(data.threads)) {
@@ -1718,6 +1721,9 @@
   async startNewThread() {
     try {
       const response = await fetch('/api/copilot/threads', { method: 'POST' });
+      if (!response.ok) {
+        throw new Error('Failed to create thread');
+      }
       const data = await response.json();
 
       if (data.status === 'success' && data.thread) {
@@ -1755,18 +1761,6 @@
   },
 
   deleteThread(threadId) {
-    // Prevent deleting the last thread
-    if (this.threads.length <= 1) {
-      this.showConfirmModal(
-        'Cannot Delete',
-        'You cannot delete the last thread. Create a new one first.',
-        null,
-        null,
-        true // isAlert
-      );
-      return;
-    }
-    
     // Show confirmation modal
     this.showConfirmModal(
       'Delete Thread',
@@ -1776,6 +1770,9 @@
         if (threadIndex === -1) return;
         try {
           const response = await fetch(`/api/copilot/threads/${threadId}`, { method: 'DELETE' });
+          if (!response.ok) {
+            throw new Error('Failed to delete thread');
+          }
           const data = await response.json();
           if (data.status !== 'success') {
             throw new Error(data.message || 'Failed to delete thread');
@@ -1786,7 +1783,11 @@
 
           // If we deleted the active thread, switch to another one
           if (this.activeThreadId === threadId) {
-            this.switchThread(this.threads[0].id);
+            if (this.threads.length === 0) {
+              await this.startNewThread();
+            } else {
+              this.switchThread(this.threads[0].id);
+            }
           }
         } catch (error) {
           console.error('Error deleting thread:', error);
@@ -1802,13 +1803,20 @@
     const newName = prompt('New name for the thread:', thread.title || 'New Analysis');
     if (newName && newName.trim()) {
       thread.title = newName.trim();
-      await this.updateCurrentThread();
+      if (threadId === this.activeThreadId) {
+        await this.updateCurrentThread();
+      } else {
+        await this.updateThread(thread);
+      }
     }
   },
 
   async clearChat() {
     try {
       const response = await fetch('/api/copilot/threads/clear', { method: 'POST' });
+      if (!response.ok) {
+        throw new Error('Failed to clear threads');
+      }
       const data = await response.json();
       if (data.status !== 'success') {
         throw new Error(data.message || 'Failed to clear threads');
@@ -1822,6 +1830,40 @@
       await this.startNewThread();
     } catch (error) {
       console.error('Error clearing threads:', error);
+    }
+  },
+
+  async updateThread(thread) {
+    const threadIndex = this.threads.findIndex(t => t.id === thread.id);
+    if (threadIndex === -1) return;
+
+    thread.timestamp = new Date().toISOString();
+
+    const payload = {
+      title: thread.title,
+      messages: thread.messages || [],
+      charts: thread.charts || [],
+      session_id: thread.sessionId,
+      last_message: thread.lastMessage
+    };
+
+    try {
+      const response = await fetch(`/api/copilot/threads/${thread.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update thread');
+      }
+      const data = await response.json();
+      if (data.status === 'success' && data.thread) {
+        this.threads.splice(threadIndex, 1, this.normalizeThread(data.thread));
+      } else if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to update thread');
+      }
+    } catch (error) {
+      console.error('Error updating thread:', error);
     }
   },
 
@@ -1880,6 +1922,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      if (!response.ok) {
+        throw new Error('Failed to update thread');
+      }
       const data = await response.json();
       if (data.status === 'success' && data.thread) {
         this.threads[0] = this.normalizeThread(data.thread);
