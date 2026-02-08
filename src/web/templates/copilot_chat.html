@@ -1572,17 +1572,23 @@
       requestTimeout: 120000,      // 120s timeout (backend handles retries + fallbacks)
       retryInfo: null,             // Info about retries/fallbacks from backend
 
-      init() {
+      async init() {
     console.log('Copilot Chat initialized');
 
     // Initialize abort controller
     this.abortController = null;
 
     // Load saved threads or create default
-    this.loadThreads();
+    try {
+      localStorage.removeItem('copilot_threads');
+    } catch (error) {
+      console.warn('Failed to clear legacy copilot threads cache:', error);
+    }
+
+    await this.loadThreads();
 
     if (this.threads.length === 0) {
-      this.startNewThread();
+      await this.startNewThread();
     } else {
       // Select most recent
       this.switchThread(this.threads[0].id);
@@ -1676,41 +1682,54 @@
 
   // --- Thread Management ---
 
-  loadThreads() {
-    const stored = localStorage.getItem('copilot_threads');
-    if (stored) {
-      this.threads = JSON.parse(stored);
-      // Clean up any stuck loading states from all threads
-      this.threads.forEach(thread => {
-        if (thread.messages) {
-          thread.messages = thread.messages.map(msg => ({
-            ...msg,
-            loading: false // Always clear loading state on load
-          }));
-        }
-      });
-      // Save cleaned threads back
-      this.saveThreads();
+  normalizeThread(thread) {
+    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+    const charts = Array.isArray(thread.charts) ? thread.charts : [];
+
+    return {
+      ...thread,
+      messages: messages.map(msg => ({
+        ...msg,
+        loading: false
+      })),
+      charts,
+      sessionId: thread.session_id || thread.sessionId || null,
+      lastMessage: thread.last_message || thread.lastMessage || '',
+      timestamp: thread.updated_at || thread.created_at || thread.timestamp || new Date().toISOString()
+    };
+  },
+
+  async loadThreads() {
+    try {
+      const response = await fetch('/api/copilot/threads');
+      const data = await response.json();
+
+      if (data.status === 'success' && Array.isArray(data.threads)) {
+        this.threads = data.threads.map(thread => this.normalizeThread(thread));
+      } else {
+        this.threads = [];
+      }
+    } catch (error) {
+      console.error('Error loading threads:', error);
+      this.threads = [];
     }
   },
 
-  saveThreads() {
-    localStorage.setItem('copilot_threads', JSON.stringify(this.threads));
-  },
+  async startNewThread() {
+    try {
+      const response = await fetch('/api/copilot/threads', { method: 'POST' });
+      const data = await response.json();
 
-  startNewThread() {
-    const newThread = {
-      id: crypto.randomUUID(),
-      title: 'New Analysis',
-      timestamp: new Date().toISOString(),
-      messages: [],
-      sessionId: null, // Will apply when we start chatting
-      lastMessage: ''
-    };
-
-    this.threads.unshift(newThread);
-    this.saveThreads();
-    this.switchThread(newThread.id);
+      if (data.status === 'success' && data.thread) {
+        const newThread = this.normalizeThread(data.thread);
+        this.threads.unshift(newThread);
+        this.switchThread(newThread.id);
+      } else {
+        throw new Error(data.message || 'Failed to create thread');
+      }
+    } catch (error) {
+      console.error('Error creating thread:', error);
+    }
   },
 
   switchThread(threadId) {
@@ -1752,32 +1771,57 @@
     this.showConfirmModal(
       'Delete Thread',
       'Delete this thread? This action cannot be undone.',
-      () => {
+      async () => {
         const threadIndex = this.threads.findIndex(t => t.id === threadId);
         if (threadIndex === -1) return;
-        
-        // Remove the thread
-        this.threads.splice(threadIndex, 1);
-        
-        // If we deleted the active thread, switch to another one
-        if (this.activeThreadId === threadId) {
-          this.switchThread(this.threads[0].id);
+        try {
+          const response = await fetch(`/api/copilot/threads/${threadId}`, { method: 'DELETE' });
+          const data = await response.json();
+          if (data.status !== 'success') {
+            throw new Error(data.message || 'Failed to delete thread');
+          }
+
+          // Remove the thread
+          this.threads.splice(threadIndex, 1);
+
+          // If we deleted the active thread, switch to another one
+          if (this.activeThreadId === threadId) {
+            this.switchThread(this.threads[0].id);
+          }
+        } catch (error) {
+          console.error('Error deleting thread:', error);
         }
-        
-        // Save to localStorage
-        this.saveThreads();
       }
     );
   },
   
-  renameThread(threadId) {
+  async renameThread(threadId) {
     const thread = this.threads.find(t => t.id === threadId);
     if (!thread) return;
     
     const newName = prompt('New name for the thread:', thread.title || 'New Analysis');
     if (newName && newName.trim()) {
       thread.title = newName.trim();
-      this.saveThreads();
+      await this.updateCurrentThread();
+    }
+  },
+
+  async clearChat() {
+    try {
+      const response = await fetch('/api/copilot/threads/clear', { method: 'POST' });
+      const data = await response.json();
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to clear threads');
+      }
+
+      this.threads = [];
+      this.messages = [];
+      this.canvasCharts = [];
+      this.activeThreadId = null;
+      this.sessionId = null;
+      await this.startNewThread();
+    } catch (error) {
+      console.error('Error clearing threads:', error);
     }
   },
 
@@ -1792,7 +1836,7 @@
     };
   },
 
-  updateCurrentThread(data) {
+  async updateCurrentThread(data) {
     const threadIndex = this.threads.findIndex(t => t.id === this.activeThreadId);
     if (threadIndex === -1) return;
 
@@ -1804,6 +1848,7 @@
     }));
     thread.sessionId = this.sessionId;
     thread.timestamp = new Date().toISOString();
+    thread.charts = this.canvasCharts;
 
     // Update title based on first user message if generic
     if (thread.title === 'New Analysis' && this.messages.some(m => m.role === 'user')) {
@@ -1821,7 +1866,29 @@
     this.threads.splice(threadIndex, 1);
     this.threads.unshift(thread);
 
-    this.saveThreads();
+    const payload = {
+      title: thread.title,
+      messages: thread.messages,
+      charts: thread.charts || [],
+      session_id: thread.sessionId,
+      last_message: thread.lastMessage
+    };
+
+    try {
+      const response = await fetch(`/api/copilot/threads/${thread.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.status === 'success' && data.thread) {
+        this.threads[0] = this.normalizeThread(data.thread);
+      } else if (data.status !== 'success') {
+        throw new Error(data.message || 'Failed to update thread');
+      }
+    } catch (error) {
+      console.error('Error updating thread:', error);
+    }
   },
 
     // --- Chat Logic ---
@@ -2714,7 +2781,7 @@
     if (thread) {
       if (!thread.charts) thread.charts = [];
       thread.charts.push(chartData);
-      this.saveThreads();
+      this.updateCurrentThread();
     }
   },
   
@@ -2722,7 +2789,7 @@
     const thread = this.threads.find(t => t.id === this.activeThreadId);
     if (thread) {
       thread.charts = this.canvasCharts;
-      this.saveThreads();
+      this.updateCurrentThread();
     }
   },
   
