@@ -5,6 +5,7 @@ Handles dataset CRUD operations, preview, statistics, and management.
 """
 
 from flask import request, jsonify, Response, send_file, after_this_request
+from flask_login import login_required, current_user
 import json
 import math
 import re
