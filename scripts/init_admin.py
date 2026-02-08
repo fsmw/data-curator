@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Initialize Flask-Admin database tables."""
+"""Initialize Flask-Admin database tables with RBAC."""
 
 import sys
 from pathlib import Path
@@ -8,11 +8,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.web import create_app
-from src.models import db
+from src.models import db, Role, User
 
 
 def init_admin():
-    """Create admin tables."""
+    """Create admin tables with RBAC."""
     app = create_app()
 
     with app.app_context():
@@ -20,35 +20,28 @@ def init_admin():
         db.create_all()
         print("✓ Admin tables created successfully")
 
-        # Import existing indicators
-        from src.config import Config
-        from src.models import Indicator
-
-        config = Config()
-        indicators = config.get_indicators()
-
-        count = 0
-        for ind in indicators:
-            # Check if already exists
-            existing = Indicator.query.filter_by(
-                indicator_id=ind.get('id', ind.get('indicator_id'))
-            ).first()
-
+        # Create default roles
+        roles = ['admin', 'user']
+        for role_name in roles:
+            existing = Role.query.filter_by(name=role_name).first()
             if not existing:
-                indicator = Indicator(
-                    indicator_id=ind.get('id', ind.get('indicator_id')),
-                    name=ind.get('name', ind.get('indicator_name', '')),
-                    description=ind.get('description'),
-                    source=ind.get('source', 'manual'),
-                    topic=ind.get('topic'),
-                    tags=str(ind.get('tags', [])),
-                    active=True
+                role = Role(
+                    name=role_name,
+                    description=f'{role_name.capitalize()} role'
                 )
-                db.session.add(indicator)
-                count += 1
+                db.session.add(role)
+                print(f"✓ Created role: {role_name}")
 
         db.session.commit()
-        print(f"✓ Imported {count} indicators")
+        print("✓ Roles initialized")
+
+        # Check if admin user exists
+        admin_user = User.query.filter_by(username='admin').first()
+        if not admin_user:
+            print("\n⚠ No admin user found!")
+            print("Run: python scripts/create_admin_user.py")
+        else:
+            print(f"✓ Admin user exists: {admin_user.username}")
 
 
 if __name__ == '__main__':

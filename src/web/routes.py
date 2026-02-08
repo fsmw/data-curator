@@ -113,6 +113,7 @@ from src.dataset_catalog import DatasetCatalog
 
 @ui_bp.route("/")
 @ui_bp.route("/status")
+@login_required
 def status() -> str:
     """Render the status/home page."""
     ctx = base_context("status", "Status", "Project Status")
@@ -155,6 +156,7 @@ def status() -> str:
 
 @ui_bp.route("/browse/local")
 @ui_bp.route("/browse_local")
+@login_required
 def browse_local() -> str:
     """Render the local datasets browser page."""
     ctx = base_context(
@@ -165,12 +167,14 @@ def browse_local() -> str:
 
 @ui_bp.route("/browse/available")
 @ui_bp.route("/browse_available")
+@login_required
 def browse_available():
     """Redirect to search view (consolidated view)."""
     return redirect(url_for("ui.search"))
 
 
 @ui_bp.route("/edit")
+@login_required
 def edit_page() -> str:
     """Render the dataset editor page."""
     ctx = base_context("edit", "Edit", "Edit Datasets")
@@ -179,6 +183,7 @@ def edit_page() -> str:
 
 
 @ui_bp.route("/search")
+@login_required
 def search() -> str:
     """Render the search page."""
     ctx = base_context("search", "Search", "Search Indicators and Topics")
@@ -186,6 +191,7 @@ def search() -> str:
 
 
 @ui_bp.route("/copilot_chat")
+@login_required
 def copilot_chat_page() -> str:
     """Render the Copilot chat interface page."""
     # Check if Copilot is available
@@ -203,6 +209,7 @@ def copilot_chat_page() -> str:
 
 
 @ui_bp.route("/visualizepg")
+@login_required
 def visualizepg_page() -> str:
     """Render the PyGWalker visualization view."""
     ctx = base_context("visualizepg", "Visualization", "Explore with PyGWalker")
@@ -240,6 +247,7 @@ def visualizepg_page() -> str:
 
 
 @ui_bp.route("/visualizepg/frame")
+@login_required
 def visualizepg_frame() -> str:
     """Render the PyGWalker iframe content."""
     dataset_id = request.args.get("dataset_id", type=int)
@@ -301,6 +309,7 @@ def visualizepg_frame() -> str:
 
 
 @ui_bp.route("/help")
+@login_required
 def help_page() -> str:
     """Render the help page."""
     ctx = base_context("help", "Help", "Shortcuts and Guide")

@@ -6,6 +6,7 @@ from flask_admin.actions import action
 from flask import flash, redirect, url_for, request
 from markupsafe import Markup
 from flask_login import current_user
+from wtforms import PasswordField
 
 
 class SecureAdminIndexView(AdminIndexView):
@@ -153,7 +154,14 @@ class UserAdminView(ModelView):
         'roles': 'Roles'
     }
 
+    # Exclude password_hash and use custom password field
+    form_excluded_columns = ['password_hash', 'created_at', 'last_login']
     form_columns = ['username', 'email', 'password', 'is_active', 'roles']
+    
+    # Add custom password field
+    form_extra_fields = {
+        'password': PasswordField('Password')
+    }
     
     # Custom formatter for roles
     column_formatters = {
