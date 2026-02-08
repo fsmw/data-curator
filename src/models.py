@@ -263,6 +263,22 @@ class UserWorkspace(db.Model):
         return f'<UserWorkspace {self.name} for user {self.user_id}>'
 
 
+class CopilotThread(db.Model):
+    __tablename__ = "copilot_threads"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    title = db.Column(db.String(255), default="New Analysis")
+    session_id = db.Column(db.String(128))
+    messages_json = db.Column(db.Text)
+    charts_json = db.Column(db.Text)
+    last_message = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship("User", backref="copilot_threads")
+
+
 # Auto-create workspace when user is created
 @event.listens_for(User, 'after_insert')
 def create_user_workspace(mapper, connection, target):
