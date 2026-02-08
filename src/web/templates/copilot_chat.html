@@ -3254,7 +3254,7 @@
                 <div id="${blockId}" class="code-block-container mt-2" style="display: none;">
                   <div class="code-block-header">
                     <span class="code-block-lang">vega-lite</span>
-                    <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copiar">
+                    <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copy">
                       <i class="bi bi-clipboard"></i>
                     </button>
                   </div>
@@ -3273,13 +3273,13 @@
           <div class="code-block-header">
             <span class="code-block-lang">${language}</span>
             <div class="code-block-actions">
-              <button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copy code">
-                <i class="bi bi-clipboard"></i> Copiar
-              </button>
+<button class="btn-copy" onclick="window.copyCode('${blockId}')" title="Copy code">
+                 <i class="bi bi-clipboard"></i> Copy
+               </button>
               ${isExecutable ? `
-                <button class="btn-run" onclick="window.runCode('${blockId}', '${language}')" title="Execute code">
-                  <i class="bi bi-play-fill"></i> Ejecutar
-                </button>
+<button class="btn-run" onclick="window.runCode('${blockId}', '${language}')" title="Execute code">
+                   <i class="bi bi-play-fill"></i> Execute
+                 </button>
               ` : ''}
             </div>
           </div>

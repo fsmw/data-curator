@@ -204,7 +204,7 @@ def copilot_chat_page() -> str:
 @ui_bp.route("/visualizepg")
 def visualizepg_page() -> str:
     """Render the PyGWalker visualization view."""
-    ctx = base_context("visualizepg", "Visualizacion", "Explore with PyGWalker")
+    ctx = base_context("visualizepg", "Visualization", "Explore with PyGWalker")
     dataset_id = request.args.get("dataset_id", type=int)
     ctx["dataset_id"] = dataset_id
     ctx["pygwalker_error"] = ""
