@@ -352,6 +352,34 @@ def update_copilot_thread(thread_id: int) -> Response:
             return jsonify({"status": "error", "message": "Thread not found"}), 404
 
         payload = request.get_json(silent=True) or {}
+        if "messages" in payload:
+            messages = payload.get("messages")
+            if not isinstance(messages, list):
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid messages payload",
+                }), 400
+            try:
+                _serialize_json(messages)
+            except (TypeError, ValueError):
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid messages payload",
+                }), 400
+        if "charts" in payload:
+            charts = payload.get("charts")
+            if not isinstance(charts, list):
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid charts payload",
+                }), 400
+            try:
+                _serialize_json(charts)
+            except (TypeError, ValueError):
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid charts payload",
+                }), 400
         if "title" in payload:
             thread.title = payload.get("title")
         if "messages" in payload:
