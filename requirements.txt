@@ -21,6 +21,9 @@ pytest-cov>=4.1.0
 
 # Web UI
 flask>=3.0.0
+flask-admin>=1.6.0
+flask-sqlalchemy>=3.0.0
+sqlalchemy>=2.0.0
 rich>=13.0.0
 
 # Web Visualization (Vega-Lite)
