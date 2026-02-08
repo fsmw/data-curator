@@ -49,8 +49,51 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
-@auth_bp.route('/profile')
+@auth_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    """Show user profile."""
+    """Show and edit user profile."""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        
+        if email:
+            current_user.email = email
+            db.session.commit()
+            flash('Profile updated successfully.', 'success')
+        else:
+            flash('Email is required.', 'error')
+    
     return render_template('auth/profile.html', user=current_user)
+
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change user password."""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate current password
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect.', 'error')
+            return render_template('auth/change_password.html')
+        
+        # Validate new password
+        if len(new_password) < 6:
+            flash('New password must be at least 6 characters long.', 'error')
+            return render_template('auth/change_password.html')
+        
+        # Validate confirmation
+        if new_password != confirm_password:
+            flash('New passwords do not match.', 'error')
+            return render_template('auth/change_password.html')
+        
+        # Update password
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash('Password changed successfully.', 'success')
+        return redirect(url_for('auth.profile'))
+    
+    return render_template('auth/change_password.html')
