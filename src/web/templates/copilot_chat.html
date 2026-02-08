@@ -853,7 +853,7 @@
                         <div :class="msg.error ? 'text-danger' : 'markdown-body'" x-html="formatMessage(msg.content, index, msg.chart_suggestions)"></div>
                       </template>
 
-                      <!-- Gráficos propuestos: botón Graficar por cada sugerencia -->
+                      <!-- Suggested Charts: Chart button for each suggestion -->
                       <template x-if="msg.chart_suggestions && msg.chart_suggestions.length > 0">
                         <div class="mt-3 pt-3 border-top border-secondary">
                           <small class="d-block mb-2 fw-bold text-secondary">
@@ -3018,7 +3018,7 @@
       if (this.selectedDatasetId) {
         params.append('dataset_id', this.selectedDatasetId);
       }
-      // Pasar los gráficos del canvas al abrir /visualizepg para que se carguen allí
+      // Pass canvas charts when opening /visualizepg so they load there
       if (this.canvasCharts && this.canvasCharts.length > 0) {
         try {
           sessionStorage.setItem('copilot_canvas_charts', JSON.stringify(this.canvasCharts));
@@ -3503,7 +3503,7 @@ window.runCode = async function(blockId, language) {
     }
   } catch (error) {
     console.error('Code execution error:', error);
-    chatComponent.addAgentMessage(`❌ Error al ejecutar: ${error.message}`, true);
+    chatComponent.addAgentMessage(`❌ Error executing: ${error.message}`, true);
   } finally {
     // Reset button
     if (btn) {
