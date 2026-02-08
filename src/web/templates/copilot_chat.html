@@ -1236,7 +1236,7 @@
                   </div>
                   <div x-show="!chartEncodings.color" class="encoding-slot-placeholder">
                     <select class="form-select form-select-sm" @change="setEncoding('color', $event.target.value); $event.target.value = ''">
-                      <option value="">Opcional...</option>
+                      <option value="">Optional...</option>
                       <template x-for="f in fields" :key="f.name">
                         <option :value="f.name" x-text="f.name"></option>
                       </template>
@@ -1260,7 +1260,7 @@
                   </div>
                   <div x-show="!chartEncodings.size" class="encoding-slot-placeholder">
                     <select class="form-select form-select-sm" @change="setEncoding('size', $event.target.value); $event.target.value = ''">
-                      <option value="">Opcional...</option>
+                      <option value="">Optional...</option>
                       <template x-for="f in fields" :key="f.name">
                         <option :value="f.name" x-text="f.name"></option>
                       </template>
@@ -1307,7 +1307,7 @@
                       :disabled="!canGenerateChart || chartLoading">
                 <span x-show="chartLoading" class="spinner-border spinner-border-sm me-1"></span>
                 <i x-show="!chartLoading" class="bi bi-play-fill me-1"></i>
-                Generar
+                Generate
               </button>
             </div>
           </div>
@@ -1417,7 +1417,7 @@
                   @click="applyDeriveField()" 
                   :disabled="!derivePreview.length || deriveLoading">
             <i class="bi bi-plus-lg me-1"></i>
-            Crear Campo
+            Create Field
           </button>
         </div>
       </div>
@@ -1447,7 +1447,7 @@
       <div class="d-flex justify-content-end gap-2 mt-4">
         <template x-if="confirmModal.isAlert">
           <button class="btn btn-secondary btn-sm px-4" @click="confirmModal.show = false">
-            Entendido
+            Understood
           </button>
         </template>
         <template x-if="!confirmModal.isAlert">
@@ -2464,7 +2464,7 @@
     // Clear the preview container
     const previewEl = document.getElementById('vega-chart-preview');
     if (previewEl) {
-      previewEl.innerHTML = '<div class="chart-preview-placeholder"><i class="bi bi-bar-chart-line d-block"></i><span>Selecciona campos para X e Y</span></div>';
+      previewEl.innerHTML = '<div class="chart-preview-placeholder"><i class="bi bi-bar-chart-line d-block"></i><span>Select fields for X and Y</span></div>';
     }
   },
   
@@ -2833,7 +2833,7 @@
     });
     
     // Add message to chat
-    this.addAgentMessage(`✅ Campo derivado **${fieldName}** creado.\n\n\`\`\`python\n${this.deriveCode}\n\`\`\``);
+    this.addAgentMessage(`✅ Derived field **${fieldName}** created.\n\n\`\`\`python\n${this.deriveCode}\n\`\`\``);
     
     // Reset and close modal
     this.deriveConfig = { fieldName: '', sourceFields: [], description: '' };
@@ -3375,7 +3375,7 @@ window.copyCode = function(blockId) {
     const btn = block.querySelector('.btn-copy');
     if (btn) {
       const originalHtml = btn.innerHTML;
-      btn.innerHTML = '<i class="bi bi-check"></i> Copiado';
+      btn.innerHTML = '<i class="bi bi-check"></i> Copied';
       btn.style.background = '#28a745';
       btn.style.color = 'white';
       setTimeout(() => {
@@ -3421,14 +3421,14 @@ window.runCode = async function(blockId, language) {
   }
   
   if (!chatComponent.activeDataset) {
-    alert('Por favor, selecciona un dataset primero');
+    alert('Please select a dataset first');
     return;
   }
   
   // Update button to show loading
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Ejecutando...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Executing...';
   }
   
   try {
