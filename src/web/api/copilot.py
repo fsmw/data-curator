@@ -5,13 +5,15 @@ Handles AI chat and conversation management.
 """
 
 from flask import request, jsonify, Response, stream_with_context
+from flask_login import login_required, current_user
 import asyncio
-from typing import Dict
 import json
+from typing import Dict, List, Optional
 
 from config import Config
 from src.logger import get_logger
 from src.response_cache import get_cache
+from src.models import CopilotThread, db
 
 from . import api_bp
 
@@ -27,6 +29,38 @@ except ImportError:
 
 # Initialize cache
 cache = get_cache()
+
+
+def _deserialize_json(value: Optional[str]) -> List[Dict]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return parsed
+    except Exception:
+        return []
+    return []
+
+
+def _serialize_json(value: Optional[object]) -> Optional[str]:
+    if value is None:
+        return None
+    return json.dumps(value)
+
+
+def _thread_to_dict(thread: CopilotThread) -> Dict:
+    return {
+        "id": thread.id,
+        "user_id": thread.user_id,
+        "title": thread.title,
+        "session_id": thread.session_id,
+        "messages": _deserialize_json(thread.messages_json),
+        "charts": _deserialize_json(thread.charts_json),
+        "last_message": thread.last_message,
+        "created_at": thread.created_at.isoformat() if thread.created_at else None,
+        "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
+    }
 
 def create_copilot_agent():
     """Create a new Copilot agent instance."""
@@ -264,4 +298,107 @@ def copilot_cache_clear() -> Response:
         })
     except Exception as e:
         logger.error(f"Error clearing cache: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/copilot/threads", methods=["GET"])
+@login_required
+def list_copilot_threads() -> Response:
+    try:
+        threads = (
+            CopilotThread.query.filter_by(user_id=current_user.id)
+            .order_by(CopilotThread.updated_at.desc())
+            .all()
+        )
+        return jsonify({
+            "status": "success",
+            "threads": [_thread_to_dict(thread) for thread in threads],
+        })
+    except Exception as e:
+        logger.error(f"Error listing copilot threads: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/copilot/threads", methods=["POST"])
+@login_required
+def create_copilot_thread() -> Response:
+    try:
+        thread = CopilotThread(
+            user_id=current_user.id,
+            title="New Analysis",
+            messages_json=_serialize_json([]),
+            charts_json=_serialize_json([]),
+        )
+        db.session.add(thread)
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "thread": _thread_to_dict(thread),
+        })
+    except Exception as e:
+        logger.error(f"Error creating copilot thread: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/copilot/threads/<int:thread_id>", methods=["PUT"])
+@login_required
+def update_copilot_thread(thread_id: int) -> Response:
+    try:
+        thread = CopilotThread.query.filter_by(
+            id=thread_id,
+            user_id=current_user.id,
+        ).first()
+        if not thread:
+            return jsonify({"status": "error", "message": "Thread not found"}), 404
+
+        payload = request.get_json(silent=True) or {}
+        if "title" in payload:
+            thread.title = payload.get("title")
+        if "messages" in payload:
+            thread.messages_json = _serialize_json(payload.get("messages"))
+        if "charts" in payload:
+            thread.charts_json = _serialize_json(payload.get("charts"))
+        if "session_id" in payload:
+            thread.session_id = payload.get("session_id")
+        if "last_message" in payload:
+            thread.last_message = payload.get("last_message")
+
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "thread": _thread_to_dict(thread),
+        })
+    except Exception as e:
+        logger.error(f"Error updating copilot thread {thread_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/copilot/threads/<int:thread_id>", methods=["DELETE"])
+@login_required
+def delete_copilot_thread(thread_id: int) -> Response:
+    try:
+        thread = CopilotThread.query.filter_by(
+            id=thread_id,
+            user_id=current_user.id,
+        ).first()
+        if not thread:
+            return jsonify({"status": "error", "message": "Thread not found"}), 404
+
+        db.session.delete(thread)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error deleting copilot thread {thread_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/copilot/threads/clear", methods=["POST"])
+@login_required
+def clear_copilot_threads() -> Response:
+    try:
+        CopilotThread.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Error clearing copilot threads: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
