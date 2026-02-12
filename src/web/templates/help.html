@@ -92,13 +92,13 @@
       </div>
       <div class="card-body">
         <div class="d-grid gap-2">
-          <a href="/search" class="btn btn-outline-primary btn-sm">
+          <a href="{{ url_for('ui.search') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-search me-2"></i>Search Data
           </a>
-          <a href="/browse/available" class="btn btn-outline-light btn-sm">
+          <a href="{{ url_for('ui.browse_local') }}" class="btn btn-outline-light btn-sm">
             <i class="bi bi-database me-2"></i>Browse Sources
           </a>
-          <a href="/copilot" class="btn btn-outline-light btn-sm">
+          <a href="{{ url_for('ui.copilot_chat') }}" class="btn btn-outline-light btn-sm">
             <i class="bi bi-robot me-2"></i>AI Copilot
           </a>
         </div>

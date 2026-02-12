@@ -23,6 +23,15 @@ login_manager.login_message_category = 'info'
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
+    # IMPORTANTE: Configurar para proxy inverso con prefijo
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
+    
+    # Aplicar prefijo si está configurado
+    script_name = os.getenv('SCRIPT_NAME', '')
+    if script_name:
+        app.config['APPLICATION_ROOT'] = script_name
+
     # Ensure a SECRET_KEY for Flask sessions. Prefer environment variable for production.
     secret = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY")
     if secret:

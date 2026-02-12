@@ -12,10 +12,10 @@
           {{ _('Your hub for economic data curation. Mises Data Curator v1.2 is ready for analysis.') }}
         </p>
         <div class="d-flex gap-3">
-          <a href="/search" class="btn btn-light text-primary fw-bold">
+          <a href="{{ url_for('ui.search') }}" class="btn btn-light text-primary fw-bold">
             <i class="bi bi-search me-2"></i> {{ _('Start Analysis') }}
           </a>
-          <a href="/browse/local" class="btn btn-outline-light">
+          <a href="{{ url_for('ui.browse_local') }}" class="btn btn-outline-light">
             <i class="bi bi-hdd-stack me-2"></i> {{ _('Browse Datasets') }}
           </a>
         </div>
@@ -114,7 +114,7 @@
       </div>
       <h5 class="fw-bold mb-1">{{ _('AI Copilot') }}</h5>
       <p class="small text-muted mb-3">{{ _('Ask questions about your data') }}</p>
-      <a href="/copilot_chat" class="btn btn-outline w-100 btn-sm">{{ _('Launch Chat') }}</a>
+      <a href="{{ url_for('ui.copilot_chat') }}" class="btn btn-outline w-100 btn-sm">{{ _('Launch Chat') }}</a>
     </div>
   </div>
 

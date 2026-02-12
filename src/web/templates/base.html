@@ -38,7 +38,7 @@
       <!-- Brand -->
       <div class="brand-area">
         <i class="bi bi-bar-chart-fill text-blue" style="font-size: 24px;"></i>
-        <a href="/" class="brand-logo text-decoration-none">
+        <a href="{{ url_for('ui.status') }}" class="brand-logo text-decoration-none">
           Mises Data
         </a>
         <button class="btn btn-sm btn-outline-secondary sidebar-toggle d-none d-lg-inline-flex"
@@ -50,9 +50,18 @@
 
       <!-- Navigation -->
       <nav class="nav flex-column gap-2 flex-grow-1">
+        {% set nav_routes = {
+          'status': 'ui.status',
+          'search': 'ui.search',
+          'browse_local': 'ui.browse_local',
+          'edit': 'ui.edit',
+          'visualizepg': 'ui.visualizepg',
+          'copilot_chat': 'ui.copilot_chat',
+          'help': 'ui.help'
+        } %}
         {% for item in nav_items %}
         <a class="nav-link {% if active == item.slug %}active{% endif %}"
-          href="/{{ item.slug if item.slug != 'status' else '' }}">
+          href="{{ url_for(nav_routes[item.slug]) }}">
           <i class="bi bi-{{ item.icon }}"></i>
           <span>{{ item.label }}</span>
         </a>
@@ -107,16 +116,16 @@
         </div>
 
         <div class="d-flex gap-3 align-items-center d-none d-md-flex">
-          <a class="btn btn-outline" href="/help">
+          <a class="btn btn-outline" href="{{ url_for('ui.help') }}">
             <i class="bi bi-question-circle me-2"></i> {{ _("Help") }}
           </a>
-          <a class="btn btn-primary" href="/search">
+          <a class="btn btn-primary" href="{{ url_for('ui.search') }}">
             <i class="bi bi-plus-lg me-2"></i> {{ _("New Analysis") }}
           </a>
         </div>
         <!-- Mobile Action (Icon only) -->
         <div class="d-md-none">
-          <a class="btn btn-primary" href="/search">
+          <a class="btn btn-primary" href="{{ url_for('ui.search') }}">
             <i class="bi bi-plus-lg"></i>
           </a>
         </div>
@@ -156,7 +165,7 @@
               <hr class="dropdown-divider">
             </li>
             <li>
-              <a class="dropdown-item d-flex align-items-center gap-2" href="/admin" target="_blank">
+              <a class="dropdown-item d-flex align-items-center gap-2" href="{{ url_for('admin.index') }}" target="_blank">
                 <i class="bi bi-gear"></i> {{ _("Admin Panel") }}
               </a>
             </li>
