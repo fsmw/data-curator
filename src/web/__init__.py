@@ -21,14 +21,25 @@ login_manager.login_message_category = 'info'
 
 
 def create_app() -> Flask:
-    app = Flask(__name__, static_folder="static", template_folder="templates")
+    # Detectar si estamos detrás de un proxy con prefijo
+    script_name = os.getenv('SCRIPT_NAME', '')
+    
+    # Configurar static_url_path si hay un prefijo
+    static_url_path = '/static'
+    if script_name:
+        static_url_path = script_name.rstrip('/') + '/static'
+    
+    app = Flask(__name__, 
+                static_folder="static", 
+                static_url_path=static_url_path,
+                template_folder="templates")
 
     # IMPORTANTE: Configurar para proxy inverso con prefijo
+    # x_prefix=1 para confiar en 1 nivel de proxy (nginx)
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
     
     # Aplicar prefijo si está configurado
-    script_name = os.getenv('SCRIPT_NAME', '')
     if script_name:
         app.config['APPLICATION_ROOT'] = script_name
 

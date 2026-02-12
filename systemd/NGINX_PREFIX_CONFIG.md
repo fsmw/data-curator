@@ -31,17 +31,13 @@ location /misesdata/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Prefix /misesdata;
     
-    # Soporte para websockets (si los usas)
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    
     # Timeouts
     proxy_connect_timeout 60s;
     proxy_send_timeout 60s;
     proxy_read_timeout 60s;
 }
 
-# Archivos estáticos (opcional - mejora rendimiento)
+# Archivos estáticos (mejora rendimiento)
 location /misesdata/static/ {
     alias /opt/data-curator/src/web/static/;
     expires 30d;
@@ -49,156 +45,15 @@ location /misesdata/static/ {
 }
 ```
 
-## Configuración de Flask
-
-Necesitas modificar la aplicación Flask para que entienda que está detrás del prefijo /misesdata.
-
-Edita el archivo `src/web/__init__.py`:
-
-```python
-import os
-from pathlib import Path
-from flask import Flask, request
-from flask_admin import Admin
-from flask_login import LoginManager, current_user
-from flask_babel import Babel
-
-from .routes import ui_bp
-from .api import api_bp
-from .auth import auth_bp
-
-# Internationalization
-babel = Babel()
-SUPPORTED_LOCALES = ["es_CL", "en_US"]
-
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
-
-
-def create_app() -> Flask:
-    app = Flask(__name__, static_folder="static", template_folder="templates")
-    
-    # IMPORTANTE: Configurar para proxy inverso con prefijo
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
-    
-    # Configuración de SECRET_KEY
-    secret = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY")
-    if secret:
-        app.secret_key = secret
-    else:
-        import secrets
-        app.secret_key = secrets.token_hex(32)
-        print("Warning: FLASK_SECRET_KEY not set. Using ephemeral secret key.")
-    
-    # Configurar SQLAlchemy
-    from src.config import Config
-    config = Config()
-    db_path = (config.data_root / 'datasets_catalog.db').absolute()
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # Aplicar prefijo si está configurado
-    script_name = os.getenv('SCRIPT_NAME', '')
-    if script_name:
-        app.config['APPLICATION_ROOT'] = script_name
-    
-    # Initialize SQLAlchemy
-    from src.models import db, User
-    db.init_app(app)
-    
-    # Initialize Flask-Login
-    login_manager.init_app(app)
-    
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
-    
-    # Initialize Flask-Admin
-    from src.admin_views import (
-        SecureAdminIndexView, DatasetAdminView,
-        DatasetColumnAdminView, IndicatorAdminView,
-        UserAdminView, RoleAdminView,
-        UserDatasetAccessAdminView, UserWorkspaceAdminView
-    )
-    from src.models import (
-        Dataset, DatasetColumn, Indicator, Role,
-        UserDatasetAccess, UserWorkspace
-    )
-    
-    admin = Admin(
-        app,
-        name='Data Curator Admin',
-        index_view=SecureAdminIndexView()
-    )
-    
-    # Add admin views
-    admin.add_view(DatasetAdminView(Dataset, db.session))
-    admin.add_view(DatasetColumnAdminView(DatasetColumn, db.session))
-    admin.add_view(IndicatorAdminView(Indicator, db.session))
-    admin.add_view(UserAdminView(User, db.session))
-    admin.add_view(RoleAdminView(Role, db.session))
-    admin.add_view(UserDatasetAccessAdminView(UserDatasetAccess, db.session,
-                                             name='Permissions',
-                                             category='Access Control'))
-    admin.add_view(UserWorkspaceAdminView(UserWorkspace, db.session,
-                                         name='Workspaces'))
-    
-    # Register blueprints
-    app.register_blueprint(ui_bp)
-    app.register_blueprint(api_bp)
-    app.register_blueprint(auth_bp)
-    
-    # Get the parent directory of src/web (i.e., repository root)
-    app_root = Path(__file__).parent.parent.parent
-    translations_dir = app_root / 'translations'
-    
-    # Locale selector: prefer user workspace setting, then Accept-Language header, then fallback
-    def get_locale():
-        try:
-            if current_user and getattr(current_user, 'is_authenticated', False):
-                ws = getattr(current_user, 'workspace', None)
-                if ws and getattr(ws, 'language', None):
-                    return ws.language
-        except Exception:
-            pass
-        
-        # Use the request Accept-Language header to find the best match
-        best = request.accept_languages.best_match(SUPPORTED_LOCALES)
-        return best or "es_CL"
-    
-    # Initialize Babel after app and blueprints are registered
-    translations_path = str(translations_dir.absolute())
-    babel.init_app(app, default_translation_directories=translations_path, locale_selector=get_locale)
-    
-    # Add get_locale to template context
-    @app.context_processor
-    def inject_locale():
-        return dict(get_locale=get_locale)
-    
-    app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
-    return app
-
-
-if __name__ == "__main__":
-    import os
-    app = create_app()
-    port = int(os.getenv("FLASK_RUN_PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
-```
-
 ## Configuración del Servicio Systemd
 
-Edita el archivo de servicio para agregar el prefijo:
+Edita el archivo de servicio:
 
 ```bash
 sudo nano /etc/systemd/system/mises-data.service
 ```
 
-Añade esta variable de entorno:
+Añade la variable de entorno `SCRIPT_NAME`:
 
 ```ini
 [Service]
@@ -245,60 +100,63 @@ sudo journalctl -u mises-data -f
 
 ## Verificar Funcionamiento
 
-La aplicación debería estar disponible en:
-- `http://tu-dominio.com/misesdata/`
-- `http://tu-dominio.com/misesdata/status`
-- `http://tu-dominio.com/misesdata/search`
-- etc.
+### Acceso Directo (localhost:5000)
+```bash
+# En el servidor
+python -m src.web
+# Acceder a: http://localhost:5000/
+```
+
+### Acceso con Nginx (/misesdata/)
+```bash
+# Acceder a: http://tu-dominio.com/misesdata/
+```
 
 ## Solución de Problemas
 
-### Error: URLs no funcionan correctamente
+### Si las URLs no funcionan:
 
-Verifica que `ProxyFix` esté configurado:
-```bash
-curl -I http://127.0.0.1:5000/status
-```
+1. Verifica que `SCRIPT_NAME` esté configurado:
+   ```bash
+   sudo systemctl show mises-data --property=Environment
+   ```
 
-Debería redirigir correctamente.
+2. Verifica los headers de nginx:
+   ```bash
+   sudo tail -f /var/log/nginx/access.log
+   ```
 
-### Error: Archivos estáticos no cargan
+3. Verifica que Flask reciba el prefijo:
+   ```bash
+   sudo journalctl -u mises-data -f | grep SCRIPT
+   ```
 
-Verifica la ruta en nginx:
+### Si los archivos estáticos no cargan:
+
+Verifica los permisos:
 ```bash
 ls -la /opt/data-curator/src/web/static/
+sudo chown -R www-data:www-data /opt/data-curator/src/web/static/
 ```
 
-Y verifica los logs:
-```bash
-sudo tail -f /var/log/nginx/error.log
-```
+## Configuración Alternativa: Subdominio (Más Simple)
 
-### Error: Redirecciones incorrectas
-
-Si Flask redirige a `/login` en lugar de `/misesdata/login`, verifica que:
-1. `ProxyFix` esté importado y configurado
-2. La variable `SCRIPT_NAME` esté definida en el servicio
-3. El header `X-Forwarded-Prefix` esté configurado en nginx
-
-## Configuración Alternativa (Más Simple)
-
-Si prefieres no modificar el código Python, puedes usar solo nginx con `sub_filter`:
+Si prefieres evitar el prefijo /misesdata/, usa un subdominio:
 
 ```nginx
-location /misesdata/ {
-    proxy_pass http://127.0.0.1:5000/;
-    
-    # Reescribir URLs en el HTML (experimental)
-    sub_filter 'href="/' 'href="/misesdata/';
-    sub_filter 'src="/' 'src="/misesdata/';
-    sub_filter_once off;
-    
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+# /etc/nginx/sites-available/misesdata.tu-dominio.com
+server {
+    listen 80;
+    server_name misesdata.tu-dominio.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
-**Nota**: Esta opción es menos robusta y puede no funcionar con todo el contenido dinámico.
+Con esta configuración no necesitas `SCRIPT_NAME` ni prefijos. Funciona tanto local como con nginx sin cambios adicionales.
