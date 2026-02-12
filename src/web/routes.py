@@ -8,6 +8,7 @@ All API routes have been migrated to src/web/api/*.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 from pathlib import Path
 import json
 
@@ -19,7 +20,8 @@ from flask import (
     request,
     Response,
 )
-from flask_login import login_required
+from flask_login import login_required, current_user
+from flask_babel import gettext as _
 
 # Import base configuration
 import sys
@@ -116,36 +118,54 @@ from src.dataset_catalog import DatasetCatalog
 @login_required
 def status() -> str:
     """Render the status/home page."""
-    ctx = base_context("status", "Status", "Project Status")
-    
+    ctx = base_context("status", _("Status"), _("Project Status"))
+
     try:
-        config = Config()
-        catalog = DatasetCatalog(config)
-        
-        # Get statistics
-        catalog_stats = catalog.get_statistics()
-        
-        # Get recent datasets (activity)
-        recent_datasets = catalog.search(limit=5)
-        
-        # Format for template
+        from src.services import PermissionService
+
+        user_id = int(current_user.get_id()) if current_user.is_authenticated else None
+        accessible_datasets = (
+            PermissionService.get_user_datasets(user_id, include_public=True)
+            if user_id
+            else []
+        )
+
+        sources = {ds.source for ds in accessible_datasets if ds.source}
+        completeness_scores = [
+            float(ds.completeness_score)
+            for ds in accessible_datasets
+            if ds.completeness_score is not None
+        ]
+        avg_completeness = (
+            sum(completeness_scores) / len(completeness_scores)
+            if completeness_scores
+            else 0
+        )
+
         ctx["stats"] = {
-            "local_datasets": catalog_stats.get("total_datasets", 0),
-            "recent_downloads": catalog_stats.get("total_datasets", 0), # Using total count as proxy for now
-            "sources_count": len(catalog_stats.get("by_source", {})),
-            "completeness": catalog_stats.get("avg_completeness", 0)
+            "local_datasets": len(accessible_datasets),
+            "recent_downloads": len(accessible_datasets),
+            "sources_count": len(sources),
+            "completeness": avg_completeness,
         }
-        
-        # Format recent activity
+
+        def _sort_key(dataset: Any) -> datetime:
+            return dataset.indexed_at or dataset.created_at or datetime.min
+
+        recent_sorted = sorted(accessible_datasets, key=_sort_key, reverse=True)
         ctx["recent_activity"] = [
             {
-                "name": ds.get("indicator_name", "Unknown Dataset"),
-                "date": ds.get("indexed_at", ""),
-                "source": ds.get("source", "unknown")
+                "name": dataset.indicator_name or dataset.file_name or "Unknown Dataset",
+                "date": (
+                    (dataset.indexed_at or dataset.created_at).isoformat()
+                    if (dataset.indexed_at or dataset.created_at)
+                    else ""
+                ),
+                "source": dataset.source or "unknown",
             }
-            for ds in recent_datasets
+            for dataset in recent_sorted[:5]
         ]
-        
+
     except Exception as e:
         print(f"Error loading status data: {e}")
         ctx["stats"] = {}
@@ -160,7 +180,7 @@ def status() -> str:
 def browse_local() -> str:
     """Render the local datasets browser page."""
     ctx = base_context(
-        "browse_local", "Browse Local", "Locally Available Datasets"
+        "browse_local", _("Browse Local"), _("Locally Available Datasets")
     )
     return render_template("browse_local.html", **ctx)
 
@@ -177,7 +197,7 @@ def browse_available():
 @login_required
 def edit_page() -> str:
     """Render the dataset editor page."""
-    ctx = base_context("edit", "Edit", "Edit Datasets")
+    ctx = base_context("edit", _("Edit"), _("Edit Datasets"))
     ctx["dataset_id"] = request.args.get("dataset_id", type=int)
     return render_template("visualization_canvas.html", **ctx)
 
@@ -186,7 +206,7 @@ def edit_page() -> str:
 @login_required
 def search() -> str:
     """Render the search page."""
-    ctx = base_context("search", "Search", "Search Indicators and Topics")
+    ctx = base_context("search", _("Search"), _("Search Indicators and Topics"))
     return render_template("search.html", **ctx)
 
 
@@ -202,7 +222,7 @@ def copilot_chat_page() -> str:
         copilot_available = False
     
     ctx = base_context(
-        "copilot_chat", "Copilot Chat", "Chat with AI powered by GitHub Copilot SDK"
+        "copilot_chat", _("Copilot Chat"), _("Chat with AI powered by GitHub Copilot SDK")
     )
     ctx["copilot_available"] = copilot_available
     return render_template("copilot_chat.html", **ctx)
@@ -212,7 +232,7 @@ def copilot_chat_page() -> str:
 @login_required
 def visualizepg_page() -> str:
     """Render the PyGWalker visualization view."""
-    ctx = base_context("visualizepg", "Visualization", "Explore with PyGWalker")
+    ctx = base_context("visualizepg", _("Visualization"), _("Explore with PyGWalker"))
     dataset_id = request.args.get("dataset_id", type=int)
     ctx["dataset_id"] = dataset_id
     ctx["pygwalker_error"] = ""
@@ -312,5 +332,5 @@ def visualizepg_frame() -> str:
 @login_required
 def help_page() -> str:
     """Render the help page."""
-    ctx = base_context("help", "Help", "Shortcuts and Guide")
+    ctx = base_context("help", _("Help"), _("Shortcuts and Guide"))
     return render_template("help.html", **ctx)

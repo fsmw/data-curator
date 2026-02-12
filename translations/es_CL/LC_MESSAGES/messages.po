@@ -1,0 +1,849 @@
+# Spanish (Chile) translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-02-12 16:39-0300\n"
+"PO-Revision-Date: 2026-02-12 17:00-0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es_CL\n"
+"Language-Team: es_CL <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: src/web/auth.py:86
+msgid "Email is required."
+msgstr "El correo electrónico es obligatorio."
+
+#: src/web/auth.py:97
+msgid "Profile updated successfully."
+msgstr "Perfil actualizado correctamente."
+
+#: src/web/auth.py:101
+msgid "Error updating profile. Please try again."
+msgstr "Error al actualizar el perfil. Por favor intente nuevamente."
+
+#: src/web/routes.py:121
+msgid "Status"
+msgstr "Estado"
+
+#: src/web/routes.py:121
+msgid "Project Status"
+msgstr "Estado del Proyecto"
+
+#: src/web/routes.py:183
+msgid "Browse Local"
+msgstr "Explorar Local"
+
+#: src/web/routes.py:183
+msgid "Locally Available Datasets"
+msgstr "Datasets Disponibles Localmente"
+
+#: src/web/routes.py:200
+msgid "Edit"
+msgstr "Editar"
+
+#: src/web/routes.py:200
+msgid "Edit Datasets"
+msgstr "Editar Datasets"
+
+#: src/web/routes.py:209
+msgid "Search"
+msgstr "Buscar"
+
+#: src/web/routes.py:209
+msgid "Search Indicators and Topics"
+msgstr "Buscar Indicadores y Temas"
+
+#: src/web/routes.py:225
+msgid "Copilot Chat"
+msgstr "Chat Copilot"
+
+#: src/web/routes.py:225
+msgid "Chat with AI powered by GitHub Copilot SDK"
+msgstr "Chatea con IA potenciada por GitHub Copilot SDK"
+
+#: src/web/routes.py:235
+msgid "Visualization"
+msgstr "Visualización"
+
+#: src/web/routes.py:235
+msgid "Explore with PyGWalker"
+msgstr "Explorar con PyGWalker"
+
+#: src/web/routes.py:335 src/web/templates/base.html:111
+msgid "Help"
+msgstr "Ayuda"
+
+#: src/web/routes.py:335
+msgid "Shortcuts and Guide"
+msgstr "Atajos y Guía"
+
+#: src/web/templates/base.html:46
+msgid "Show menu"
+msgstr "Mostrar menú"
+
+#: src/web/templates/base.html:46
+msgid "Hide menu"
+msgstr "Ocultar menú"
+
+#: src/web/templates/base.html:114
+msgid "New Analysis"
+msgstr "Nuevo Análisis"
+
+#: src/web/templates/base.html:146
+msgid "Profile"
+msgstr "Perfil"
+
+#: src/web/templates/auth/profile.html:62 src/web/templates/base.html:151
+msgid "Change Password"
+msgstr "Cambiar contraseña"
+
+#: src/web/templates/base.html:160
+msgid "Admin Panel"
+msgstr "Panel de Admin"
+
+#: src/web/templates/base.html:169
+msgid "Logout"
+msgstr "Cerrar sesión"
+
+#: src/web/templates/status.html:10
+msgid "Welcome Back"
+msgstr "Bienvenido de vuelta"
+
+#: src/web/templates/status.html:12
+msgid "Your hub for economic data curation. Mises Data Curator v1.2 is ready for analysis."
+msgstr "Tu centro de curación de datos económicos. Mises Data Curator v1.2 está listo para el análisis."
+
+#: src/web/templates/status.html:16
+msgid "Start Analysis"
+msgstr "Iniciar Análisis"
+
+#: src/web/templates/status.html:19
+msgid "Browse Datasets"
+msgstr "Explorar Datasets"
+
+#: src/web/templates/status.html:32
+msgid "Datasets"
+msgstr "Datasets"
+
+#: src/web/templates/status.html:41
+msgid "Downloads"
+msgstr "Descargas"
+
+#: src/web/templates/status.html:52
+msgid "Recent Activity"
+msgstr "Actividad Reciente"
+
+#: src/web/templates/status.html:64
+msgid "Processed successfully"
+msgstr "Procesado correctamente"
+
+#: src/web/templates/status.html:73
+msgid "No recent activity found"
+msgstr "No se encontró actividad reciente"
+
+#: src/web/templates/status.html:82
+msgid "Sources"
+msgstr "Fuentes"
+
+#: src/web/templates/status.html:115
+msgid "AI Copilot"
+msgstr "AI Copilot"
+
+#: src/web/templates/status.html:116
+msgid "Ask questions about your data"
+msgstr "Haz preguntas sobre tus datos"
+
+#: src/web/templates/status.html:117
+msgid "Launch Chat"
+msgstr "Iniciar Chat"
+
+#: src/web/templates/auth/profile.html:8
+msgid "User Profile"
+msgstr "Perfil de usuario"
+
+#: src/web/templates/auth/profile.html:38
+msgid "Email"
+msgstr "Correo electrónico"
+
+#: src/web/templates/auth/profile.html:53
+msgid "Language"
+msgstr "Idioma"
+
+#: src/web/templates/auth/profile.html:55
+msgid "English (United States)"
+msgstr "Inglés (Estados Unidos)"
+
+#: src/web/templates/auth/profile.html:56
+msgid "Spanish (Chile)"
+msgstr "Español (Chile)"
+
+#: src/web/templates/auth/profile.html:61
+msgid "Update Profile"
+msgstr "Actualizar perfil"
+
+#: src/web/templates/auth/change_password.html:8
+msgid "Change Password"
+msgstr "Cambiar contraseña"
+
+#: src/web/templates/auth/change_password.html:24
+msgid "Current Password"
+msgstr "Contraseña actual"
+
+#: src/web/templates/auth/change_password.html:29
+msgid "New Password"
+msgstr "Nueva contraseña"
+
+#: src/web/templates/auth/change_password.html:31
+msgid "Password must be at least 6 characters long."
+msgstr "La contraseña debe tener al menos 6 caracteres."
+
+#: src/web/templates/auth/change_password.html:35
+msgid "Confirm New Password"
+msgstr "Confirmar nueva contraseña"
+
+#: src/web/templates/auth/change_password.html:40
+msgid "Change Password Button"
+msgstr "Cambiar contraseña"
+
+#: src/web/templates/auth/change_password.html:41
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/web/templates/auth/login.html:8
+msgid "Login"
+msgstr "Iniciar sesión"
+
+#: src/web/templates/auth/login.html:26
+msgid "Username"
+msgstr "Nombre de usuario"
+
+#: src/web/templates/auth/login.html:31
+msgid "Password"
+msgstr "Contraseña"
+
+#: src/web/templates/auth/login.html:37
+msgid "Remember me"
+msgstr "Recordarme"
+
+#: src/web/templates/auth/login.html:41
+msgid "Sign In"
+msgstr "Iniciar sesión"
+
+#: src/web/templates/auth/profile.html:32
+msgid "Username Label"
+msgstr "Nombre de usuario"
+
+#: src/web/templates/auth/profile.html:34
+msgid "Username cannot be changed."
+msgstr "El nombre de usuario no puede cambiarse."
+
+#: src/web/templates/auth/profile.html:43
+msgid "Member Since"
+msgstr "Miembro desde"
+
+#: src/web/templates/auth/profile.html:48
+msgid "Last Login"
+msgstr "Último acceso"
+
+msgid "Chile"
+msgstr "Chile"
+
+msgid "Global"
+msgstr "Global"
+
+msgid "Macro"
+msgstr "Macro"
+msgid "0 datasets found"
+msgstr "0 datasets encontrados"
+
+msgid "About Instituto Mises Cono Sur"
+msgstr "Acerca del Instituto Mises Cono Sur"
+
+msgid "Actions"
+msgstr "Acciones"
+
+msgid "Agregar al canvas"
+msgstr "Agregar al canvas"
+
+msgid "All Sources"
+msgstr "Todas las Fuentes"
+
+msgid "All topics"
+msgstr "Todos los temas"
+
+msgid "An error occurred"
+msgstr "Ocurrió un error"
+
+msgid "Apply"
+msgstr "Aplicar"
+
+msgid "Ask or drag fields here..."
+msgstr "Pregunta o arrastra campos aquí..."
+
+msgid "Available Data Sources"
+msgstr "Fuentes de Datos Disponibles"
+
+msgid "Average by year (preview)"
+msgstr "Promedio por año (vista previa)"
+
+msgid "BCCH (Chile Central Bank)"
+msgstr "BCCH (Banco Central de Chile)"
+
+msgid "Basic Workflow"
+msgstr "Flujo de Trabajo Básico"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Cards"
+msgstr "Tarjetas"
+
+msgid "Chart Builder"
+msgstr "Constructor de Gráficos"
+
+msgid "Chart Preview"
+msgstr "Vista Previa del Gráfico"
+
+msgid "Chart Type"
+msgstr "Tipo de Gráfico"
+
+msgid "Chart title"
+msgstr "Título del gráfico"
+
+msgid "Clean"
+msgstr "Limpiar"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Clear All"
+msgstr "Limpiar Todo"
+
+msgid "Click download to fetch data from the source API."
+msgstr "Haz clic en descargar para obtener datos de la API fuente."
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Code"
+msgstr "Código"
+
+msgid "Color"
+msgstr "Color"
+
+msgid "Completeness"
+msgstr "Completitud"
+
+msgid "Concept Shelf"
+msgstr "Estante de Conceptos"
+
+msgid "Confirm New Password"
+msgstr "Confirmar Nueva Contraseña"
+
+msgid "Copy"
+msgstr "Copiar"
+
+msgid "Copy code"
+msgstr "Copiar código"
+
+msgid "Correlation chart with 2 datasets (cross as Compare)"
+msgstr "Gráfico de correlación con 2 datasets (cruzar como Comparar)"
+
+msgid "Could not load chart"
+msgstr "No se pudo cargar el gráfico"
+
+msgid "Countries"
+msgstr "Países"
+
+msgid "Country"
+msgstr "País"
+
+msgid "Current Password"
+msgstr "Contraseña Actual"
+
+msgid "Data Grid"
+msgstr "Grilla de Datos"
+
+msgid "Data Preview"
+msgstr "Vista Previa de Datos"
+
+msgid "Data Quality"
+msgstr "Calidad de Datos"
+
+msgid "Data Source"
+msgstr "Fuente de Datos"
+
+msgid "Data Threads"
+msgstr "Hilos de Datos"
+
+msgid "Data Workbench"
+msgstr "Banco de Trabajo de Datos"
+
+msgid "Database size"
+msgstr "Tamaño de base de datos"
+
+msgid "Delete dataset"
+msgstr "Eliminar dataset"
+
+msgid "Delete thread"
+msgstr "Eliminar hilo"
+
+msgid "Delimiter"
+msgstr "Delimitador"
+
+msgid "Derive"
+msgstr "Derivar"
+
+msgid "Derive New Field"
+msgstr "Derivar Nuevo Campo"
+
+msgid "Derive new field with AI"
+msgstr "Derivar nuevo campo con IA"
+
+msgid "Describe what this field should calculate. E.g., Calculate annual GDP percentage growth"
+msgstr "Describe qué debe calcular este campo. Ej., Calcular crecimiento porcentual anual del PIB"
+
+msgid "Description"
+msgstr "Descripción"
+
+msgid "Description (NL)"
+msgstr "Descripción (NL)"
+
+msgid "Download CSV data"
+msgstr "Descargar datos CSV"
+
+msgid "Download PNG"
+msgstr "Descargar PNG"
+
+msgid "Download all"
+msgstr "Descargar todo"
+
+msgid "Download selected"
+msgstr "Descargar seleccionados"
+
+msgid "Downloaded"
+msgstr "Descargado"
+
+msgid "Downloading..."
+msgstr "Descargando..."
+
+msgid "E.g., Show only top 10 countries..."
+msgstr "Ej., Mostrar solo top 10 países..."
+
+msgid "Edit dataset"
+msgstr "Editar dataset"
+
+msgid "Edited"
+msgstr "Editado"
+
+msgid "Encoding"
+msgstr "Codificación"
+
+msgid "Encodings"
+msgstr "Codificaciones"
+
+msgid "Error rendering"
+msgstr "Error al renderizar"
+
+msgid "Error rendering chart"
+msgstr "Error al renderizar gráfico"
+
+msgid "Execute"
+msgstr "Ejecutar"
+
+msgid "Execute code"
+msgstr "Ejecutar código"
+
+msgid "Exit Fullscreen"
+msgstr "Salir de Pantalla Completa"
+
+msgid "Explore"
+msgstr "Explorar"
+
+msgid "Export CSV"
+msgstr "Exportar CSV"
+
+msgid "Export PNG"
+msgstr "Exportar PNG"
+
+msgid "FRED"
+msgstr "FRED"
+
+msgid "Field Name"
+msgstr "Nombre del Campo"
+
+msgid "Find indicators using keywords or browse by source."
+msgstr "Encuentra indicadores usando palabras clave o navega por fuente."
+
+msgid "First run Quality to detect issues"
+msgstr "Primero ejecuta Calidad para detectar problemas"
+
+msgid "Fork name (optional)"
+msgstr "Nombre del fork (opcional)"
+
+msgid "Fullscreen"
+msgstr "Pantalla Completa"
+
+msgid "Generated Code"
+msgstr "Código Generado"
+
+msgid "Getting Started"
+msgstr "Primeros Pasos"
+
+msgid "Hide"
+msgstr "Ocultar"
+
+msgid "Hide menu"
+msgstr "Ocultar menú"
+
+msgid "Hide panel"
+msgstr "Ocultar panel"
+
+msgid "I can help you explore datasets, analyze data, and download from OWID."
+msgstr "Puedo ayudarte a explorar datasets, analizar datos y descargar de OWID."
+
+msgid "ILOSTAT"
+msgstr "ILOSTAT"
+
+msgid "Index datasets"
+msgstr "Indexar datasets"
+
+msgid "Indicator"
+msgstr "Indicador"
+
+msgid "Inflation > 10%"
+msgstr "Inflación > 10%"
+
+msgid "Instruction (optional)"
+msgstr "Instrucción (opcional)"
+
+msgid "Keyboard Shortcuts"
+msgstr "Atajos de Teclado"
+
+msgid "LATAM + Spain"
+msgstr "LATAM + España"
+
+msgid "Load PyGWalker"
+msgstr "Cargar PyGWalker"
+
+msgid "Load a dataset to unlock visual tools."
+msgstr "Carga un dataset para desbloquear herramientas visuales."
+
+msgid "Loading chart from Our World in Data..."
+msgstr "Cargando gráfico de Our World in Data..."
+
+msgid "Loading data from OECD..."
+msgstr "Cargando datos de OECD..."
+
+msgid "Loading data from World Bank..."
+msgstr "Cargando datos de World Bank..."
+
+msgid "Local"
+msgstr "Local"
+
+msgid "Location (e.g. 10:3-20:5)"
+msgstr "Ubicación (ej. 10:3-20:5)"
+
+msgid "Login"
+msgstr "Iniciar sesión"
+
+msgid "Mises Cono Sur is an academic center that, inspired by the Austrian School of Economics, trains leaders and citizens committed to building free, prosperous, and democratic societies."
+msgstr "Mises Cono Sur es un centro académico que, inspirado en la Escuela Austriaca de Economía, forma líderes y ciudadanos comprometidos con construir sociedades libres, prósperas y democráticas."
+
+msgid "Mises Data Curator is a comprehensive tool for discovering, downloading, and managing economic data from major international sources."
+msgstr "Mises Data Curator es una herramienta integral para descubrir, descargar y gestionar datos económicos de fuentes internacionales principales."
+
+msgid "N/A"
+msgstr "N/D"
+
+msgid "New Analysis"
+msgstr "Nuevo Análisis"
+
+msgid "New Password"
+msgstr "Nueva Contraseña"
+
+msgid "New Thread"
+msgstr "Nuevo Hilo"
+
+msgid "Next"
+msgstr "Siguiente"
+
+msgid "No datasets"
+msgstr "No hay datasets"
+
+msgid "No datasets in the catalog"
+msgstr "No hay datasets en el catálogo"
+
+msgid "Open canvas and generate this chart"
+msgstr "Abrir lienzo y generar este gráfico"
+
+msgid "Open visualization canvas (with current charts if any)"
+msgstr "Abrir lienzo de visualización (con gráficos actuales si hay)"
+
+msgid "Optional..."
+msgstr "Opcional..."
+
+msgid "Page"
+msgstr "Página"
+
+msgid "Password Label"
+msgstr "Contraseña"
+
+msgid "Poverty"
+msgstr "Pobreza"
+
+msgid "Prev"
+msgstr "Anterior"
+
+msgid "Preview"
+msgstr "Vista previa"
+
+msgid "Preview chart"
+msgstr "Vista previa del gráfico"
+
+msgid "Preview data"
+msgstr "Vista previa de datos"
+
+msgid "PyGWalker"
+msgstr "PyGWalker"
+
+msgid "Quality"
+msgstr "Calidad"
+
+msgid "Quick Filters"
+msgstr "Filtros Rápidos"
+
+msgid "Quick Links"
+msgstr "Enlaces Rápidos"
+
+msgid "Quick Navigation"
+msgstr "Navegación Rápida"
+
+msgid "Quote"
+msgstr "Comilla"
+
+msgid "Quote mode"
+msgstr "Modo de comilla"
+
+msgid "Refresh"
+msgstr "Actualizar"
+
+msgid "Reload"
+msgstr "Recargar"
+
+msgid "Remember me"
+msgstr "Recordarme"
+
+msgid "Remove"
+msgstr "Eliminar"
+
+msgid "Rename thread"
+msgstr "Renombrar hilo"
+
+msgid "Report"
+msgstr "Reporte"
+
+msgid "Reset"
+msgstr "Reiniciar"
+
+msgid "Results"
+msgstr "Resultados"
+
+msgid "Rows"
+msgstr "Filas"
+
+msgid "SQL Console"
+msgstr "Consola SQL"
+
+msgid "SQL Row Filter"
+msgstr "Filtro de Filas SQL"
+
+msgid "Sample"
+msgstr "Muestra"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Save as"
+msgstr "Guardar como"
+
+msgid "Score"
+msgstr "Puntuación"
+
+msgid "Search Data"
+msgstr "Buscar Datos"
+
+msgid "Search Indicators"
+msgstr "Buscar Indicadores"
+
+msgid "Search by keyword (e.g., GDP, inflation, unemployment)"
+msgstr "Buscar por palabra clave (ej. PIB, inflación, desempleo)"
+
+msgid "Search dataset"
+msgstr "Buscar dataset"
+
+msgid "Search local datasets"
+msgstr "Buscar datasets locales"
+
+msgid "Searching..."
+msgstr "Buscando..."
+
+msgid "Select a dataset"
+msgstr "Seleccionar un dataset"
+
+msgid "Select a dataset to generate the URL."
+msgstr "Selecciona un dataset para generar la URL."
+
+msgid "Select fields"
+msgstr "Seleccionar campos"
+
+msgid "Select fields for X and Y"
+msgstr "Selecciona campos para X e Y"
+
+msgid "Select..."
+msgstr "Seleccionar..."
+
+msgid "Shortcuts and Guide"
+msgstr "Atajos y Guía"
+
+msgid "Show"
+msgstr "Mostrar"
+
+msgid "Show menu"
+msgstr "Mostrar menú"
+
+msgid "Sign In"
+msgstr "Iniciar sesión"
+
+msgid "Size"
+msgstr "Tamaño"
+
+msgid "SmoothCSV URL"
+msgstr "URL de SmoothCSV"
+
+msgid "Source"
+msgstr "Fuente"
+
+msgid "Source Fields"
+msgstr "Campos Fuente"
+
+msgid "Suggested Actions"
+msgstr "Acciones Sugeridas"
+
+msgid "Suggested Charts"
+msgstr "Gráficos Sugeridos"
+
+msgid "Table"
+msgstr "Tabla"
+
+msgid "Thinking Process"
+msgstr "Proceso de Pensamiento"
+
+msgid "Thinking..."
+msgstr "Pensando..."
+
+msgid "Thread"
+msgstr "Hilo"
+
+msgid "Title"
+msgstr "Título"
+
+msgid "Toggle Visual Builder"
+msgstr "Alternar Constructor Visual"
+
+msgid "Total datasets"
+msgstr "Total de datasets"
+
+msgid "Transform"
+msgstr "Transformar"
+
+msgid "Try asking: \"Show me GDP data for Brazil\" or \"What datasets do we have about health?\""
+msgstr "Prueba preguntando: \"Muéstrame datos de PIB de Brasil\" o \"¿Qué datasets tenemos sobre salud?\""
+
+msgid "UTF-8"
+msgstr "UTF-8"
+
+msgid "Update"
+msgstr "Actualizar"
+
+msgid "Update dataset (re-download)"
+msgstr "Actualizar dataset (re-descargar)"
+
+msgid "Update selected"
+msgstr "Actualizar seleccionados"
+
+msgid "Use SQL WHERE syntax (without SELECT)."
+msgstr "Usa sintaxis SQL WHERE (sin SELECT)."
+
+msgid "Use the AI Copilot to explore and analyze your data."
+msgstr "Usa el AI Copilot para explorar y analizar tus datos."
+
+msgid "Username Label"
+msgstr "Nombre de usuario"
+
+msgid "Value"
+msgstr "Valor"
+
+msgid "View code"
+msgstr "Ver código"
+
+msgid "View dataset details"
+msgstr "Ver detalles del dataset"
+
+msgid "Visit Website"
+msgstr "Visitar Sitio Web"
+
+msgid "Visual Encoding"
+msgstr "Codificación Visual"
+
+msgid "Visualization Canvas"
+msgstr "Lienzo de Visualización"
+
+msgid "Visualize"
+msgstr "Visualizar"
+
+msgid "Welcome to AI Data Assistant"
+msgstr "Bienvenido al Asistente de Datos con IA"
+
+msgid "Year"
+msgstr "Año"
+
+msgid "Years"
+msgstr "Años"
+
+msgid "all"
+msgstr "todos"
+
+msgid "comma/tab"
+msgstr "coma/tab"
+
+msgid "datasets found"
+msgstr "datasets encontrados"
+
+msgid "double/single"
+msgstr "doble/simple"
+
+msgid "e.g. country = 'Chile' AND year >= 2000"
+msgstr "ej. country = 'Chile' AND year >= 2000"
+
+msgid "ej: growth_rate"
+msgstr "ej: tasa_crecimiento"
+
+msgid "first"
+msgstr "primeros"
+
+msgid "minimal/always"
+msgstr "mínimo/siempre"
+
+msgid "of"
+msgstr "de"
+

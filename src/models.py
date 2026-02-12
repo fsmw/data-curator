@@ -256,8 +256,8 @@ class UserWorkspace(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship
-    user = db.relationship('User', backref='workspace', uselist=False)
+    # Relationship - use uselist=False to enforce single workspace
+    user = db.relationship('User', backref=db.backref('workspace', uselist=False))
 
     def __repr__(self):
         return f'<UserWorkspace {self.name} for user {self.user_id}>'

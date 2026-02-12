@@ -1,11 +1,17 @@
 import os
-from flask import Flask
+from pathlib import Path
+from flask import Flask, request
 from flask_admin import Admin
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
+from flask_babel import Babel
 
 from .routes import ui_bp
 from .api import api_bp  # New API Blueprint
 from .auth import auth_bp
+
+# Internationalization
+babel = Babel()
+SUPPORTED_LOCALES = ["es_CL", "en_US"]
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -85,6 +91,35 @@ def create_app() -> Flask:
     app.register_blueprint(ui_bp)
     app.register_blueprint(api_bp)  # New: API routes under /api/*
     app.register_blueprint(auth_bp)
+
+    # Get the parent directory of src/web (i.e., repository root)
+    app_root = Path(__file__).parent.parent.parent
+    translations_dir = app_root / 'translations'
+
+    # Locale selector: prefer user workspace setting, then Accept-Language header, then fallback
+    def get_locale():
+        try:
+            if current_user and getattr(current_user, 'is_authenticated', False):
+                ws = getattr(current_user, 'workspace', None)
+                if ws and getattr(ws, 'language', None):
+                    return ws.language
+        except Exception:
+            # Be permissive if current_user isn't available
+            pass
+
+        # Use the request Accept-Language header to find the best match
+        best = request.accept_languages.best_match(SUPPORTED_LOCALES)
+        return best or "es_CL"
+
+    # Initialize Babel after app and blueprints are registered
+    # Pass the full translations directory path and locale selector to init_app
+    translations_path = str(translations_dir.absolute())
+    babel.init_app(app, default_translation_directories=translations_path, locale_selector=get_locale)
+
+    # Add get_locale to template context
+    @app.context_processor
+    def inject_locale():
+        return dict(get_locale=get_locale)
 
     app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
     return app

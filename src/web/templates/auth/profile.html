@@ -5,7 +5,7 @@
   <div class="col-md-8 col-lg-6">
     <div class="card shadow">
       <div class="card-header bg-primary text-white">
-        <h4 class="mb-0">User Profile</h4>
+        <h4 class="mb-0">{{ _('User Profile') }}</h4>
       </div>
       <div class="card-body">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -35,7 +35,7 @@
           </div>
 
           <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
+            <label for="email" class="form-label">{{ _('Email') }}</label>
             <input type="email" class="form-control" id="email" name="email" value="{{ user.email or '' }}" required>
           </div>
 
@@ -49,9 +49,17 @@
             <input type="text" class="form-control" value="{{ user.last_login.strftime('%B %d, %Y at %H:%M') if user.last_login else 'Never' }}" disabled>
           </div>
 
+          <div class="mb-3">
+            <label for="language" class="form-label">{{ _('Language') }}</label>
+            <select id="language" name="language" class="form-select">
+              <option value="en_US" {% if workspace and workspace.language == 'en_US' %}selected{% endif %}>{{ _('English (United States)') }}</option>
+              <option value="es_CL" {% if workspace and workspace.language == 'es_CL' %}selected{% endif %}>{{ _('Spanish (Chile)') }}</option>
+            </select>
+          </div>
+
           <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-primary">Update Profile</button>
-            <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary">Change Password</a>
+            <button type="submit" class="btn btn-primary">{{ _('Update Profile') }}</button>
+            <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary">{{ _('Change Password') }}</a>
           </div>
         </form>
       </div>

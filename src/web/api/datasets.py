@@ -105,8 +105,7 @@ def list_datasets() -> Response:
         limit = int(request.args.get("limit", 100))
 
         # Get current user
-        from flask_login import current_user
-        user_id = current_user.id if current_user.is_authenticated else None
+        user_id = int(current_user.get_id()) if current_user.is_authenticated else None
 
         # Build filters
         filters = {}
@@ -117,7 +116,12 @@ def list_datasets() -> Response:
 
         # Get datasets visible to user using PermissionService
         from src.services import PermissionService
-        accessible_datasets = PermissionService.get_user_datasets(user_id, include_public=True)
+        if user_id is None:
+            return jsonify({"status": "success", "total": 0, "datasets": []})
+
+        accessible_datasets = PermissionService.get_user_datasets(
+            user_id, include_public=True
+        )
 
         # Filter by query, source, topic
         filtered_results = []
@@ -825,13 +829,61 @@ def refresh_datasets() -> Response:
 
 
 @api_bp.route("/datasets/statistics")
+@login_required
 def get_catalog_statistics() -> Response:
-    """Get catalog-wide statistics."""
+    """Get catalog statistics scoped to the current user."""
     try:
-        config = Config()
-        catalog = DatasetCatalog(config)
+        if not current_user.is_authenticated:
+            empty_stats = {
+                "total_datasets": 0,
+                "by_source": {},
+                "by_topic": {},
+                "total_size_mb": 0,
+                "avg_completeness": 0,
+            }
+            return jsonify({"status": "success", "statistics": empty_stats})
 
-        stats = catalog.get_statistics()
+        user_id = int(current_user.get_id())
+
+        from src.services import PermissionService
+
+        accessible_datasets = PermissionService.get_user_datasets(
+            user_id, include_public=True
+        )
+
+        stats = {
+            "total_datasets": len(accessible_datasets),
+            "by_source": {},
+            "by_topic": {},
+            "total_size_mb": 0,
+            "avg_completeness": 0,
+        }
+
+        total_size_bytes = 0
+        completeness_scores = []
+
+        for dataset in accessible_datasets:
+            source = dataset.source or "unknown"
+            stats["by_source"][source] = stats["by_source"].get(source, 0) + 1
+
+            topic = dataset.topic or "unknown"
+            stats["by_topic"][topic] = stats["by_topic"].get(topic, 0) + 1
+
+            if dataset.file_size_bytes:
+                total_size_bytes += dataset.file_size_bytes
+
+            if dataset.completeness_score is not None:
+                try:
+                    completeness_scores.append(float(dataset.completeness_score))
+                except (TypeError, ValueError):
+                    pass
+
+        stats["total_size_mb"] = total_size_bytes / (1024 * 1024)
+        if completeness_scores:
+            stats["avg_completeness"] = sum(completeness_scores) / len(
+                completeness_scores
+            )
+
         stats = clean_nan_recursive(stats)
 
         return jsonify({"status": "success", "statistics": stats})

@@ -64,3 +64,4 @@ backups/
 tests/manual/
 diagnostic*.py
 *_test.html
+.opencode

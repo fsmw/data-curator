@@ -6,29 +6,29 @@
     <div class="card-body">
       <div class="row g-3 align-items-end">
         <div class="col-lg-7 col-md-6">
-          <label class="form-label">Search Indicators</label>
+          <label class="form-label">{{ _('Search Indicators') }}</label>
           <div class="search-wrapper">
             <i class="bi bi-search"></i>
             <input x-model="query" class="form-control search-input" id="search-query"
-              placeholder="Search by keyword (e.g., GDP, inflation, unemployment)" @keyup.enter="performSearch()" />
+              placeholder="{{ _('Search by keyword (e.g., GDP, inflation, unemployment)') }}" @keyup.enter="performSearch()" />
           </div>
         </div>
         <div class="col-lg-3 col-md-4">
-          <label class="form-label">Data Source</label>
+          <label class="form-label">{{ _('Data Source') }}</label>
           <select class="form-select" x-model="source">
-            <option value="">All Sources</option>
-            <option value="owid">Our World in Data</option>
-            <option value="ilostat">ILOSTAT</option>
-            <option value="oecd">OECD</option>
-            <option value="imf">IMF</option>
-            <option value="worldbank">World Bank</option>
-            <option value="eclac">ECLAC</option>
+            <option value="">{{ _('All Sources') }}</option>
+            <option value="owid">{{ _('Our World in Data') }}</option>
+            <option value="ilostat">{{ _('ILOSTAT') }}</option>
+            <option value="oecd">{{ _('OECD') }}</option>
+            <option value="imf">{{ _('IMF') }}</option>
+            <option value="worldbank">{{ _('World Bank') }}</option>
+            <option value="eclac">{{ _('ECLAC') }}</option>
           </select>
         </div>
         <div class="col-lg-2 col-md-2">
           <button @click="performSearch()" class="btn btn-primary w-100" :disabled="loading">
-            <span x-show="!loading"><i class="bi bi-search"></i> Search</span>
-            <span x-show="loading"><span class="spinner-border spinner-border-sm me-1"></span> Searching...</span>
+            <span x-show="!loading"><i class="bi bi-search"></i> {{ _('Search') }}</span>
+            <span x-show="loading"><span class="spinner-border spinner-border-sm me-1"></span> {{ _('Searching...') }}</span>
           </button>
         </div>
       </div>
@@ -38,7 +38,7 @@
 
   <!-- Quick Filters -->
   <div class="mb-4">
-    <small class="text-uppercase text-muted fw-bold ms-1" style="font-size: 0.7rem;">Quick Filters</small>
+    <small class="text-uppercase text-muted fw-bold ms-1" style="font-size: 0.7rem;">{{ _('Quick Filters') }}</small>
     <div class="d-flex flex-wrap gap-2 mt-2">
       <button @click="applyQuickFilter('latam')" class="btn btn-sm btn-outline-secondary rounded-pill">
         🌎 LATAM + Spain
@@ -63,7 +63,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
         <span class="text-gold fw-semibold" x-text="searchMetadata?.total || results.length"></span>
-        <span class="text-secondary"> Results</span>
+        <span class="text-secondary"> {{ _('Results') }}</span>
         <span x-show="query || source" class="text-secondary">
           for "<strong class="text-gold" x-text="query"></strong>"
           <span x-show="source"> in <span class="badge badge-source" x-text="source.toUpperCase()"></span></span>
@@ -73,7 +73,7 @@
         <!-- Source breakdown badges -->
         <div x-show="searchMetadata && searchMetadata.sources" class="d-flex gap-2">
           <span class="badge badge-secondary badge-pill">
-            <i class="bi bi-hdd me-1"></i>Local: <span x-text="searchMetadata?.sources?.local || 0"></span>
+            <i class="bi bi-hdd me-1"></i>{{ _('Local') }}: <span x-text="searchMetadata?.sources?.local || 0"></span>
           </span>
           <span class="badge badge-info badge-pill" x-show="searchMetadata?.sources?.owid">
             <i class="bi bi-cloud me-1"></i>OWID: <span x-text="searchMetadata?.sources?.owid || 0"></span>
@@ -84,8 +84,8 @@
         </div>
         <button class="btn btn-outline-primary btn-sm" @click="downloadSelected()"
           :disabled="selectedKeys.length === 0 || bulkDownloading">
-          <span x-show="!bulkDownloading"><i class="bi bi-download me-1"></i>Download selected</span>
-          <span x-show="bulkDownloading"><span class="spinner-border spinner-border-sm me-1"></span>Downloading...</span>
+          <span x-show="!bulkDownloading"><i class="bi bi-download me-1"></i>{{ _('Download selected') }}</span>
+          <span x-show="bulkDownloading"><span class="spinner-border spinner-border-sm me-1"></span>{{ _('Downloading...') }}</span>
         </button>
       </div>
     </div>
@@ -110,10 +110,10 @@
                 <input class="form-check-input" type="checkbox" aria-label="Select all results"
                   :checked="allSelected()" @change="toggleSelectAll()">
               </th>
-              <th style="width: 26%">Indicator</th>
-              <th style="width: 35%">Description</th>
-              <th style="width: 15%">Source</th>
-              <th style="width: 20%" class="text-end">Actions</th>
+              <th style="width: 26%">{{ _('Indicator') }}</th>
+              <th style="width: 35%">{{ _('Description') }}</th>
+              <th style="width: 15%">{{ _('Source') }}</th>
+              <th style="width: 20%" class="text-end">{{ _('Actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -152,7 +152,7 @@
                       x-text="statusLabel(downloadStatus[result.id])"></span>
                     <!-- Downloaded badge -->
                     <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
-                      <i class="bi bi-check-circle-fill"></i> Downloaded
+                      <i class="bi bi-check-circle-fill"></i> {{ _('Downloaded') }}
                     </span>
 
                     <!-- Remote OWID: Preview button -->
@@ -191,7 +191,7 @@
                         <span>
                           <i x-show="!result.downloaded" class="bi bi-download"></i>
                           <span x-show="result.downloaded">
-                            <i class="bi bi-arrow-repeat"></i> Update
+                            <i class="bi bi-arrow-repeat"></i> {{ _('Update') }}
                           </span>
                         </span>
                       </template>

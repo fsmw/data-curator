@@ -1,0 +1,193 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-02-12 16:39-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: src/web/auth.py:86
+msgid "Email is required."
+msgstr ""
+
+#: src/web/auth.py:97
+msgid "Profile updated successfully."
+msgstr ""
+
+#: src/web/auth.py:101
+msgid "Error updating profile. Please try again."
+msgstr ""
+
+#: src/web/routes.py:121
+msgid "Status"
+msgstr ""
+
+#: src/web/routes.py:121
+msgid "Project Status"
+msgstr ""
+
+#: src/web/routes.py:183
+msgid "Browse Local"
+msgstr ""
+
+#: src/web/routes.py:183
+msgid "Locally Available Datasets"
+msgstr ""
+
+#: src/web/routes.py:200
+msgid "Edit"
+msgstr ""
+
+#: src/web/routes.py:200
+msgid "Edit Datasets"
+msgstr ""
+
+#: src/web/routes.py:209
+msgid "Search"
+msgstr ""
+
+#: src/web/routes.py:209
+msgid "Search Indicators and Topics"
+msgstr ""
+
+#: src/web/routes.py:225
+msgid "Copilot Chat"
+msgstr ""
+
+#: src/web/routes.py:225
+msgid "Chat with AI powered by GitHub Copilot SDK"
+msgstr ""
+
+#: src/web/routes.py:235
+msgid "Visualization"
+msgstr ""
+
+#: src/web/routes.py:235
+msgid "Explore with PyGWalker"
+msgstr ""
+
+#: src/web/routes.py:335 src/web/templates/base.html:111
+msgid "Help"
+msgstr ""
+
+#: src/web/routes.py:335
+msgid "Shortcuts and Guide"
+msgstr ""
+
+#: src/web/templates/base.html:46
+msgid "Show menu"
+msgstr ""
+
+#: src/web/templates/base.html:46
+msgid "Hide menu"
+msgstr ""
+
+#: src/web/templates/base.html:114
+msgid "New Analysis"
+msgstr ""
+
+#: src/web/templates/base.html:146
+msgid "Profile"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:62 src/web/templates/base.html:151
+msgid "Change Password"
+msgstr ""
+
+#: src/web/templates/base.html:160
+msgid "Admin Panel"
+msgstr ""
+
+#: src/web/templates/base.html:169
+msgid "Logout"
+msgstr ""
+
+#: src/web/templates/status.html:10
+msgid "Welcome Back"
+msgstr ""
+
+#: src/web/templates/status.html:12
+msgid ""
+"Your hub for economic data curation. Mises Data Curator v1.2 is ready for"
+" analysis."
+msgstr ""
+
+#: src/web/templates/status.html:16
+msgid "Start Analysis"
+msgstr ""
+
+#: src/web/templates/status.html:19
+msgid "Browse Datasets"
+msgstr ""
+
+#: src/web/templates/status.html:32
+msgid "Datasets"
+msgstr ""
+
+#: src/web/templates/status.html:41
+msgid "Downloads"
+msgstr ""
+
+#: src/web/templates/status.html:52
+msgid "Recent Activity"
+msgstr ""
+
+#: src/web/templates/status.html:64
+msgid "Processed successfully"
+msgstr ""
+
+#: src/web/templates/status.html:73
+msgid "No recent activity found"
+msgstr ""
+
+#: src/web/templates/status.html:82
+msgid "Sources"
+msgstr ""
+
+#: src/web/templates/status.html:115
+msgid "AI Copilot"
+msgstr ""
+
+#: src/web/templates/status.html:116
+msgid "Ask questions about your data"
+msgstr ""
+
+#: src/web/templates/status.html:117
+msgid "Launch Chat"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:8
+msgid "User Profile"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:38
+msgid "Email"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:53
+msgid "Language"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:55
+msgid "English (United States)"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:56
+msgid "Spanish (Chile)"
+msgstr ""
+
+#: src/web/templates/auth/profile.html:61
+msgid "Update Profile"
+msgstr ""
+
