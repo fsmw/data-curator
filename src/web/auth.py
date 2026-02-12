@@ -33,7 +33,12 @@ def login():
             # Redirect to requested page or admin
             next_page = request.args.get('next')
             if next_page:
-                return redirect(next_page)
+                # Si next_page comienza con el prefijo, redirigir directamente
+                # Si no, usar url_for para asegurar que la URL sea correcta
+                if next_page.startswith('/'):
+                    return redirect(next_page)
+                else:
+                    return redirect(url_for('ui.status'))
             return redirect(url_for('admin.index'))
         else:
             flash('Invalid username or password.', 'error')

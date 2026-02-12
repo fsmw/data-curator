@@ -19,6 +19,9 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
+# Variable global para almacenar el prefijo
+_url_prefix = ''
+
 
 def create_app() -> Flask:
     # Detectar si estamos detrás de un proxy con prefijo
@@ -76,6 +79,17 @@ def create_app() -> Flask:
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    # Handler personalizado para redirecciones de login que respete el prefijo
+    @login_manager.unauthorized_handler
+    def handle_unauthorized():
+        from flask import redirect, url_for, request
+        # Obtener el path relativo (sin el dominio y sin el prefijo SCRIPT_NAME)
+        next_path = request.path
+        if request.query_string:
+            next_path += '?' + request.query_string.decode('utf-8')
+        login_url = url_for('auth.login', next=next_path)
+        return redirect(login_url)
 
     # Initialize Flask-Admin
     from src.admin_views import (
