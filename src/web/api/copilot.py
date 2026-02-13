@@ -9,19 +9,34 @@ from flask_login import login_required, current_user
 import asyncio
 import json
 from typing import Dict, List, Optional
+from sqlalchemy.exc import OperationalError
 
-from config import Config
+from src.config import Config
 from src.logger import get_logger
+from src.model_governance import ALLOWED_COPILOT_MODELS
 from src.response_cache import get_cache
 from src.models import CopilotThread, db
 
 from . import api_bp
 
 logger = get_logger(__name__)
+ALLOWED_MODEL_IDS = set(ALLOWED_COPILOT_MODELS)
+JSON_PARSE_ERRORS = (json.JSONDecodeError, TypeError, ValueError)
+COPILOT_API_ERRORS = (
+    AttributeError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+    OperationalError,
+)
 
 # Import Copilot SDK agent
 try:
-    from copilot_agent import MisesCopilotAgent
+    from src.copilot_agent import MisesCopilotAgent
     COPILOT_AVAILABLE = True
 except ImportError:
     COPILOT_AVAILABLE = False
@@ -38,7 +53,7 @@ def _deserialize_json(value: Optional[str]) -> List[Dict]:
         parsed = json.loads(value)
         if isinstance(parsed, list):
             return parsed
-    except Exception:
+    except JSON_PARSE_ERRORS:
         return []
     return []
 
@@ -62,6 +77,11 @@ def _thread_to_dict(thread: CopilotThread) -> Dict:
         "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
     }
 
+
+def _ensure_copilot_threads_table() -> None:
+    """Create copilot_threads table if it does not exist."""
+    CopilotThread.__table__.create(bind=db.engine, checkfirst=True)
+
 def create_copilot_agent():
     """Create a new Copilot agent instance."""
     if not COPILOT_AVAILABLE:
@@ -69,7 +89,7 @@ def create_copilot_agent():
     try:
         config = Config()
         return MisesCopilotAgent(config)
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error initializing Copilot agent: {e}")
         return None
 
@@ -85,6 +105,7 @@ def run_async(coro):
 
 
 @api_bp.route('/copilot/history/<session_id>', methods=["GET"])
+@login_required
 def get_copilot_history(session_id: str) -> Response:
     """Get conversation history for a session."""
     try:
@@ -97,12 +118,13 @@ def get_copilot_history(session_id: str) -> Response:
         history = agent.get_history(session_id)
         return jsonify({"status": "success", "session_id": session_id, "history": history})
 
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error getting copilot history: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/chat", methods=["POST"])
+@login_required
 def copilot_chat() -> Response:
     """Send a message to the Copilot agent."""
     try:
@@ -115,6 +137,8 @@ def copilot_chat() -> Response:
         session_id = data.get("session_id", None)
         stream = data.get("stream", False)
         model = data.get("model", None)
+        if model and model not in ALLOWED_MODEL_IDS:
+            return jsonify({"status": "error", "message": "Unsupported model"}), 400
 
         if not message:
             return jsonify({"status": "error", "message": "No message provided"}), 400
@@ -155,16 +179,17 @@ def copilot_chat() -> Response:
 
         except TimeoutError as e:
             return jsonify({"status": "error", "message": "Request timeout"}), 504
-        except Exception as e:
+        except COPILOT_API_ERRORS as e:
             logger.error(f"Copilot chat error: {e}", exc_info=True)
             return jsonify({"status": "error", "message": str(e)}), 500
 
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Copilot endpoint error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/stream", methods=["POST"])
+@login_required
 def copilot_stream() -> Response:
     """Stream responses from Copilot agent."""
     try:
@@ -176,6 +201,8 @@ def copilot_stream() -> Response:
         message = data.get("message", "")
         session_id = data.get("session_id", None)
         model = data.get("model", None)
+        if model and model not in ALLOWED_MODEL_IDS:
+            return jsonify({"status": "error", "message": "Unsupported model"}), 400
 
         if not message:
             return jsonify({"status": "error", "message": "No message provided"}), 400
@@ -206,7 +233,7 @@ def copilot_stream() -> Response:
                         yield chunk
                     except StopAsyncIteration:
                         break
-                    except Exception as e:
+                    except COPILOT_API_ERRORS as e:
                         logger.error(f"Inner stream error: {e}")
                         yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
                         break
@@ -223,12 +250,13 @@ def copilot_stream() -> Response:
             }
         )
 
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Stream endpoint error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/health")
+@login_required
 def copilot_health() -> Response:
     """Check if Copilot agent is available and healthy."""
     try:
@@ -246,12 +274,13 @@ def copilot_health() -> Response:
                 "message": "Copilot agent not initialized"
             })
 
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Health check error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/models")
+@login_required
 def copilot_models() -> Response:
     """Get list of available models from Copilot SDK."""
     try:
@@ -261,18 +290,29 @@ def copilot_models() -> Response:
 
         # Use the SDK's list_models() method
         models = run_async(agent.list_models())
-        
+        filtered_models = []
+        for model in models:
+            if isinstance(model, dict):
+                model_id = str(model.get("id", "")).strip()
+                if model_id in ALLOWED_MODEL_IDS:
+                    filtered_models.append(model)
+            else:
+                model_id = str(model).strip()
+                if model_id in ALLOWED_MODEL_IDS:
+                    filtered_models.append({"id": model_id, "name": model_id})
+
         return jsonify({
             "status": "success",
-            "models": models
+            "models": filtered_models
         })
 
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error fetching models: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/cache/stats")
+@login_required
 def copilot_cache_stats() -> Response:
     """Get cache statistics."""
     try:
@@ -281,12 +321,13 @@ def copilot_cache_stats() -> Response:
             "status": "success",
             "cache": stats
         })
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error getting cache stats: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/copilot/cache/clear", methods=["POST"])
+@login_required
 def copilot_cache_clear() -> Response:
     """Clear the response cache."""
     try:
@@ -296,7 +337,7 @@ def copilot_cache_clear() -> Response:
             "status": "success",
             "message": "Cache cleared successfully"
         })
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error clearing cache: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -305,6 +346,7 @@ def copilot_cache_clear() -> Response:
 @login_required
 def list_copilot_threads() -> Response:
     try:
+        _ensure_copilot_threads_table()
         threads = (
             CopilotThread.query.filter_by(user_id=current_user.id)
             .order_by(CopilotThread.updated_at.desc())
@@ -314,7 +356,13 @@ def list_copilot_threads() -> Response:
             "status": "success",
             "threads": [_thread_to_dict(thread) for thread in threads],
         })
-    except Exception as e:
+    except OperationalError as e:
+        if "no such table: copilot_threads" in str(e):
+            _ensure_copilot_threads_table()
+            return list_copilot_threads()
+        logger.error(f"Error listing copilot threads: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error listing copilot threads: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -323,6 +371,7 @@ def list_copilot_threads() -> Response:
 @login_required
 def create_copilot_thread() -> Response:
     try:
+        _ensure_copilot_threads_table()
         thread = CopilotThread(
             user_id=current_user.id,
             title="New Analysis",
@@ -335,7 +384,13 @@ def create_copilot_thread() -> Response:
             "status": "success",
             "thread": _thread_to_dict(thread),
         })
-    except Exception as e:
+    except OperationalError as e:
+        if "no such table: copilot_threads" in str(e):
+            _ensure_copilot_threads_table()
+            return create_copilot_thread()
+        logger.error(f"Error creating copilot thread: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error creating copilot thread: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -344,6 +399,7 @@ def create_copilot_thread() -> Response:
 @login_required
 def update_copilot_thread(thread_id: int) -> Response:
     try:
+        _ensure_copilot_threads_table()
         thread = CopilotThread.query.filter_by(
             id=thread_id,
             user_id=current_user.id,
@@ -396,7 +452,7 @@ def update_copilot_thread(thread_id: int) -> Response:
             "status": "success",
             "thread": _thread_to_dict(thread),
         })
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error updating copilot thread {thread_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -405,6 +461,7 @@ def update_copilot_thread(thread_id: int) -> Response:
 @login_required
 def delete_copilot_thread(thread_id: int) -> Response:
     try:
+        _ensure_copilot_threads_table()
         thread = CopilotThread.query.filter_by(
             id=thread_id,
             user_id=current_user.id,
@@ -415,7 +472,7 @@ def delete_copilot_thread(thread_id: int) -> Response:
         db.session.delete(thread)
         db.session.commit()
         return jsonify({"status": "success"})
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error deleting copilot thread {thread_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -424,9 +481,10 @@ def delete_copilot_thread(thread_id: int) -> Response:
 @login_required
 def clear_copilot_threads() -> Response:
     try:
+        _ensure_copilot_threads_table()
         CopilotThread.query.filter_by(user_id=current_user.id).delete()
         db.session.commit()
         return jsonify({"status": "success"})
-    except Exception as e:
+    except COPILOT_API_ERRORS as e:
         logger.error(f"Error clearing copilot threads: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500

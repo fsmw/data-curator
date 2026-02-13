@@ -1,0 +1,5 @@
+Collecting waitress
+  Downloading waitress-3.0.2-py3-none-any.whl.metadata (5.8 kB)
+Downloading waitress-3.0.2-py3-none-any.whl (56 kB)
+Installing collected packages: waitress
+Successfully installed waitress-3.0.2

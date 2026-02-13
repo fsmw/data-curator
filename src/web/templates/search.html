@@ -150,8 +150,10 @@
                     <span x-show="downloadStatus[result.id]" class="badge badge-pill"
                       :class="statusClass(downloadStatus[result.id])"
                       x-text="statusLabel(downloadStatus[result.id])"></span>
-                    <!-- Downloaded badge -->
-                    <span x-show="result.downloaded" class="badge badge-success badge-pill me-2">
+                    <span x-show="result.in_my_data" class="badge badge-success badge-pill me-2">
+                      <i class="bi bi-folder-check"></i> {{ _('My data') }}
+                    </span>
+                    <span x-show="result.downloaded && !result.in_my_data" class="badge badge-info badge-pill me-2">
                       <i class="bi bi-check-circle-fill"></i> {{ _('Downloaded') }}
                     </span>
 
@@ -179,9 +181,9 @@
                     <!-- Download button (all types) -->
                     <!-- Download/Update button -->
                     <button @click.prevent="startDownload(result)" class="btn btn-sm"
-                      :class="result.downloaded ? 'btn-outline-success' : 'btn-outline-primary'"
+                      :class="result.in_my_data ? 'btn-outline-success' : 'btn-outline-primary'"
                       :disabled="downloading[result.id] === true"
-                      :title="result.downloaded ? 'Update dataset (re-download)' : 'Download CSV data'">
+                      :title="result.in_my_data ? 'Update dataset (re-download)' : 'Download CSV data'">
 
                       <!-- Spinner -->
                       <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
@@ -189,8 +191,8 @@
                       <!-- Icons/Text -->
                       <template x-if="!downloading[result.id]">
                         <span>
-                          <i x-show="!result.downloaded" class="bi bi-download"></i>
-                          <span x-show="result.downloaded">
+                          <i x-show="!result.in_my_data" class="bi bi-download"></i>
+                          <span x-show="result.in_my_data">
                             <i class="bi bi-arrow-repeat"></i> {{ _('Update') }}
                           </span>
                         </span>
@@ -443,7 +445,7 @@
 
       async loadDefaults() {
         this.source = 'owid';
-        this.query = '20'; // Lighter default query for faster initial load
+        this.query = '';
         this.page = 1;
         await this.performSearch();
       },
@@ -464,7 +466,7 @@
           params.append('page', this.page);
           params.append('per_page', this.perPage);
 
-          const res = await fetch(`/api/search?${params}`);
+          const res = await fetch(apiUrl(`/api/search?${params}`));
           if (!res.ok) throw new Error(`Error ${res.status}`);
           const data = await res.json();
           this.results = data.results || [];
@@ -617,7 +619,7 @@
           const indicator = result.indicator_code || result.code || result.id || '';
           if (!indicator) throw new Error('Missing indicator code');
 
-          const url = `/api/remote/worldbank/preview?indicator=${encodeURIComponent(indicator)}&limit=200`;
+          const url = apiUrl(`/api/remote/worldbank/preview?indicator=${encodeURIComponent(indicator)}&limit=200`);
           const res = await fetch(url);
           const data = await res.json();
           if (data.status !== 'success') {
@@ -683,7 +685,7 @@
           if (indicator) params.append('indicator', indicator);
           params.append('limit', '200');
 
-          const url = `/api/remote/oecd/preview?${params.toString()}`;
+          const url = apiUrl(`/api/remote/oecd/preview?${params.toString()}`);
           const res = await fetch(url);
           const data = await res.json();
           if (data.status !== 'success') {
@@ -732,7 +734,7 @@
         }
 
         try {
-          const res = await fetch('/api/download/start', {
+          const res = await fetch(apiUrl('/api/download/start'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -770,7 +772,10 @@
               this.successMessage = data.message || `OK: Download completed: ${result.indicator}`;
             }
             const resultIndex = this.results.findIndex(r => r.id === result.id);
-            if (resultIndex !== -1) { this.results[resultIndex].downloaded = true; }
+            if (resultIndex !== -1) {
+              this.results[resultIndex].downloaded = true;
+              this.results[resultIndex].in_my_data = true;
+            }
             this.downloadStatus = {
               ...this.downloadStatus,
               [result.id]: { status: 'success' }

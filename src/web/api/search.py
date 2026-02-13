@@ -5,27 +5,39 @@ Handles indicator search with hybrid local + remote capabilities.
 """
 
 from flask import request, jsonify, Response
-from config import Config
-from searcher import IndicatorSearcher
-from dynamic_search import DynamicSearcher
+from flask_login import login_required, current_user
+from src.config import Config
+from src.searcher import IndicatorSearcher
+from src.dynamic_search import DynamicSearcher
+from src.dataset_catalog import DatasetCatalog
 from src.logger import get_logger
+from src.utils.storage import sanitize_username
 
 from . import api_bp
 
 logger = get_logger(__name__)
 
 
-def check_indicator_downloaded(config: Config, indicator_id: str, source: str, slug: str = None, name: str = None) -> bool:
+def check_indicator_downloaded(
+    config: Config,
+    indicator_id: str,
+    source: str,
+    slug: str = None,
+    name: str = None,
+    owner_username: str = None,
+) -> dict:
     """
     Check if an indicator has already been downloaded by querying the dataset catalog.
     Matches by ID, slug, or fuzzy name.
     """
     try:
-        from dataset_catalog import DatasetCatalog
         catalog = DatasetCatalog(config)
         latest_datasets = catalog.latest_per_identifier()
         
         source = source.lower()
+        owner_segment = sanitize_username(owner_username) if owner_username else None
+        is_downloaded = False
+        in_my_data = False
         
         # 1. Match by specific ID (or slug stored as ID)
         # Note: OWID IDs from search are like 'owid_slug_idx', but catalog stores 'slug' as ID.
@@ -46,23 +58,31 @@ def check_indicator_downloaded(config: Config, indicator_id: str, source: str, s
             name_norm = normalize(name) if name else ""
 
             # Check all combinations
-            if (cat_id_norm == search_id_norm or 
+            if (cat_id_norm == search_id_norm or
                 (slug_norm and cat_id_norm == slug_norm) or
                 (name_norm and cat_name_norm == name_norm)):
-                return True
+                is_downloaded = True
+                if owner_segment and d.get("owner_username") == owner_segment:
+                    in_my_data = True
+                    break
+                continue
                 
             # Fallback: check if slug is contained in ID (common if ID has suffix)
             if slug_norm and len(slug_norm) > 5 and slug_norm in cat_id_norm:
-                return True
+                is_downloaded = True
+                if owner_segment and d.get("owner_username") == owner_segment:
+                    in_my_data = True
+                    break
 
-        return False
+        return {"downloaded": is_downloaded, "in_my_data": in_my_data}
     except Exception as e:
         logger.error(f"Error checking downloaded status via catalog: {e}")
-        return False
+        return {"downloaded": False, "in_my_data": False}
 
 
 
 @api_bp.route("/search")
+@login_required
 def search_api() -> Response:
     """
     Search API endpoint with hybrid local + remote search.
@@ -147,6 +167,8 @@ def search_api() -> Response:
             
             normalized_results.append(r)
 
+        owner_username = current_user.username if current_user.is_authenticated else None
+
         # 3. Apply Filters (Source / Topic) in memory
         filtered_results = []
         for r in normalized_results:
@@ -162,14 +184,16 @@ def search_api() -> Response:
             slug = r.get("slug")
             name = r.get("indicator", "") # indicator used as name in this dict
             
-            is_downloaded = check_indicator_downloaded(
+            download_status = check_indicator_downloaded(
                 config, 
                 r["id"], 
                 r.get("source", ""), 
                 slug=slug, 
-                name=name
+                name=name,
+                owner_username=owner_username,
             )
-            r["downloaded"] = is_downloaded
+            r["downloaded"] = download_status["downloaded"]
+            r["in_my_data"] = download_status["in_my_data"]
             
             r["source"] = r.get("source", "").upper() # restore upper case for display
             filtered_results.append(r)

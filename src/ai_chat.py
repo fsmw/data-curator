@@ -811,15 +811,15 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
             
             # Step 3: Save to 02_Datasets_Limpios
             coverage = "latam" if len(countries) > 1 else countries[0].lower()
-            file_path = self.cleaner.save_clean_dataset(
-                cleaned_data, 
-                topic, 
-                source_lower, 
-                coverage, 
-                start_year, 
-                end_year
+            file_path, friendly_name = self.cleaner.save_clean_dataset(
+                cleaned_data,
+                topic,
+                source_lower,
+                coverage,
+                start_year,
+                end_year,
             )
-            print(f"DEBUG: Saved to {file_path}")
+            print(f"DEBUG: Saved to {file_path} ({friendly_name})")
             
             # Step 4: Generate metadata
             data_summary = self.cleaner.get_data_summary(cleaned_data)
@@ -835,7 +835,10 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
             print(f"DEBUG: Metadata saved to {metadata_path}")
             
             # Step 5: Index in catalog
-            dataset_id = self.catalog.index_dataset(Path(file_path))
+            dataset_id = self.catalog.index_dataset(
+                file_path,
+                display_file_name=friendly_name,
+            )
             print(f"DEBUG: Indexed as dataset_id {dataset_id}")
             
             return {
@@ -843,6 +846,7 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
                 "message": f"Dataset descargado, documentado e indexado exitosamente como ID {dataset_id}",
                 "dataset_id": dataset_id,
                 "file_path": str(file_path),
+                "friendly_name": friendly_name,
                 "metadata_path": str(metadata_path),
                 "rows": len(cleaned_data),
                 "source": source_lower,

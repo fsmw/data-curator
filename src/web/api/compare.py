@@ -5,13 +5,14 @@ Handles dataset comparison and merging.
 """
 
 from flask import request, jsonify, Response
+from flask_login import login_required, current_user
 import pandas as pd
 from pathlib import Path
 
-from config import Config
-from dataset_catalog import DatasetCatalog
-from logger import get_logger
-from utils.serialization import clean_nan_recursive
+from src.config import Config
+from src.dataset_catalog import DatasetCatalog
+from src.logger import get_logger
+from src.utils.serialization import clean_nan_recursive
 
 from . import api_bp
 
@@ -19,6 +20,7 @@ logger = get_logger(__name__)
 
 
 @api_bp.route("/compare/data")
+@login_required
 def compare_data() -> Response:
     """
     Merge two datasets for comparison/scatter plot.
@@ -48,6 +50,10 @@ def compare_data() -> Response:
 
         if not dataset_x or not dataset_y:
             return jsonify({"status": "error", "message": "One or both datasets not found"}), 404
+        if not catalog.can_access(dataset_id_x, current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id_y, current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
         # Read CSV files
         df_x = pd.read_csv(dataset_x["file_path"])

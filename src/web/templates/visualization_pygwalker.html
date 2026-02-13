@@ -131,7 +131,7 @@
 
       async fetchDataset(datasetId) {
         try {
-          const response = await fetch(`/api/datasets/${datasetId}`);
+          const response = await fetch(apiUrl(`/api/datasets/${datasetId}`));
           const data = await response.json();
           if (data.status === 'success' && data.dataset) {
             return {
@@ -152,7 +152,7 @@
       async fetchAvailableDatasets() {
         try {
           this.loadingDatasets = true;
-          const response = await fetch('/api/datasets?limit=300');
+          const response = await fetch(apiUrl('/api/datasets?limit=300'));
           const data = await response.json();
           if (data.status === 'success') {
             this.availableDatasets = data.datasets.map(ds => ({

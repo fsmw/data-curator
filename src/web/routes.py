@@ -120,56 +120,68 @@ def status() -> str:
     """Render the status/home page."""
     ctx = base_context("status", _("Status"), _("Project Status"))
 
-    try:
-        from src.services import PermissionService
+    catalog = DatasetCatalog(Config())
+    accessible_datasets = catalog.list_accessible_datasets(
+        current_user.username,
+        include_public=True,
+        limit=5000,
+    )
 
-        user_id = int(current_user.get_id()) if current_user.is_authenticated else None
-        accessible_datasets = (
-            PermissionService.get_user_datasets(user_id, include_public=True)
-            if user_id
-            else []
-        )
+    sources = {ds.get("source") for ds in accessible_datasets if ds.get("source")}
+    completeness_scores = []
+    for ds in accessible_datasets:
+        score = ds.get("completeness_score")
+        if score is None:
+            continue
+        try:
+            completeness_scores.append(float(score))
+        except (TypeError, ValueError):
+            continue
 
-        sources = {ds.source for ds in accessible_datasets if ds.source}
-        completeness_scores = [
-            float(ds.completeness_score)
-            for ds in accessible_datasets
-            if ds.completeness_score is not None
-        ]
-        avg_completeness = (
-            sum(completeness_scores) / len(completeness_scores)
-            if completeness_scores
-            else 0
-        )
+    avg_completeness = (
+        sum(completeness_scores) / len(completeness_scores)
+        if completeness_scores
+        else 0
+    )
 
-        ctx["stats"] = {
-            "local_datasets": len(accessible_datasets),
-            "recent_downloads": len(accessible_datasets),
-            "sources_count": len(sources),
-            "completeness": avg_completeness,
-        }
+    ctx["stats"] = {
+        "local_datasets": len(accessible_datasets),
+        "recent_downloads": len(accessible_datasets),
+        "sources_count": len(sources),
+        "completeness": avg_completeness,
+    }
 
-        def _sort_key(dataset: Any) -> datetime:
-            return dataset.indexed_at or dataset.created_at or datetime.min
+    def _parse_dataset_timestamp(value: Any) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str) and value:
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                return datetime.min
+        return datetime.min
 
-        recent_sorted = sorted(accessible_datasets, key=_sort_key, reverse=True)
-        ctx["recent_activity"] = [
+    def _sort_key(dataset: Dict[str, Any]) -> datetime:
+        indexed_at = _parse_dataset_timestamp(dataset.get("indexed_at"))
+        if indexed_at != datetime.min:
+            return indexed_at
+        created_at = _parse_dataset_timestamp(dataset.get("created_at"))
+        if created_at != datetime.min:
+            return created_at
+        return _parse_dataset_timestamp(dataset.get("modified_at"))
+
+    recent_sorted = sorted(accessible_datasets, key=_sort_key, reverse=True)
+    recent_activity = []
+    for dataset in recent_sorted[:5]:
+        timestamp = _sort_key(dataset)
+        recent_activity.append(
             {
-                "name": dataset.indicator_name or dataset.file_name or "Unknown Dataset",
-                "date": (
-                    (dataset.indexed_at or dataset.created_at).isoformat()
-                    if (dataset.indexed_at or dataset.created_at)
-                    else ""
-                ),
-                "source": dataset.source or "unknown",
+                "name": dataset.get("indicator_name") or dataset.get("file_name") or "Unknown Dataset",
+                "date": timestamp.isoformat() if timestamp != datetime.min else "",
+                "source": dataset.get("source") or "unknown",
             }
-            for dataset in recent_sorted[:5]
-        ]
-
-    except Exception as e:
-        print(f"Error loading status data: {e}")
-        ctx["stats"] = {}
-        ctx["recent_activity"] = []
+        )
+    ctx["recent_activity"] = recent_activity
     
     return render_template("status.html", **ctx)
 

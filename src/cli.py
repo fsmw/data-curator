@@ -5,16 +5,31 @@ from pathlib import Path
 import pandas as pd
 import sys
 import os
+import sqlite3
+import requests
 from .config import Config
 from .ingestion import DataIngestionManager
 from .cleaning import DataCleaner
 
 try:
     from .metadata import MetadataGenerator
-except Exception:
+except ImportError:
     MetadataGenerator = None
 from .searcher import IndicatorSearcher
 from .dataset_catalog import DatasetCatalog
+from .dataset_catalog_migrations import migrate_dataset_catalog
+
+CLI_ABORT_ERRORS = (
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    RuntimeError,
+    ImportError,
+    sqlite3.Error,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+)
 
 # Fix Windows encoding for Unicode output
 if sys.platform == "win32":
@@ -45,7 +60,7 @@ def init(config):
         click.echo("2. Use 'curate ingest' to import data")
         click.echo("3. Use 'curate clean' to process datasets")
         click.echo("4. Use 'curate document' to generate metadata")
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -131,7 +146,7 @@ def search(query, tag, source, list_topics, list_sources, verbose, config):
             click.echo("  curate search --list-topics  # See available topics")
             click.echo("  curate search --list-sources # See available sources")
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -220,7 +235,7 @@ def ingest(
 
     except click.UsageError:
         raise
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -248,6 +263,7 @@ def ingest(
 @click.option("--coverage", default="latam", help="Geographic coverage")
 @click.option("--url", help="Original source URL for metadata")
 @click.option("--config", default="config.yaml", help="Path to configuration file")
+@click.option("--owner", help="Owner username for the downloaded dataset")
 def download(
     source,
     slug,
@@ -261,6 +277,7 @@ def download(
     coverage,
     url,
     config,
+    owner,
 ):
     """Download from API and pipeline in one step (ingest → clean → document)."""
     click.echo(f"🚀 Download + Pipeline: {source.upper()} → {topic}\n")
@@ -330,8 +347,15 @@ def download(
         # Step 2: CLEAN
         click.echo(f"\nStep 2/3: Cleaning data...")
         cleaned = cleaner.clean_dataset(data)
-        output_path = cleaner.save_clean_dataset(
-            cleaned, topic, source, coverage, start_year, end_year
+        owner_username = owner or os.environ.get("USER") or os.environ.get("USERNAME")
+        output_path, friendly_name = cleaner.save_clean_dataset(
+            cleaned,
+            topic,
+            source,
+            coverage,
+            start_year,
+            end_year,
+            owner_username=owner_username,
         )
         transformations = cleaner.get_transformations()
 
@@ -350,12 +374,12 @@ def download(
         click.echo(f"\n✅ Complete! All in one command:\n")
         click.echo(f"   📥 Downloaded: {len(data)} rows from {source.upper()}")
         click.echo(f"   🧹 Cleaned: {len(cleaned)} rows")
-        click.echo(f"   📊 Saved: {output_path}")
+        click.echo(f"   📊 Saved: {output_path} ({friendly_name})")
         click.echo(f"   📝 Documented: {metadata_path}")
 
     except click.UsageError:
         raise
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -372,7 +396,8 @@ def download(
     "--end-year", type=int, help="Ending year (auto-detected if not provided)"
 )
 @click.option("--config", default="config.yaml", help="Path to configuration file")
-def clean(input_file, topic, source, coverage, start_year, end_year, config):
+@click.option("--owner", help="Owner username for the cleaned dataset")
+def clean(input_file, topic, source, coverage, start_year, end_year, config, owner):
     """Clean and standardize a dataset."""
     click.echo(f"🧹 Cleaning dataset: {input_file}...")
 
@@ -387,9 +412,15 @@ def clean(input_file, topic, source, coverage, start_year, end_year, config):
         # Clean data
         cleaned = cleaner.clean_dataset(data)
 
-        # Save cleaned data
-        output_path = cleaner.save_clean_dataset(
-            cleaned, topic, source, coverage, start_year, end_year
+        owner_username = owner or os.environ.get("USER") or os.environ.get("USERNAME")
+        output_path, friendly_name = cleaner.save_clean_dataset(
+            cleaned,
+            topic,
+            source,
+            coverage,
+            start_year,
+            end_year,
+            owner_username=owner_username,
         )
 
         # Show transformations
@@ -399,9 +430,9 @@ def clean(input_file, topic, source, coverage, start_year, end_year, config):
             for t in transformations:
                 click.echo(f"  • {t}")
 
-        click.echo(f"✅ Cleaned dataset saved to {output_path}")
+        click.echo(f"✅ Cleaned dataset saved to {output_path} ({friendly_name})")
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -444,7 +475,7 @@ def document(input_file, topic, source, url, force, config):
 
         click.echo(f"✅ Metadata saved to {metadata_path}")
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -525,7 +556,7 @@ def pipeline(
         if manifest.get("catalog_id"):
             click.echo(f"   🗂️ Catalog ID: {manifest.get('catalog_id')}")
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -564,7 +595,7 @@ def status(config):
             f"  OpenRouter: {'✅ Configured' if llm_config['api_key'] else '❌ Not configured'}"
         )
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -629,13 +660,32 @@ def index(filepath, force, stats, config):
         click.echo(f"   Total datasets: {summary['total_datasets']}")
         click.echo(f"   Database size: {summary['total_size_mb']:.2f} MB")
 
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         import traceback
 
         traceback.print_exc()
         raise click.Abort()
 
+
+@cli.command("migrate-catalog")
+@click.option("--config", default="config.yaml", help="Path to configuration file")
+def migrate_catalog(config):
+    """Apply formal schema migrations for datasets_catalog.db."""
+    try:
+        cfg = Config(config)
+        db_path = cfg.data_root / "datasets_catalog.db"
+        if not db_path.exists():
+            click.echo(f"❌ Catalog database not found: {db_path}", err=True)
+            raise click.Abort()
+
+        result = migrate_dataset_catalog(db_path)
+        click.echo("✅ Catalog migrations completed")
+        click.echo(f"   Applied: {result['applied']}")
+        click.echo(f"   Skipped: {result['skipped']}")
+    except CLI_ABORT_ERRORS as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
 
 
 @cli.command()
@@ -707,7 +757,7 @@ def analyze(
         elif analysis_type in ["regression", "panel"]:
              click.echo(results.get("summary", "No summary available"))
              
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         import traceback
         traceback.print_exc()
@@ -789,7 +839,7 @@ def agent_quality(filepath, fix, strategy, output):
                 click.echo(cleaned.head().to_string())
                 click.echo("\n💡 Usa --output/-o para guardar los resultados")
         
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -825,7 +875,7 @@ def agent_report(filepath, topic, output):
         else:
             click.echo(report_md)
         
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -901,7 +951,7 @@ def agent_transform(filepath, goal, mode, execute, output, show_code):
         
     except click.Abort:
         raise
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -945,7 +995,7 @@ def agent_explore(filepath, focus):
             click.echo("   Esto puede ocurrir si el LLM no está configurado.")
             click.echo("   Las sugerencias requieren conexión a un modelo de lenguaje.")
         
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -1016,7 +1066,7 @@ def agent_workflow(filepath, clean, report, output, report_output):
             if len(result.final_report.split('\n')) > 30:
                 click.echo("\n... (truncado, usa -r para guardar completo)")
         
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
 
@@ -1032,8 +1082,6 @@ def rag_list_models(config):
         if not base_url:
             click.echo("Set OPENAI_BASE_URL or rag.embedding_base_url in config.", err=True)
             raise click.Abort()
-        import os
-        import requests
         api_key = os.getenv("OPENAI_API_KEY") or os.getenv("EMBEDDING_API_KEY")
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         r = requests.get(f"{base_url}/models", headers=headers, timeout=15)
@@ -1053,7 +1101,10 @@ def rag_list_models(config):
     except requests.exceptions.HTTPError as e:
         click.echo(f"API error: {e.response.status_code} - {e.response.text[:200]}", err=True)
         raise click.Abort()
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        click.echo(f"Network error: {e}", err=True)
+        raise click.Abort()
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"Error: {e}", err=True)
         raise click.Abort()
 
@@ -1080,7 +1131,7 @@ def rag_index(config, docs, catalog, tools, docs_root):
         click.echo(f"  docs: {counts.get('docs', 0)} chunks")
         click.echo(f"  catalog: {counts.get('catalog', 0)} chunks")
         click.echo(f"  tools: {counts.get('tools', 0)} chunks")
-    except Exception as e:
+    except CLI_ABORT_ERRORS as e:
         click.echo(f"Error: {e}", err=True)
         raise click.Abort()
 

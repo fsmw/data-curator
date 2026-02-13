@@ -36,7 +36,7 @@ class MetadataGenerator:
                 from src.copilot_agent import MisesCopilotAgent
                 self.copilot_agent = MisesCopilotAgent(config)
                 # Start client in sync context
-                asyncio.get_event_loop().run_until_complete(self.copilot_agent.start())
+                asyncio.run(self.copilot_agent.start())
             except Exception as e:
                 print(f"⚠️  Warning: Could not initialize Copilot SDK: {e}")
                 print("   Falling back to template-based metadata generation")
@@ -76,7 +76,7 @@ class MetadataGenerator:
         # Try Copilot SDK generation first
         if self.use_llm and self.copilot_agent:
             try:
-                metadata = asyncio.get_event_loop().run_until_complete(
+                metadata = asyncio.run(
                     self._generate_with_copilot(
                         topic,
                         data_summary,

@@ -298,13 +298,13 @@
   
   .thinking-step-time {
     font-size: 0.7rem;
-    color: #6c757d;
+    color: #e2e4e7;
     margin-left: auto;
   }
   
   .thinking-step-details {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: #e2e4e7;
     margin-top: 0.2rem;
   }
   
@@ -361,8 +361,8 @@
   }
   
   .agent-action-btn:hover {
-    border-color: #0d6efd;
-    color: #0d6efd;
+    border-color: #cfe0ff;
+    color: #cfe0ff;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
@@ -373,9 +373,9 @@
   }
   
   .agent-action-btn.active {
-    background: #0d6efd;
+    background: #cfe0ff;
     color: white;
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
   }
   
   /* Delete thread button */
@@ -434,13 +434,13 @@
   }
   
   .chart-type-btn:hover {
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
     background: #f8f9ff;
   }
   
   .chart-type-btn.active {
-    border-color: #0d6efd;
-    background: #0d6efd;
+    border-color: #cfe0ff;
+    background: #cfe0ff;
     color: white;
   }
   
@@ -470,12 +470,12 @@
   }
   
   .encoding-slot:hover {
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
     background: #f8f9ff;
   }
   
   .encoding-slot.dragover {
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
     background: #e8f0ff;
     border-style: solid;
   }
@@ -490,7 +490,7 @@
     font-size: 0.7rem;
     text-transform: uppercase;
     font-weight: 600;
-    color: #6c757d;
+    color: #e2e4e7;
     margin-bottom: 0.5rem;
   }
   
@@ -534,7 +534,7 @@
   
   .chart-preview-placeholder {
     text-align: center;
-    color: #6c757d;
+    color: #e2e4e7;
   }
   
   .chart-preview-placeholder i {
@@ -558,13 +558,13 @@
   }
   
   .source-field-checkbox:hover {
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
   }
   
   .source-field-checkbox.checked {
-    background: #0d6efd;
+    background: #cfe0ff;
     color: white;
-    border-color: #0d6efd;
+    border-color: #cfe0ff;
   }
   
   /* Visualization Canvas */
@@ -578,7 +578,7 @@
   }
   
   .canvas-chart-card.ring-2 {
-    box-shadow: 0 0 0 2px #0d6efd !important;
+    box-shadow: 0 0 0 2px #cfe0ff !important;
   }
 </style>
 <div x-data="copilotChat()" x-init="init()" class="chat-container d-flex flex-row overflow-hidden">
@@ -1559,8 +1559,15 @@
 
       // Model Selection State
       availableModels: [],
-      selectedModel: 'claude-haiku-4.5',  // Changed to faster model
+      selectedModel: 'gpt-5-mini',
       loadingModels: false,
+      allowedModelIds: [
+        'gpt-5-mini',
+        'claude-haiku-4.5',
+        'gemini-3-flash-preview',
+        'gpt-4o',
+        'gpt-4.1'
+      ],
 
       // Config
       copilot_available: {{ 'true' if copilot_available else 'false' }},
@@ -1617,7 +1624,7 @@
   async fetchAvailableDatasets() {
     try {
       this.loadingDatasets = true;
-      const response = await fetch('/api/datasets?limit=100&latest=true');
+      const response = await fetch(apiUrl('/api/datasets?limit=100&latest=true'));
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -1639,38 +1646,35 @@
 
   // --- Model Management ---
 
+  isAllowedModel(model) {
+    const modelId = String(model?.id || '').toLowerCase();
+    const allowed = this.allowedModelIds.map(id => id.toLowerCase());
+    return allowed.includes(modelId);
+  },
+
+  pickPreferredAllowedModel() {
+    for (const modelId of this.allowedModelIds) {
+      const match = this.availableModels.find(
+        model => String(model.id || '').toLowerCase() === modelId.toLowerCase()
+      );
+      if (match) return match.id;
+    }
+    return this.availableModels.length > 0 ? this.availableModels[0].id : this.selectedModel;
+  },
+
   async fetchModels() {
     if (!this.copilot_available) return;
     
     this.loadingModels = true;
     try {
-      const response = await fetch('/api/copilot/models');
+      const response = await fetch(apiUrl('/api/copilot/models'));
       const data = await response.json();
       
       if (data.status === 'success' && Array.isArray(data.models)) {
-        // Show all available models from the SDK
-        this.availableModels = data.models;
-        
-        // Set default model to claude-haiku-4.5 if available (fastest quality model)
-        const claudeHaiku = this.availableModels.find(model => 
-          model.id.toLowerCase().includes('claude-haiku-4.5') ||
-          model.id.toLowerCase().includes('claude-haiku')
-        );
-        
-        if (claudeHaiku) {
-          this.selectedModel = claudeHaiku.id;
-        } else {
-          // Fallback: try gpt-5-mini
-          const gpt5Mini = this.availableModels.find(model => 
-            model.id.toLowerCase().includes('gpt-5-mini')
-          );
-          
-          if (gpt5Mini) {
-            this.selectedModel = gpt5Mini.id;
-          } else if (this.availableModels.length > 0) {
-            // Last resort: first available model
-            this.selectedModel = this.availableModels[0].id;
-          }
+        this.availableModels = data.models.filter(model => this.isAllowedModel(model));
+
+        if (this.availableModels.length > 0) {
+          this.selectedModel = this.pickPreferredAllowedModel();
         }
       }
     } catch (error) {
@@ -1701,7 +1705,7 @@
 
   async loadThreads() {
     try {
-      const response = await fetch('/api/copilot/threads');
+      const response = await fetch(apiUrl('/api/copilot/threads'));
       if (!response.ok) {
         throw new Error('Failed to load threads');
       }
@@ -1720,7 +1724,7 @@
 
   async startNewThread() {
     try {
-      const response = await fetch('/api/copilot/threads', { method: 'POST' });
+      const response = await fetch(apiUrl('/api/copilot/threads'), { method: 'POST' });
       if (!response.ok) {
         throw new Error('Failed to create thread');
       }
@@ -1769,7 +1773,7 @@
         const threadIndex = this.threads.findIndex(t => t.id === threadId);
         if (threadIndex === -1) return;
         try {
-          const response = await fetch(`/api/copilot/threads/${threadId}`, { method: 'DELETE' });
+          const response = await fetch(apiUrl(`/api/copilot/threads/${threadId}`), { method: 'DELETE' });
           if (!response.ok) {
             throw new Error('Failed to delete thread');
           }
@@ -1813,7 +1817,7 @@
 
   async clearChat() {
     try {
-      const response = await fetch('/api/copilot/threads/clear', { method: 'POST' });
+      const response = await fetch(apiUrl('/api/copilot/threads/clear'), { method: 'POST' });
       if (!response.ok) {
         throw new Error('Failed to clear threads');
       }
@@ -1848,7 +1852,7 @@
     };
 
     try {
-      const response = await fetch(`/api/copilot/threads/${thread.id}`, {
+      const response = await fetch(apiUrl(`/api/copilot/threads/${thread.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1917,7 +1921,7 @@
     };
 
     try {
-      const response = await fetch(`/api/copilot/threads/${thread.id}`, {
+      const response = await fetch(apiUrl(`/api/copilot/threads/${thread.id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -2004,7 +2008,7 @@
         this.scrollToBottom();
       }, this.requestTimeout);
 
-      const response = await fetch('/api/copilot/stream', {
+      const response = await fetch(apiUrl('/api/copilot/stream'), {
         method: 'POST',
         signal: this.abortController.signal,
         headers: { 'Content-Type': 'application/json' },
@@ -2179,7 +2183,7 @@
         content: m.content
       }));
 
-      const res = await fetch('/api/agent/suggest', {
+      const res = await fetch(apiUrl('/api/agent/suggest'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2212,7 +2216,7 @@
     
     try {
       // Get dataset data for agent
-      const dataResponse = await fetch(`/api/datasets/${this.activeDataset.id}/preview?limit=500`);
+      const dataResponse = await fetch(apiUrl(`/api/datasets/${this.activeDataset.id}/preview?limit=500`));
       const dataResult = await dataResponse.json();
       
       if (dataResult.status !== 'success') {
@@ -2248,7 +2252,7 @@
   },
   
   async runQualityAgent(rows) {
-    const response = await fetch('/api/agent/quality', {
+    const response = await fetch(apiUrl('/api/agent/quality'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2369,7 +2373,7 @@
   },
   
   async runReportAgent(rows) {
-    const response = await fetch('/api/agent/report', {
+    const response = await fetch(apiUrl('/api/agent/report'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2400,7 +2404,7 @@
   },
   
   async runExploreAgent(rows) {
-    const response = await fetch('/api/agent/suggest', {
+    const response = await fetch(apiUrl('/api/agent/suggest'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2436,7 +2440,7 @@
       return;
     }
     
-    const response = await fetch('/api/agent/clean', {
+    const response = await fetch(apiUrl('/api/agent/clean'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2591,7 +2595,7 @@
       if (this.activeDataset.preview && this.activeDataset.preview.rows) {
         dataRows = this.activeDataset.preview.rows;
       } else {
-        const previewRes = await fetch(`/api/datasets/${this.activeDataset.id}/preview`);
+        const previewRes = await fetch(apiUrl(`/api/datasets/${this.activeDataset.id}/preview`));
         const previewData = await previewRes.json();
         if (previewData.status === 'success' || previewData.status === 'ok') {
           dataRows = previewData.preview?.rows || previewData.rows || [];
@@ -2607,7 +2611,7 @@
       }
       
       // Call API to generate chart spec
-      const response = await fetch('/api/viz/generate-chart', {
+      const response = await fetch(apiUrl('/api/viz/generate-chart'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2885,14 +2889,14 @@
       if (this.activeDataset.preview && this.activeDataset.preview.rows) {
         dataRows = this.activeDataset.preview.rows;
       } else {
-        const previewRes = await fetch(`/api/datasets/${this.activeDataset.id}/preview`);
+        const previewRes = await fetch(apiUrl(`/api/datasets/${this.activeDataset.id}/preview`));
         const previewData = await previewRes.json();
         if (previewData.status === 'success' || previewData.status === 'ok') {
           dataRows = previewData.preview?.rows || previewData.rows || [];
         }
       }
       
-      const response = await fetch('/api/viz/derive-field', {
+      const response = await fetch(apiUrl('/api/viz/derive-field'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2957,7 +2961,7 @@
     
     async checkHealth() {
     try {
-      const response = await fetch('/api/copilot/health');
+      const response = await fetch(apiUrl('/api/copilot/health'));
       this.health_status = await response.json();
     } catch (error) {
       this.health_status = { status: 'error', error: error.message };
@@ -3018,15 +3022,15 @@
     
     // Try to find a faster model that's different from current
     for (const fastModel of fasterModels) {
-      if (this.models.some(m => m.id === fastModel) && fastModel !== currentModel) {
+      if (this.availableModels.some(m => m.id === fastModel) && fastModel !== currentModel) {
         this.selectedModel = fastModel;
         break;
       }
     }
     
     // Also try the first model if it's faster
-    if (this.models.length > 0 && !fasterModels.includes(currentModel)) {
-      const firstFast = this.models.find(m => fasterModels.includes(m.id));
+    if (this.availableModels.length > 0 && !fasterModels.includes(currentModel)) {
+      const firstFast = this.availableModels.find(m => fasterModels.includes(m.id));
       if (firstFast) {
         this.selectedModel = firstFast.id;
       }
@@ -3047,7 +3051,7 @@
 
       try {
         this.loadingFields = true;
-        const response = await fetch(`/api/datasets/${this.selectedDatasetId}/fields`);
+        const response = await fetch(apiUrl(`/api/datasets/${this.selectedDatasetId}/fields`));
         const data = await response.json();
         
         if (data.status === 'success') {
@@ -3545,7 +3549,7 @@ window.runCode = async function(blockId, language) {
   
   try {
     // Fetch dataset data
-    const dataResponse = await fetch(`/api/datasets/${chatComponent.activeDataset.id}/preview?limit=500`);
+    const dataResponse = await fetch(apiUrl(`/api/datasets/${chatComponent.activeDataset.id}/preview?limit=500`));
     const dataResult = await dataResponse.json();
     
     if (dataResult.status !== 'success') {

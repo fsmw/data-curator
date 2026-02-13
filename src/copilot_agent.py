@@ -8,7 +8,6 @@ automated analysis, and intelligent dataset discovery.
 Requirements:
     - GitHub Copilot CLI installed and in PATH
     - github-copilot-sdk Python package
-    - OpenRouter API key (for BYOK)
 
 Example:
     >>> from src.copilot_agent import MisesCopilotAgent
@@ -33,10 +32,13 @@ try:
     COPILOT_SDK_AVAILABLE = True
 except ImportError as e:
     COPILOT_SDK_AVAILABLE = False
+    CopilotClient = CopilotSession = Tool = Any  # type: ignore[assignment]
+    SessionConfig = SystemMessageAppendConfig = Any  # type: ignore[assignment]
     print(f"⚠️  Warning: copilot SDK not installed. Run: pip install github-copilot-sdk")
     print(f"   Error: {e}")
 
 from src.config import Config
+from src.model_governance import ALLOWED_COPILOT_MODELS
 
 
 @dataclass
@@ -48,10 +50,7 @@ class RetryConfig:
     timeout: float = 45.0    # Timeout per attempt in seconds
     
     # Fallback model chain - try these if primary fails
-    fallback_models: tuple = (
-        'gpt-4.1',          # Fastest GPT
-        'claude-haiku-4.5',  # Fastest Claude
-    )
+    fallback_models: tuple = ALLOWED_COPILOT_MODELS
 
 
 # Default retry configuration
@@ -839,12 +838,16 @@ Always be helpful, insightful, and concise."""
     
     def _get_fallback_models(self) -> List[Dict[str, Any]]:
         """Fallback models if SDK call fails."""
+        display_names = {
+            "gpt-5-mini": "GPT-5 mini",
+            "claude-haiku-4.5": "Claude Haiku 4.5",
+            "gemini-3-flash-preview": "Gemini 3 Flash Preview",
+            "gpt-4o": "GPT-4o",
+            "gpt-4.1": "GPT-4.1",
+        }
         return [
-            {'id': 'gpt-4o', 'name': 'GPT-4o'},
-            {'id': 'gpt-4o-mini', 'name': 'GPT-4o Mini'},
-            {'id': 'claude-3.5-sonnet', 'name': 'Claude 3.5 Sonnet'},
-            {'id': 'o1', 'name': 'OpenAI o1'},
-            {'id': 'o1-mini', 'name': 'OpenAI o1 Mini'}
+            {"id": model_id, "name": display_names.get(model_id, model_id)}
+            for model_id in ALLOWED_COPILOT_MODELS
         ]
     
     def get_available_models(self) -> List[str]:
@@ -855,9 +858,7 @@ Always be helpful, insightful, and concise."""
             List of model identifiers
         """
         if self.client:
-            # This would depend on SDK implementation
-            # Typically returns ['gpt-4', 'gpt-4-turbo', 'claude-3-opus', etc.]
-            return ['gpt-4o', 'gpt-4o-mini', 'claude-3.5-sonnet', 'o1', 'o1-mini']
+            return list(ALLOWED_COPILOT_MODELS)
         return []
     
     def health_check(self) -> Dict[str, Any]:

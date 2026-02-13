@@ -207,7 +207,7 @@ class UserAdminView(ModelView):
     @action('deactivate', 'Deactivate Users', 'Are you sure you want to deactivate selected users?')
     def action_deactivate(self, ids):
         for user_id in ids:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if user and user.username != 'admin':  # Prevent deactivating admin
                 user.is_active = False
         db.session.commit()
@@ -216,7 +216,7 @@ class UserAdminView(ModelView):
     @action('activate', 'Activate Users')
     def action_activate(self, ids):
         for user_id in ids:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if user:
                 user.is_active = True
         db.session.commit()

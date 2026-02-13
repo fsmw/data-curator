@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from flask import Flask, request
+from datetime import timedelta
 from flask_admin import Admin
 from flask_login import LoginManager, current_user
 from flask_babel import Babel
@@ -78,7 +79,10 @@ def create_app() -> Flask:
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        try:
+            return db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
 
     # Handler personalizado para redirecciones de login que respete el prefijo
     @login_manager.unauthorized_handler
@@ -137,8 +141,8 @@ def create_app() -> Flask:
                 ws = getattr(current_user, 'workspace', None)
                 if ws and getattr(ws, 'language', None):
                     return ws.language
-        except Exception:
-            # Be permissive if current_user isn't available
+        except (RuntimeError, AttributeError):
+            # Be permissive if current_user isn't available yet
             pass
 
         # Use the request Accept-Language header to find the best match
@@ -156,6 +160,8 @@ def create_app() -> Flask:
         return dict(get_locale=get_locale)
 
     app.config.setdefault("TEMPLATES_AUTO_RELOAD", True)
+    app.config.setdefault("REMEMBER_COOKIE_DURATION", timedelta(days=30))
+    app.config.setdefault("PERMANENT_SESSION_LIFETIME", timedelta(days=7))
     return app
 
 

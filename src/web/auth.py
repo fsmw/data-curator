@@ -17,7 +17,7 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        remember = request.form.get('remember', False)
+        remember = request.form.get('remember') == 'on'
 
         user = User.query.filter_by(username=username).first()
 
@@ -27,6 +27,7 @@ def login():
                 return render_template('auth/login.html')
 
             login_user(user, remember=remember)
+            session.permanent = remember
             user.last_login = db.func.now()
             db.session.commit()
 

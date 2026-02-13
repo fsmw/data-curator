@@ -15,8 +15,6 @@ Example:
 
 import io
 import json
-import os
-import re
 import shutil
 import sqlite3
 from typing import Dict, List, Optional, Any
@@ -28,6 +26,25 @@ from src.config import Config
 from src.searcher import IndicatorSearcher
 from src.ingestion import DataIngestionManager, OWIDSource
 from src.dataset_catalog import DatasetCatalog
+from src.smoothcsv_cache import (
+    SQL_PREVIEW_LIMIT,
+    SQL_SAMPLE_LIMIT,
+    ensure_smoothcsv_table,
+    get_smoothcsv_db_path,
+    prepare_smoothcsv_sql,
+)
+
+TOOL_OPERATION_ERRORS = (
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    RuntimeError,
+    ImportError,
+    sqlite3.Error,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+)
 
 
 # Initialize configuration (singleton pattern)
@@ -128,7 +145,7 @@ async def search_datasets(
         
         return results
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -200,7 +217,7 @@ async def list_local_datasets(
             "uncataloged_files": uncataloged_files[:20],
             "hint": "Use cataloged[].id with preview_data, get_metadata, or analyze_data. If uncataloged_files is not empty, suggest running 'curate index' to add them to the catalog.",
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -337,7 +354,7 @@ async def preview_data(
         
         return result
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -434,23 +451,24 @@ async def download_owid(
         identifier = slug.replace('-', '_')
         
         # Save to clean directory
-        output_path = cleaner.save_clean_dataset(
+        output_path, friendly_name = cleaner.save_clean_dataset(
             data=df_clean,
             topic=topic,
             source="owid",
             coverage="latam",  # Could be inferred from countries
             start_year=start_year,
             end_year=end_year,
-            identifier=identifier
+            identifier=identifier,
         )
         
         result = {
             "status": "success",
             "slug": slug,
             "file_path": str(output_path),
+            "friendly_name": friendly_name,
             "row_count": len(df_clean),
             "column_count": len(df_clean.columns),
-            "topic": topic
+            "topic": topic,
         }
         
         # Add countries info
@@ -483,13 +501,13 @@ async def download_owid(
                     "prompts": str(ai_files.get('prompts', ''))
                 }
                 print(f"✅ AI package created")
-            except Exception as e:
+            except TOOL_OPERATION_ERRORS as e:
                 print(f"⚠️  AI package creation failed: {e}")
                 result["ai_package_error"] = str(e)
         
         return result
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -654,7 +672,7 @@ async def get_metadata(
         result["status"] = "success"
         return result
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -870,7 +888,7 @@ async def analyze_data(
         result["status"] = "success"
         return result
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -939,7 +957,7 @@ async def recommend_datasets(
             }
         }
         
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -982,7 +1000,7 @@ async def semantic_search_datasets(
                 base_url=rag_cfg.get("embedding_base_url"),
             )
             store = VectorStore(rag_cfg["chroma_persist_dir"])
-        except Exception as e:
+        except TOOL_OPERATION_ERRORS as e:
             return {
                 "status": "error",
                 "error": f"RAG/vector store not available: {e}",
@@ -1025,7 +1043,7 @@ async def semantic_search_datasets(
             "datasets": datasets_out,
             "total_found": len(datasets_out),
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {
             "status": "error",
             "error": str(e),
@@ -1033,87 +1051,6 @@ async def semantic_search_datasets(
             "datasets": [],
             "total_found": 0,
         }
-
-SQL_SAMPLE_LIMIT = int(os.getenv("SMOOTHCSV_SQL_SAMPLE_LIMIT", "5000"))
-SQL_PREVIEW_LIMIT = int(os.getenv("SMOOTHCSV_SQL_PREVIEW_LIMIT", "200"))
-
-
-def _get_smoothcsv_db_path(config: Config) -> Path:
-    return config.data_root / "smoothcsv_cache.db"
-
-
-def _init_smoothcsv_db(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS dataset_mapping (
-            dataset_id INTEGER PRIMARY KEY,
-            table_name TEXT NOT NULL,
-            file_hash TEXT,
-            sample_limit INTEGER,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    conn.commit()
-
-
-def _smoothcsv_table_name(dataset_id: int) -> str:
-    return f"table{dataset_id:06d}"
-
-
-def _ensure_smoothcsv_table(
-    conn: sqlite3.Connection,
-    dataset: dict,
-    sample_limit: int,
-) -> str:
-    _init_smoothcsv_db(conn)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT table_name, file_hash, sample_limit FROM dataset_mapping WHERE dataset_id = ?",
-        (dataset["id"],),
-    )
-    row = cursor.fetchone()
-    table_name = row["table_name"] if row else _smoothcsv_table_name(dataset["id"])
-    current_hash = dataset.get("file_hash")
-    needs_reload = (
-        row is None
-        or row["file_hash"] != current_hash
-        or row["sample_limit"] != sample_limit
-    )
-
-    if needs_reload:
-        file_path = Path(dataset["file_path"])
-        if not file_path.exists():
-            raise FileNotFoundError(f"Dataset file not found: {file_path}")
-        df = pd.read_csv(file_path, nrows=sample_limit)
-        df.to_sql(table_name, conn, if_exists="replace", index=False)
-        cursor.execute(
-            """
-            INSERT INTO dataset_mapping (dataset_id, table_name, file_hash, sample_limit)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(dataset_id) DO UPDATE SET
-                table_name = excluded.table_name,
-                file_hash = excluded.file_hash,
-                sample_limit = excluded.sample_limit,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (dataset["id"], table_name, current_hash, sample_limit),
-        )
-        conn.commit()
-
-    return table_name
-
-
-def _prepare_smoothcsv_sql(sql: str, limit: int) -> str:
-    sql = sql.strip().rstrip(";")
-    if not sql:
-        raise ValueError("Missing SQL query.")
-    if not sql.lower().startswith("select"):
-        raise ValueError("Only SELECT queries are supported.")
-    if not re.search(r"\blimit\b", sql, flags=re.IGNORECASE):
-        sql = f"{sql} LIMIT {limit}"
-    return sql
-
 
 # ============================================================================
 # TOOL 8: Run SQL Query (sampled)
@@ -1142,16 +1079,16 @@ async def run_sql_query(
         if not dataset:
             return {"status": "error", "error": "Dataset not found", "dataset_id": dataset_id}
 
-        db_path = _get_smoothcsv_db_path(config)
+        db_path = get_smoothcsv_db_path(config.data_root)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         try:
-            table_name = _ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
+            table_name = ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
             cursor = conn.cursor()
             cursor.execute("DROP VIEW IF EXISTS dataset")
             cursor.execute(f'CREATE TEMP VIEW dataset AS SELECT * FROM "{table_name}"')
 
-            query_sql = _prepare_smoothcsv_sql(sql, int(limit))
+            query_sql = prepare_smoothcsv_sql(sql, int(limit))
             cursor.execute(query_sql)
             rows = cursor.fetchall()
             columns = [col[0] for col in cursor.description] if cursor.description else []
@@ -1168,7 +1105,7 @@ async def run_sql_query(
             conn.close()
     except (ValueError, FileNotFoundError) as exc:
         return {"status": "error", "error": str(exc), "dataset_id": dataset_id}
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "dataset_id": dataset_id}
 
 
@@ -1212,7 +1149,11 @@ async def fork_dataset(
         dest_path = source_path.parent / dest_name
 
         shutil.copyfile(source_path, dest_path)
-        new_id = catalog.index_dataset(dest_path, force=True)
+        new_id = catalog.index_dataset(
+            dest_path,
+            display_file_name=dest_name,
+            force=True,
+        )
         if not new_id:
             return {"status": "error", "error": "Failed to index forked dataset", "dataset_id": dataset_id}
 
@@ -1233,7 +1174,7 @@ async def fork_dataset(
                 "is_edited": True,
             },
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "dataset_id": dataset_id}
 
 
@@ -1272,7 +1213,7 @@ async def get_dataset_versions(
             "total": len(formatted),
             "versions": formatted,
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "identifier": identifier}
 
 
@@ -1312,7 +1253,7 @@ async def get_dataset_statistics(
             "is_edited": bool(dataset.get("is_edited")),
             "indexed_at": dataset.get("indexed_at"),
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "dataset_id": dataset_id}
 
 
@@ -1343,7 +1284,7 @@ async def export_preview_csv(
             "columns": list(df.columns),
             "csv": buffer.getvalue(),
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "dataset_id": dataset_id}
 
 
@@ -1414,7 +1355,7 @@ async def list_datasets_with_filters(
             "datasets": formatted,
             "total_found": len(formatted),
         }
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "datasets": []}
 
 
@@ -1628,7 +1569,7 @@ async def execute_tool(name: str, **kwargs) -> Dict[str, Any]:
     try:
         function = tool["function"]
         return await function(**kwargs)
-    except Exception as e:
+    except TOOL_OPERATION_ERRORS as e:
         return {"status": "error", "error": str(e), "tool": name}
 
 

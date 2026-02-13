@@ -17,4 +17,4 @@ No specific methodology documented
 
 ## License
 - **License**: CC BY 4.0
-- **URL**: https://ourworldindata.org/grapher/lives-saved-vaccines
+- **URL**: https://ourworldindata.org/grapher/foreign-aid-given-net-flows-vs-grant-equivalents-line

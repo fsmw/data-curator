@@ -86,7 +86,7 @@ The project follows a rigorous design log methodology for all significant featur
   - config.py — Config class: loads config.yaml and indicators.yaml, exposes helper methods (get_directory, get_sources, get_topics, get_llm_config, initialize_directories)
   - ingestion.py — DataSource abstract pattern and DataIngestionManager (implements multiple sources: manual, ILOSTAT, OECD, IMF, OWID, WorldBank partial)
   - cleaning.py — DataCleaner: cleaning rules, country-code normalization, year auto-detection, save_clean_dataset
-  - metadata.py — MetadataGenerator: LLM integration (OpenRouter/Copilot hints) with template fallback and caching
+  - metadata.py — MetadataGenerator: GitHub Copilot SDK integration with template fallback and caching
   - searcher.py — IndicatorSearcher: flat list/tag-based search backed by indicators.yaml
   - web/ — Flask-based web UI (routes, templates, static). Partial/experimental
   - utils/, agents/, rag/, vector_store.py, embeddings.py, etc. — supporting modules

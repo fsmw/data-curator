@@ -15,10 +15,10 @@ import pandas as pd
 import json
 from flask import Response, jsonify, request, session
 
-from config import Config
-from dataset_catalog import DatasetCatalog
+from src.config import Config
+from src.dataset_catalog import DatasetCatalog
 from src.logger import get_logger
-from utils.serialization import clean_nan_recursive
+from src.utils.serialization import clean_nan_recursive
 
 from . import api_bp
 

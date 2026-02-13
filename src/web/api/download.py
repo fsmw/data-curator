@@ -5,16 +5,18 @@ Handles data ingestion and download progress tracking.
 """
 
 from flask import request, jsonify, Response, stream_with_context
+from flask_login import login_required, current_user
 from typing import Dict
 import time
 import json
 
-from config import Config
-from searcher import IndicatorSearcher
-from ingestion import DataIngestionManager
-from cleaning import DataCleaner
-from metadata import MetadataGenerator
-from ai_packager import AIPackager
+from src.config import Config
+from src.searcher import IndicatorSearcher
+from src.ingestion import DataIngestionManager
+from src.cleaning import DataCleaner
+from src.metadata import MetadataGenerator
+from src.ai_packager import AIPackager
+from src.dataset_catalog import DatasetCatalog
 from src.logger import get_logger
 
 from . import api_bp
@@ -26,6 +28,7 @@ _download_progress: Dict[str, Dict] = {}
 
 
 @api_bp.route("/download/start", methods=["POST"])
+@login_required
 def start_download() -> Response:
     """Start automatic download for selected indicator.
 
@@ -151,6 +154,7 @@ def start_download() -> Response:
             else "general"
         )
         coverage = "global"
+        owner_username = current_user.username if getattr(current_user, "is_authenticated", False) else None
 
         try:
             cleaned_data = cleaner.clean_dataset(raw_data)
@@ -176,7 +180,7 @@ def start_download() -> Response:
                 or indicator_config.get("id")
                 or indicator_id
             )
-            output_path = cleaner.save_clean_dataset(
+            output_path, friendly_name = cleaner.save_clean_dataset(
                 data=cleaned_data,
                 topic=topic,
                 source=source,
@@ -184,6 +188,7 @@ def start_download() -> Response:
                 start_year=None,
                 end_year=None,
                 identifier=identifier,
+                owner_username=owner_username,
             )
 
         except Exception as e:
@@ -218,7 +223,7 @@ def start_download() -> Response:
                         "identifier": identifier,
                         "indicator_id": indicator_config.get("id"),
                         "indicator_name": indicator_name,
-                        "file_name": output_path.name,
+                    "file_name": friendly_name,
                     },
                     force_regenerate=False,
                 )
@@ -250,9 +255,13 @@ def start_download() -> Response:
 
         # Index the new dataset in the catalog
         try:
-            from dataset_catalog import DatasetCatalog
             catalog = DatasetCatalog(config)
-            catalog.index_dataset(output_path, force=True)
+            catalog.index_dataset(
+                output_path,
+                owner_username=owner_username,
+                display_file_name=friendly_name,
+                force=True,
+            )
             logger.info(f"Indexed dataset: {output_path}")
         except Exception as e:
             logger.error(f"Failed to index dataset: {e}")
@@ -280,6 +289,7 @@ def start_download() -> Response:
 
 
 @api_bp.route("/progress/stream")
+@login_required
 def progress_stream() -> Response:
     """SSE endpoint for real-time download progress."""
     def generate():
@@ -308,6 +318,7 @@ def progress_stream() -> Response:
 
 
 @api_bp.route("/progress/poll")
+@login_required
 def progress_poll() -> Response:
     """Polling fallback for browsers without SSE support."""
     progress = _download_progress.get('current', {

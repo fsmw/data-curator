@@ -1,6 +1,6 @@
 # Mises Data Curation Tool
 
-🔧 Una herramienta Python modular para automatizar la curaduria de datos económicos, con generación de metadata inteligente mediante LLM (OpenRouter).
+🔧 Una herramienta Python modular para automatizar la curaduria de datos económicos, con generación de metadata inteligente mediante GitHub Copilot SDK.
 
 **Interfaces disponibles:**
 - **CLI** - Interfaz de línea de comandos
@@ -10,7 +10,7 @@
 
 - **Ingesta automatizada** de datos desde ILOSTAT, OECD, IMF y fuentes manuales
 - **Limpieza estandarizada** con normalización de países, fechas y valores faltantes
-- **Generación de metadata con IA** usando OpenRouter (Claude, GPT-4, etc.)
+- **Generación de metadata con IA** usando GitHub Copilot SDK
 - **Convenciones de nomenclatura** automáticas siguiendo el patrón `{topic}_{source}_{coverage}_{years}.csv`
 - **Estructura de directorios** organizada para datos crudos, limpios, metadata y gráficos
 - **CLI intuitiva** para orquestar todo el pipeline de curaduria
@@ -64,27 +64,25 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
-### 2. Configurar API keys
+### 2. Configurar Copilot CLI y variables opcionales
 
-Copiar `.env.example` a `.env` y agregar tus claves:
+Copiar `.env.example` a `.env` para variables opcionales de fuentes y modelo:
 
 ```bash
 copy .env.example .env
 ```
 
-Editar `.env`:
+Editar `.env` (opcional):
 
 ```env
-# OpenRouter API para metadata con LLM
-OPENROUTER_API_KEY=tu_clave_openrouter_aqui
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+# Copilot model preference (optional)
+COPILOT_MODEL=gpt-5-mini
 
 # APIs de fuentes de datos (opcional)
 OECD_API_KEY=
 IMF_API_KEY=
 ```
-
-**Obtener clave de OpenRouter**: https://openrouter.ai/keys
+Autentica Copilot CLI en tu entorno con `copilot` y el comando `/login`.
 
 ### 3. Inicializar estructura
 
@@ -177,23 +175,23 @@ Muestra:
 - Archivos de metadata generados
 - Configuración de API keys
 
-## 🤖 Generación de Metadata con LLM
+## 🤖 Generación de Metadata con IA
 
-La herramienta usa **OpenRouter** (API compatible con OpenAI) para generar documentación profesional automáticamente.
+La herramienta usa **GitHub Copilot SDK** para generar documentación profesional automáticamente.
 
 ### Modelos recomendados
 
 | Modelo | Uso | Costo | Calidad |
 |--------|-----|-------|---------|
-| `openai/gpt-4o-mini` | Desarrollo/testing | 💰 Muy bajo | ⭐⭐⭐ |
-| `anthropic/claude-3.5-sonnet` | Producción | 💰💰 Medio | ⭐⭐⭐⭐⭐ |
-| `google/gemini-pro-1.5` | Alternativa | 💰 Bajo | ⭐⭐⭐⭐ |
+| `gpt-5-mini` | Desarrollo/testing | Según plan Copilot | ⭐⭐⭐ |
+| `claude-haiku-4.5` | Respuestas rápidas | Según plan Copilot | ⭐⭐⭐⭐ |
+| `claude-sonnet-4.5` | Producción | Según plan Copilot | ⭐⭐⭐⭐⭐ |
 
 ### Configurar modelo
 
-En `.env`:
+En `.env` (opcional):
 ```env
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+COPILOT_MODEL=gpt-5-mini
 ```
 
 O en `config.yaml` (temperatura, max_tokens, system prompt).

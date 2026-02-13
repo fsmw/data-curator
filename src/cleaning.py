@@ -1,10 +1,11 @@
 """Data cleaning and standardization pipeline."""
 
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import pandas as pd
 import re
 from datetime import datetime
+from uuid import uuid4
 try:
     import pandera as pa
     from pandera.typing import DataFrame, Series
@@ -18,6 +19,7 @@ except ImportError:
 
 
 from src.const import COUNTRY_CODES
+from src.utils.storage import sanitize_username
 
 class DataCleaner:
     """Handles data cleaning and standardization operations."""
@@ -249,8 +251,9 @@ class DataCleaner:
         start_year: Optional[int] = None,
         end_year: Optional[int] = None,
         identifier: Optional[str] = None,
-        format: str = "csv"
-    ) -> Path:
+        format: str = "csv",
+        owner_username: Optional[str] = None,
+    ) -> Tuple[Path, str]:
         """
         Save cleaned dataset. Supports CSV and Parquet.
         identifier (slug or id) and a timestamp to avoid collisions.
@@ -265,7 +268,7 @@ class DataCleaner:
             identifier: Optional indicator slug or id to include in filename
 
         Returns:
-            Path to saved file
+            Tuple with path to stored file and friendly filename (topic/source based).
         """
         # Auto-detect years if not provided
         if start_year is None or end_year is None:
@@ -313,7 +316,7 @@ class DataCleaner:
 
         # Construct filename following convention
         filename_parts = [
-            topic.lower(),
+            topic.lower() if topic else "general",
             source.lower(),
             coverage.lower(),
             str(start_year) if start_year else "na",
@@ -323,22 +326,35 @@ class DataCleaner:
             filename_parts.insert(2, id_part)  # place identifier before coverage
         filename_parts.append(timestamp)
 
-        filename = "_".join(filename_parts) + ".csv"
+        friendly_filename = "_".join(filename_parts)
+        desired_extension = format.lower()
+        if desired_extension != "parquet":
+            desired_extension = "csv"
+        friendly_filename = f"{friendly_filename}.{desired_extension}"
 
-        # Save to appropriate topic subdirectory
-        topic_dir = self.clean_dir / topic
-        topic_dir.mkdir(parents=True, exist_ok=True)
-        filepath = topic_dir / filename
-        
-        if format == "parquet":
-            filepath = filepath.with_suffix(".parquet")
+        # Build storage path per user/topic
+        topic_slug = re.sub(r"[^a-z0-9]+", "_", (topic or "general").lower()).strip("_")
+        topic_slug = topic_slug or "general"
+
+        owner_segment = sanitize_username(owner_username) if owner_username else None
+        if owner_segment:
+            storage_dir = self.clean_dir / owner_segment / topic_slug
+        else:
+            storage_dir = self.clean_dir / topic_slug
+
+        storage_dir.mkdir(parents=True, exist_ok=True)
+
+        stored_filename = f"{uuid4().hex}.{desired_extension}"
+        filepath = storage_dir / stored_filename
+
+        if desired_extension == "parquet":
             data.to_parquet(filepath, index=False)
         else:
             data.to_csv(filepath, index=False, encoding="utf-8")
-            
+
         print(f"✓ Saved cleaned dataset to {filepath}")
 
-        return filepath
+        return filepath, friendly_filename
 
     def get_transformations(self) -> list:
         """Get list of transformations applied to the data."""

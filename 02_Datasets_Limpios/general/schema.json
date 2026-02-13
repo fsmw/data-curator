@@ -1,12 +1,12 @@
 {
   "dataset_info": {
     "name": "",
-    "slug": "lives-saved-vaccines",
+    "slug": "foreign-aid-given-net-flows-vs-grant-equivalents-line",
     "description": "",
     "source": "Unknown",
-    "total_rows": 1,
-    "total_columns": 18,
-    "created_at": "2026-02-06T20:30:06.636029"
+    "total_rows": 28,
+    "total_columns": 7,
+    "created_at": "2026-02-12T15:41:40.531880"
   },
   "columns": [
     {
@@ -14,7 +14,11 @@
       "type": "object",
       "description": "Country or region name",
       "sample_values": [
-        "World"
+        "DAC countries",
+        "DAC countries",
+        "DAC countries",
+        "DAC countries",
+        "DAC countries"
       ],
       "null_count": 0,
       "null_percentage": 0.0
@@ -24,266 +28,102 @@
       "type": "object",
       "description": "ISO country code",
       "sample_values": [
-        "OWID_WRL"
+        "DEU",
+        "DEU",
+        "DEU",
+        "DEU",
+        "DEU"
       ],
-      "null_count": 0,
-      "null_percentage": 0.0
+      "null_count": 14,
+      "null_percentage": 50.0
     },
     {
       "name": "year",
       "type": "int64",
       "description": "Year of observation",
       "sample_values": [
-        2024
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
       ],
       "null_count": 0,
       "null_percentage": 0.0,
       "statistics": {
-        "min": 2024.0,
+        "min": 2018.0,
         "max": 2024.0,
-        "mean": 2024.0,
-        "median": 2024.0
+        "mean": 2021.0,
+        "median": 2021.0
       }
     },
     {
-      "name": "Diphtheria",
+      "name": "Net flows",
       "type": "int64",
-      "description": "Diphtheria",
+      "description": "Net Flows",
       "sample_values": [
-        357000
+        164294900000,
+        163080880000,
+        175626940000,
+        188207190000,
+        223773130000
       ],
       "null_count": 0,
       "null_percentage": 0.0,
       "statistics": {
-        "min": 357000.0,
-        "max": 357000.0,
-        "mean": 357000.0,
-        "median": 357000.0
+        "min": 17083057000.0,
+        "max": 226206760000.0,
+        "mean": 76017559071.42857,
+        "median": 40081126500.0
       }
     },
     {
-      "name": "Hepatitis B",
+      "name": "Grant equivalents",
       "type": "int64",
-      "description": "Hepatitis B",
+      "description": "Grant Equivalents",
       "sample_values": [
-        464000
+        167041400000,
+        167816940000,
+        174572270000,
+        189062330000,
+        220918420000
       ],
       "null_count": 0,
       "null_percentage": 0.0,
       "statistics": {
-        "min": 464000.0,
-        "max": 464000.0,
-        "mean": 464000.0,
-        "median": 464000.0
+        "min": 16714508000.0,
+        "max": 223373260000.0,
+        "mean": 75064356535.71428,
+        "median": 39141249000.0
       }
     },
     {
-      "name": "Measles",
-      "type": "int64",
-      "description": "Measles",
+      "name": "Net flows (Annotations)",
+      "type": "object",
+      "description": "Net Flows (Annotations)",
       "sample_values": [
-        93712000
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD"
       ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 93712000.0,
-        "max": 93712000.0,
-        "mean": 93712000.0,
-        "median": 93712000.0
-      }
+      "null_count": 21,
+      "null_percentage": 75.0
     },
     {
-      "name": "Polio",
-      "type": "int64",
-      "description": "Polio",
+      "name": "Grant equivalents (Annotations)",
+      "type": "object",
+      "description": "Grant Equivalents (Annotations)",
       "sample_values": [
-        1570000
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD",
+        "Major aid donors in the OECD"
       ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 1570000.0,
-        "max": 1570000.0,
-        "mean": 1570000.0,
-        "median": 1570000.0
-      }
-    },
-    {
-      "name": "Rubella",
-      "type": "int64",
-      "description": "Rubella",
-      "sample_values": [
-        286000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 286000.0,
-        "max": 286000.0,
-        "mean": 286000.0,
-        "median": 286000.0
-      }
-    },
-    {
-      "name": "Tetanus",
-      "type": "int64",
-      "description": "Tetanus",
-      "sample_values": [
-        27948000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 27948000.0,
-        "max": 27948000.0,
-        "mean": 27948000.0,
-        "median": 27948000.0
-      }
-    },
-    {
-      "name": "Tuberculosis",
-      "type": "int64",
-      "description": "Tuberculosis",
-      "sample_values": [
-        10874000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 10874000.0,
-        "max": 10874000.0,
-        "mean": 10874000.0,
-        "median": 10874000.0
-      }
-    },
-    {
-      "name": "Yellow fever",
-      "type": "int64",
-      "description": "Yellow Fever",
-      "sample_values": [
-        554000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 554000.0,
-        "max": 554000.0,
-        "mean": 554000.0,
-        "median": 554000.0
-      }
-    },
-    {
-      "name": "Whooping cough (Pertussis)",
-      "type": "int64",
-      "description": "Whooping Cough (Pertussis)",
-      "sample_values": [
-        13173000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 13173000.0,
-        "max": 13173000.0,
-        "mean": 13173000.0,
-        "median": 13173000.0
-      }
-    },
-    {
-      "name": "Total",
-      "type": "int64",
-      "description": "Total",
-      "sample_values": [
-        153838000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 153838000.0,
-        "max": 153838000.0,
-        "mean": 153838000.0,
-        "median": 153838000.0
-      }
-    },
-    {
-      "name": "Streptococcus pneumoniae",
-      "type": "int64",
-      "description": "Streptococcus Pneumoniae",
-      "sample_values": [
-        1628000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 1628000.0,
-        "max": 1628000.0,
-        "mean": 1628000.0,
-        "median": 1628000.0
-      }
-    },
-    {
-      "name": "Rotavirus",
-      "type": "int64",
-      "description": "Rotavirus",
-      "sample_values": [
-        396000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 396000.0,
-        "max": 396000.0,
-        "mean": 396000.0,
-        "median": 396000.0
-      }
-    },
-    {
-      "name": "Neisseria meningitidis A",
-      "type": "int64",
-      "description": "Neisseria Meningitidis A",
-      "sample_values": [
-        2000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 2000.0,
-        "max": 2000.0,
-        "mean": 2000.0,
-        "median": 2000.0
-      }
-    },
-    {
-      "name": "Japanese encephalitis",
-      "type": "int64",
-      "description": "Japanese Encephalitis",
-      "sample_values": [
-        29000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 29000.0,
-        "max": 29000.0,
-        "mean": 29000.0,
-        "median": 29000.0
-      }
-    },
-    {
-      "name": "Haemophilus influenzae type B",
-      "type": "int64",
-      "description": "Haemophilus Influenzae Type B",
-      "sample_values": [
-        2845000
-      ],
-      "null_count": 0,
-      "null_percentage": 0.0,
-      "statistics": {
-        "min": 2845000.0,
-        "max": 2845000.0,
-        "mean": 2845000.0,
-        "median": 2845000.0
-      }
+      "null_count": 21,
+      "null_percentage": 75.0
     }
   ]
 }

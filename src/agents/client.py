@@ -1,13 +1,14 @@
 """
 Unified LLM Client for Mises Data Curator Agents.
 
-Provides a consistent interface for multiple LLM providers using LiteLLM.
-Compatible with OpenRouter, Ollama, OpenAI, Azure, Anthropic, and more.
+Primary mode uses GitHub Copilot SDK.
+Legacy LiteLLM providers remain available for backward compatibility.
 
 Inspired by Data Formulator's client_utils.py pattern.
 """
 
 import os
+import asyncio
 import logging
 from typing import Dict, Any, Optional, Union, List, Generator
 from dataclasses import dataclass
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModelConfig:
     """Configuration for an LLM model."""
-    provider: str  # 'openrouter', 'ollama', 'openai', 'azure', 'anthropic'
+    provider: str  # 'copilot_sdk' (primary), plus legacy providers
     model: str
     api_key: Optional[str] = None
     api_base: Optional[str] = None
@@ -44,7 +45,13 @@ class ModelConfig:
     @classmethod
     def from_env(cls) -> 'ModelConfig':
         """Create config from environment variables."""
-        provider = os.getenv('LLM_PROVIDER', 'ollama').lower()
+        provider = os.getenv('LLM_PROVIDER', 'copilot_sdk').lower()
+
+        if provider in {'copilot', 'copilot_sdk'}:
+            return cls(
+                provider='copilot_sdk',
+                model=os.getenv('COPILOT_MODEL', 'gpt-5-mini'),
+            )
         
         if provider == 'openrouter':
             return cls(
@@ -73,19 +80,18 @@ class ModelConfig:
                 api_key=os.getenv('ANTHROPIC_API_KEY'),
             )
         else:
-            # Default to ollama
+            # Default to Copilot SDK
             return cls(
-                provider='ollama',
-                model='llama3.1',
-                api_base='http://localhost:11434',
+                provider='copilot_sdk',
+                model=os.getenv('COPILOT_MODEL', 'gpt-5-mini'),
             )
     
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> 'ModelConfig':
         """Create config from dictionary."""
         return cls(
-            provider=config.get('provider', config.get('endpoint', 'ollama')),
-            model=config.get('model', 'llama3.1'),
+            provider=config.get('provider', config.get('endpoint', 'copilot_sdk')),
+            model=config.get('model', 'gpt-5-mini'),
             api_key=config.get('api_key'),
             api_base=config.get('api_base'),
             api_version=config.get('api_version'),
@@ -147,7 +153,9 @@ class MisesLLMClient:
         """
         model = self.config.model
         provider = self.config.provider.lower()
-        
+
+        if provider == 'copilot_sdk':
+            return model
         if provider == 'openrouter':
             # OpenRouter uses openrouter/ prefix
             if not model.startswith('openrouter/'):
@@ -182,6 +190,51 @@ class MisesLLMClient:
             params['api_version'] = self.config.api_version
         
         return params
+
+    @staticmethod
+    def _run_coro_sync(coro):
+        """Run async coroutine safely from sync context."""
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    def _completion_with_copilot(self, messages: List[Dict[str, str]]) -> Any:
+        """Execute completion using GitHub Copilot SDK and adapt response shape."""
+        from src.copilot_agent import MisesCopilotAgent
+
+        prompt = "\n".join(
+            f"{m.get('role', 'user')}: {m.get('content', '')}" for m in messages
+        )
+        agent = MisesCopilotAgent()
+        self._run_coro_sync(agent.start())
+        try:
+            response = self._run_coro_sync(
+                agent.chat(message=prompt, stream=False, model=self.config.model)
+            )
+        finally:
+            self._run_coro_sync(agent.stop())
+
+        if response.get("status") != "success":
+            raise RuntimeError(response.get("error") or "Copilot SDK completion failed")
+
+        content = response.get("text", "")
+
+        class _Message:
+            def __init__(self, text: str):
+                self.content = text
+
+        class _Choice:
+            def __init__(self, text: str):
+                self.message = _Message(text)
+
+        class _Completion:
+            def __init__(self, text: str):
+                self.choices = [_Choice(text)]
+
+        return _Completion(content)
     
     def get_completion(
         self, 
@@ -200,6 +253,9 @@ class MisesLLMClient:
         Returns:
             Response object with choices[].message.content structure.
         """
+        if self.config.provider == 'copilot_sdk':
+            return self._completion_with_copilot(messages)
+
         if not LITELLM_AVAILABLE:
             raise RuntimeError(
                 "LiteLLM not installed. Install with: pip install litellm"
@@ -255,6 +311,10 @@ class MisesLLMClient:
         Yields:
             Text chunks as they arrive.
         """
+        if self.config.provider == 'copilot_sdk':
+            yield self.get_completion_text(messages, **kwargs)
+            return
+
         response = self.get_completion(messages, stream=True, **kwargs)
         
         for chunk in response:

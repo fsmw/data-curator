@@ -1,6 +1,19 @@
 # Git worktrees
 .worktrees/
 
+.bash_history
+.bashrc
+.cache/
+.claude/
+.config/
+.copilot/
+.github/
+.lesshst
+.local/
+.npm/
+.sqlit/
+chroma_rag/
+
 # Python virtual environment
 venv/
 .venv/
@@ -10,6 +23,7 @@ ENV/
 .playwright-mcp/
 mcp-data-opencode/
 mcp-data-copilot/
+mcp*/
 
 # Environment variables
 .env

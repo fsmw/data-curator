@@ -260,6 +260,34 @@ a {
   padding: 24px;
 }
 
+/* Badge overrides for softer tag colors */
+.badge.bg-primary {
+  background-color: #dbeafe;
+  color: #0f172a;
+  background-color: #dbeafe !important;
+  color: #0f172a !important;
+}
+
+.badge.bg-secondary {
+  background-color: #ecedef !important;
+  color: #0f172a !important;
+}
+
+.badge.bg-success {
+  background-color: #d7edda !important;
+  color: #0f172a !important;
+}
+
+.badge.bg-warning {
+  background-color: #fff3cd !important;
+  color: #0f172a !important;
+}
+
+.badge.bg-danger {
+  background-color: #ffe3ea !important;
+  color: #0f172a !important;
+}
+
 /* Vibrant Action Cards */
 .card-action {
   background: var(--grad-blue);

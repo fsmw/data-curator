@@ -127,7 +127,7 @@ initialize_directories()                    # Create folder structure
 #### Configuration Files
 - **`config.yaml`**: Core settings (directories, sources, topics, LLM settings, cleaning rules)
 - **`indicators.yaml`**: Economic indicators database (flat list with tags)
-- **`.env`**: API keys (OPENROUTER_API_KEY, source-specific keys)
+- **`.env`**: Copilot model preference + source API keys (if needed)
 
 #### Agent Task Examples
 - **Add new topic**: Update `config.yaml` topics list
@@ -252,7 +252,7 @@ get_data_summary(data: pd.DataFrame) → Dict
 #### `MetadataGenerator` Class
 
 **Dual-Mode Operation**
-1. **LLM Mode** (OpenRouter): Claude, GPT-4, Gemini
+1. **LLM Mode** (GitHub Copilot SDK): GPT/Claude models from Copilot subscription
 2. **Template Mode** (Fallback): Rule-based markdown generation
 
 **Key Methods**
@@ -262,7 +262,7 @@ generate_metadata(topic, data_summary, source, transformations,
 ```
 
 **LLM Integration**
-- Uses OpenRouter API (compatible with OpenAI client)
+- Uses GitHub Copilot SDK (authenticated via Copilot CLI)
 - Supports custom system prompts
 - Configurable temperature, max_tokens
 - Fallback to template if API fails
@@ -477,8 +477,8 @@ STEP 3: CLEAN
 STEP 4: DOCUMENT
   MetadataGenerator.generate_metadata()
   ↓
-  Try LLM first (OpenRouter)
-    - Claude, GPT-4, Gemini
+  Try LLM first (Copilot SDK)
+    - GPT-5-mini, Claude Haiku/Sonnet (based on subscription availability)
     - Custom system prompt
     - Caching enabled
   ↓
@@ -684,8 +684,8 @@ regions:
 
 ```bash
 # Required for AI documentation
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxx
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+LLM_PROVIDER=copilot_sdk
+COPILOT_MODEL=gpt-5-mini
 
 # Optional source-specific keys
 OECD_API_KEY=optional
@@ -795,7 +795,7 @@ if sys.platform == 'win32':
 
 ### Gotcha #4: API Keys Optional
 
-**Problem**: Tool fails without OpenRouter API key  
+**Problem**: Tool fails without Copilot CLI authentication  
 **Solution**: Metadata generation has template fallback (no API required)
 
 ```python
@@ -1050,7 +1050,7 @@ cleaned = cleaner.clean_dataset(data)
 ### External References
 
 - [Click Documentation](https://click.palletsprojects.com/) - CLI framework
-- [OpenRouter API](https://openrouter.ai/) - LLM provider
+- [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) - LLM runtime/authentication
 - [Pandas Documentation](https://pandas.pydata.org/) - Data manipulation
 - [Flask Documentation](https://flask.palletsprojects.com/) - Web framework
 - [SDMX Standard](https://sdmx.org/) - Statistical data format

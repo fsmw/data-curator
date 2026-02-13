@@ -394,6 +394,9 @@ msgstr "Tamaño de base de datos"
 msgid "Delete dataset"
 msgstr "Eliminar dataset"
 
+msgid "Delete"
+msgstr "Eliminar"
+
 msgid "Delete thread"
 msgstr "Eliminar hilo"
 
@@ -421,17 +424,50 @@ msgstr "Descripción (NL)"
 msgid "Download CSV data"
 msgstr "Descargar datos CSV"
 
+msgid "Download"
+msgstr "Descargar"
+
 msgid "Download PNG"
 msgstr "Descargar PNG"
 
 msgid "Download all"
 msgstr "Descargar todo"
 
+msgid "Re-index all datasets from disk"
+msgstr "Reindexar todos los datasets desde disco"
+
+msgid "Download backup zip of all data"
+msgstr "Descargar zip de respaldo de todos los datos"
+
+msgid "Permanently delete all datasets for your profile"
+msgstr "Eliminar permanentemente todos los datasets de tu perfil"
+
+msgid "Clean My Data"
+msgstr "Eliminar mi data"
+
+msgid "Delete my data"
+msgstr "Eliminar mi data"
+
+msgid "This action is not recoverable."
+msgstr "Esta acción no es recuperable."
+
+msgid "Are you sure you want to permanently delete all datasets in your profile?"
+msgstr "¿Seguro que quieres eliminar permanentemente todos los datasets de tu perfil?"
+
+msgid "Yes, delete all"
+msgstr "Sí, eliminar todo"
+
+msgid "No"
+msgstr "No"
+
 msgid "Download selected"
 msgstr "Descargar seleccionados"
 
 msgid "Downloaded"
 msgstr "Descargado"
+
+msgid "My data"
+msgstr "Mis datos"
 
 msgid "Downloading..."
 msgstr "Descargando..."
@@ -846,4 +882,3 @@ msgstr "mínimo/siempre"
 
 msgid "of"
 msgstr "de"
-

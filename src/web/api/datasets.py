@@ -8,7 +8,6 @@ from flask import request, jsonify, Response, send_file, after_this_request
 from flask_login import login_required, current_user
 import json
 import math
-import re
 import sqlite3
 import pandas as pd
 from pathlib import Path
@@ -19,27 +18,62 @@ import shutil
 import zipfile
 from datetime import datetime
 
-from config import Config
-from dataset_catalog import DatasetCatalog
-from metadata import MetadataGenerator
-from cleaning import DataCleaner
+from src.config import Config
+from src.dataset_catalog import DatasetCatalog
+from src.metadata import MetadataGenerator
+from src.cleaning import DataCleaner
 from src.logger import get_logger
-from utils.serialization import clean_nan_recursive
-from ingestion import OECDSource, OWIDSource
-from ai_packager import AIPackager
+from src.model_governance import ALLOWED_COPILOT_MODELS
+from src.utils.storage import sanitize_username
+from src.utils.serialization import clean_nan_recursive
+from src.ingestion import OECDSource, OWIDSource
+from src.ai_packager import AIPackager
+from src.smoothcsv_cache import (
+    SQL_PREVIEW_LIMIT,
+    SQL_SAMPLE_LIMIT,
+    ensure_smoothcsv_table,
+    get_smoothcsv_db_path,
+    prepare_smoothcsv_sql,
+)
 import requests
 
 from . import api_bp
 
 logger = get_logger(__name__)
 
+JSON_PARSE_ERRORS = (json.JSONDecodeError, TypeError)
+DATASET_API_ERRORS = (
+    AttributeError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+    sqlite3.Error,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+    requests.RequestException,
+)
+
 
 def _format_dataset(ds: dict) -> dict:
-    dataset = dict(ds)
+    if isinstance(ds, dict):
+        dataset = dict(ds)
+    elif hasattr(ds, "__dict__"):
+        dataset = {
+            key: value
+            for key, value in vars(ds).items()
+            if not key.startswith("_sa_")
+        }
+    else:
+        dataset = {}
+
+    dataset.pop("_sa_instance_state", None)
     if dataset.get("countries_json"):
         try:
             dataset["countries"] = json.loads(dataset["countries_json"])
-        except Exception:
+        except JSON_PARSE_ERRORS:
             dataset["countries"] = []
     else:
         dataset["countries"] = []
@@ -47,7 +81,7 @@ def _format_dataset(ds: dict) -> dict:
     if dataset.get("columns_json"):
         try:
             dataset["columns"] = json.loads(dataset["columns_json"])
-        except Exception:
+        except JSON_PARSE_ERRORS:
             dataset["columns"] = []
     else:
         dataset["columns"] = []
@@ -72,11 +106,32 @@ def _format_dataset(ds: dict) -> dict:
     return dataset
 
 
-def _add_directory_to_zip(zip_file: zipfile.ZipFile, directory: Path, arc_prefix: str) -> None:
+def _add_directory_to_zip(
+    zip_file: zipfile.ZipFile,
+    directory: Path,
+    arc_prefix: str,
+    csv_display_names: dict[str, str] | None = None,
+) -> None:
+    used_arc_names: set[str] = set()
     for root, _, files in os.walk(directory):
         for filename in files:
             file_path = Path(root) / filename
-            arcname = Path(arc_prefix) / file_path.relative_to(directory)
+            relative_path = file_path.relative_to(directory)
+            if csv_display_names and file_path.suffix.lower() == ".csv":
+                display_name = csv_display_names.get(str(file_path))
+                if display_name:
+                    relative_path = relative_path.with_name(Path(display_name).name)
+
+            arcname = Path(arc_prefix) / relative_path
+            arcname_str = arcname.as_posix()
+            if arcname_str in used_arc_names:
+                base = arcname
+                counter = 2
+                while arcname_str in used_arc_names:
+                    arcname = base.with_name(f"{base.stem}_{counter}{base.suffix}")
+                    arcname_str = arcname.as_posix()
+                    counter += 1
+            used_arc_names.add(arcname_str)
             zip_file.write(file_path, arcname.as_posix())
 
 
@@ -104,75 +159,49 @@ def list_datasets() -> Response:
         topic = request.args.get("topic", "")
         limit = int(request.args.get("limit", 100))
 
-        # Get current user
-        user_id = int(current_user.get_id()) if current_user.is_authenticated else None
-
-        # Build filters
         filters = {}
         if source:
             filters["source"] = source
         if topic:
             filters["topic"] = topic
 
-        # Get datasets visible to user using PermissionService
-        from src.services import PermissionService
-        if user_id is None:
-            return jsonify({"status": "success", "total": 0, "datasets": []})
-
-        accessible_datasets = PermissionService.get_user_datasets(
-            user_id, include_public=True
+        owner_segment = sanitize_username(current_user.username)
+        filtered_results = catalog.search(
+            query=query,
+            filters=filters if filters else None,
+            limit=limit,
+            owner_username=owner_segment,
         )
 
-        # Filter by query, source, topic
-        filtered_results = []
-        for dataset in accessible_datasets:
-            # Apply text search
-            if query:
-                search_text = f"{dataset.indicator_name} {dataset.description or ''} {dataset.source or ''}".lower()
-                if query.lower() not in search_text:
-                    continue
-            
-            # Apply source filter
-            if source and dataset.source != source:
-                continue
-            
-            # Apply topic filter
-            if topic and dataset.topic != topic:
-                continue
-            
-            filtered_results.append(dataset)
-            
-            if len(filtered_results) >= limit:
-                break
-
-        # If user wants latest-per-identifier, filter further
         latest_only = request.args.get("latest", "false").lower() == "true"
         if latest_only:
-            # Group by indicator_id and keep latest
             from collections import defaultdict
             by_indicator = defaultdict(list)
             for ds in filtered_results:
-                by_indicator[ds.indicator_id].append(ds)
-            
+                gid = ds.get("indicator_id") or ds.get("indicator_name")
+                by_indicator[gid].append(ds)
+
             filtered_results = []
-            for indicator_id, datasets in by_indicator.items():
-                # Sort by modified_at or created_at desc
-                datasets.sort(key=lambda x: x.modified_at or x.created_at or '', reverse=True)
+            for datasets in by_indicator.values():
+                datasets.sort(
+                    key=lambda x: (x.get("modified_at") or x.get("indexed_at") or ""),
+                    reverse=True,
+                )
                 filtered_results.append(datasets[0])
 
-        # Format results
         datasets = [_format_dataset(ds) for ds in filtered_results]
 
         return jsonify(
             {"status": "success", "total": len(datasets), "datasets": datasets}
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error listing datasets: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/<int:dataset_id>")
+@login_required
 def get_dataset_detail(dataset_id: int) -> Response:
     """Fetch a single dataset record."""
     try:
@@ -182,14 +211,83 @@ def get_dataset_detail(dataset_id: int) -> Response:
         if not dataset:
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
         return jsonify({"status": "success", "dataset": _format_dataset(dataset)})
 
-    except Exception as e:
-        logger.error(f"Error getting dataset {dataset_id}: {e}", exc_info=True)
+    except DATASET_API_ERRORS as e:
+        logger.error(f"Error retrieving dataset detail: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@api_bp.route("/datasets/<int:dataset_id>/download", methods=["GET"])
+@login_required
+def download_dataset(dataset_id: int) -> Response:
+    """Download a zip bundle for a specific dataset (CSV + notes + visuals)."""
+    try:
+        config = Config()
+        catalog = DatasetCatalog(config)
+        dataset = catalog.get_dataset(dataset_id)
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        file_path = Path(dataset["file_path"])
+        if not file_path.exists():
+            return jsonify({"status": "error", "message": "Dataset file missing"}), 404
+
+        metadata_gen = MetadataGenerator(config)
+        metadata_path = metadata_gen.get_metadata_path_for_dataset(file_path)
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        temp_path = Path(temp_file.name)
+        temp_file.close()
+
+        with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+            csv_name = (
+                dataset.get("display_file_name")
+                or dataset.get("file_name")
+                or file_path.name
+            )
+            zip_file.write(file_path, Path(csv_name).name)
+
+            if metadata_path.exists():
+                zip_file.write(metadata_path, f"metadata/{metadata_path.name}")
+
+            dataset_dir = file_path.parent
+            for child in dataset_dir.iterdir():
+                if child.name in {file_path.name, metadata_path.name}:
+                    continue
+                if child.is_file():
+                    zip_file.write(child, f"package/{child.name}")
+
+        @after_this_request
+        def cleanup(response: Response) -> Response:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning("Could not remove temporary zip %s: %s", temp_path, exc)
+            return response
+
+        download_name = f"{dataset.get('indicator_name') or dataset.get('file_name', 'dataset')}.zip"
+
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="application/zip",
+        )
+
+    except DATASET_API_ERRORS as e:
+        logger.error(f"Error downloading dataset {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/refresh-selected", methods=["POST"])
+@login_required
 def refresh_selected_datasets() -> Response:
     """Refresh selected datasets by re-indexing and updating OWID notes."""
     try:
@@ -222,6 +320,9 @@ def refresh_selected_datasets() -> Response:
             if not dataset:
                 errors.append({"id": dataset_id, "error": "Dataset not found"})
                 continue
+            if not catalog.can_access(dataset_id, current_user.username, "write"):
+                errors.append({"id": dataset_id, "error": "Access denied"})
+                continue
 
             file_path = Path(dataset["file_path"])
             if not file_path.exists():
@@ -239,7 +340,7 @@ def refresh_selected_datasets() -> Response:
                         metadata_text = ai_packager.create_context_owid(owid_metadata)
                         generator.save_metadata_for_dataset(file_path, metadata_text)
                         notes_updated += 1
-                except Exception as e:
+                except DATASET_API_ERRORS as e:
                     errors.append({"id": dataset_id, "error": f"OWID notes update failed: {e}"})
 
         return jsonify(
@@ -251,54 +352,12 @@ def refresh_selected_datasets() -> Response:
             }
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error refreshing selected datasets: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-@api_bp.route("/datasets/<int:dataset_id>")
-def get_dataset(dataset_id: int) -> Response:
-    """Get detailed information about a specific dataset."""
-    try:
-        config = Config()
-        catalog = DatasetCatalog(config)
-
-        dataset = catalog.get_dataset(dataset_id)
-
-        if not dataset:
-            return jsonify({"status": "error", "message": "Dataset not found"}), 404
-
-        # Parse JSON fields
-        if dataset.get("countries_json"):
-            dataset["countries"] = json.loads(dataset["countries_json"])
-        if dataset.get("columns_json"):
-            dataset["columns"] = json.loads(dataset["columns_json"])
-
-        # Replace None/NaN with 0 for numeric fields
-        for key in [
-            "null_percentage",
-            "completeness_score",
-            "min_year",
-            "max_year",
-            "row_count",
-            "column_count",
-            "country_count",
-            "file_size_bytes",
-        ]:
-            if key in dataset and (
-                dataset[key] is None
-                or (isinstance(dataset[key], float) and dataset[key] != dataset[key])
-            ):
-                dataset[key] = 0
-
-        return jsonify({"status": "success", "dataset": dataset})
-
-    except Exception as e:
-        logger.error(f"Error getting dataset {dataset_id}: {e}", exc_info=True)
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
 @api_bp.route("/datasets/<int:dataset_id>/preview")
+@login_required
 def preview_dataset(dataset_id: int) -> Response:
     """
     Get preview data (first N rows) for a dataset.
@@ -316,6 +375,8 @@ def preview_dataset(dataset_id: int) -> Response:
         # Get dataset info first
         dataset = catalog.get_dataset(dataset_id)
         if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
         # Get preview data
@@ -346,12 +407,13 @@ def preview_dataset(dataset_id: int) -> Response:
 
         return jsonify({"status": "success", "preview": preview_data})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error previewing dataset {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/<int:dataset_id>/notes")
+@login_required
 def get_dataset_notes(dataset_id: int) -> Response:
     """Get AI-generated notes for a dataset if available, generate on demand if missing."""
     try:
@@ -360,6 +422,8 @@ def get_dataset_notes(dataset_id: int) -> Response:
         dataset = catalog.get_dataset(dataset_id)
 
         if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
         file_path = Path(dataset["file_path"])
@@ -378,7 +442,7 @@ def get_dataset_notes(dataset_id: int) -> Response:
                         ai_packager = AIPackager(file_path.parent)
                         metadata_text = ai_packager.create_context_owid(owid_metadata)
                         notes_path = generator.save_metadata_for_dataset(file_path, metadata_text)
-                except Exception as e:
+                except DATASET_API_ERRORS as e:
                     logger.warning(f"OWID notes generation failed: {e}")
 
         if not notes_path.exists():
@@ -414,12 +478,13 @@ def get_dataset_notes(dataset_id: int) -> Response:
 
         return jsonify({"status": "success", "notes": notes, "path": str(notes_path)})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error fetching notes for dataset {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/remote/owid/preview")
+@login_required
 def preview_owid_remote() -> Response:
     """
     Preview OWID remote data without saving to disk.
@@ -493,12 +558,13 @@ def preview_owid_remote() -> Response:
 
         return jsonify({"status": "success", "preview": preview})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error previewing OWID remote data: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/remote/worldbank/preview")
+@login_required
 def preview_worldbank_remote() -> Response:
     """
     Preview World Bank indicator data without saving to disk.
@@ -590,12 +656,13 @@ def preview_worldbank_remote() -> Response:
 
         return jsonify({"status": "success", "preview": preview})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error previewing World Bank remote data: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/remote/oecd/preview")
+@login_required
 def preview_oecd_remote() -> Response:
     """
     Preview OECD dataset data without saving to disk.
@@ -674,12 +741,13 @@ def preview_oecd_remote() -> Response:
 
         return jsonify({"status": "success", "preview": preview})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error previewing OECD remote data: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/chart/export-pdf")
+@login_required
 def export_chart_pdf() -> Response:
     """
     Export chart as PDF from OWID.
@@ -711,12 +779,13 @@ def export_chart_pdf() -> Response:
             },
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error exporting chart PDF: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/chart/export-png")
+@login_required
 def export_chart_png() -> Response:
     """
     Export chart as PNG from OWID.
@@ -744,50 +813,73 @@ def export_chart_png() -> Response:
             },
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error exporting chart PNG: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/refresh", methods=["POST"])
+@login_required
 def refresh_datasets() -> Response:
-    """Re-index datasets to refresh the catalog and regenerate metadata."""
+    """Re-index current user's datasets and regenerate metadata."""
     try:
         config = Config()
         catalog = DatasetCatalog(config)
+        owner_segment = sanitize_username(current_user.username)
 
-        # Get force parameter
-        force = request.get_json().get("force", False) if request.get_json() else False
+        payload = request.get_json(silent=True) or {}
+        force = bool(payload.get("force", False))
+        user_datasets = catalog.search(
+            query="",
+            filters=None,
+            limit=100000,
+            owner_username=owner_segment,
+        )
+        stats = {"indexed": 0, "skipped": 0, "errors": 0}
 
-        # Step 1: Reindex all datasets
-        stats = catalog.index_all(force=force)
-        
-        # Step 2: Regenerate metadata for all datasets
+        for ds in user_datasets:
+            file_path = Path(ds["file_path"])
+            if not file_path.exists():
+                stats["errors"] += 1
+                continue
+            previous_hash = ds.get("file_hash")
+            current_hash = catalog._compute_file_hash(file_path)
+            result = catalog.index_dataset(
+                file_path,
+                display_file_name=ds.get("display_file_name"),
+                force=force,
+            )
+            if not result:
+                stats["errors"] += 1
+            elif not force and previous_hash == current_hash:
+                stats["skipped"] += 1
+            else:
+                stats["indexed"] += 1
+
+        # Regenerate metadata for current user's datasets
         try:
             metadata_gen = MetadataGenerator(config)
             cleaner = DataCleaner(config)
-            
-            # Get all datasets from catalog
-            all_datasets = catalog.search(query="", limit=1000)
             metadata_generated = 0
             metadata_errors = 0
-            
-            for ds in all_datasets:
+
+            refreshed_datasets = catalog.search(
+                query="",
+                filters=None,
+                limit=100000,
+                owner_username=owner_segment,
+            )
+            for ds in refreshed_datasets:
                 try:
                     file_path = Path(ds['file_path'])
                     if not file_path.exists():
                         continue
-                        
-                    # Load dataset
+
                     df = pd.read_csv(file_path)
-                    
-                    # Get summary
                     data_summary = cleaner.get_data_summary(df)
-                    
-                    # Generate metadata
                     topic = ds.get('topic', 'general')
                     source = ds.get('source', 'unknown')
-                    
+
                     metadata_content = metadata_gen.generate_metadata(
                         topic=topic,
                         data_summary=data_summary,
@@ -803,19 +895,16 @@ def refresh_datasets() -> Response:
                         force_regenerate=force
                     )
                     
-                    # Save metadata using dataset filename stem
-                    file_path = Path(ds['file_path'])
                     metadata_gen.save_metadata_for_dataset(file_path, metadata_content)
                     metadata_generated += 1
-                    
-                except Exception as e:
+                except DATASET_API_ERRORS as e:
                     logger.error(f"Error generating metadata for dataset {ds.get('id')}: {e}")
                     metadata_errors += 1
-            
+
             stats['metadata_generated'] = metadata_generated
             stats['metadata_errors'] = metadata_errors
-            
-        except Exception as e:
+
+        except DATASET_API_ERRORS as e:
             logger.warning(f"Metadata generation failed: {e}")
             stats['metadata_warning'] = str(e)
 
@@ -823,7 +912,7 @@ def refresh_datasets() -> Response:
             {"status": "success", "message": "Catalog refreshed and metadata regenerated", "stats": stats}
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error refreshing datasets: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -843,109 +932,88 @@ def get_catalog_statistics() -> Response:
             }
             return jsonify({"status": "success", "statistics": empty_stats})
 
-        user_id = int(current_user.get_id())
-
-        from src.services import PermissionService
-
-        accessible_datasets = PermissionService.get_user_datasets(
-            user_id, include_public=True
-        )
-
-        stats = {
-            "total_datasets": len(accessible_datasets),
-            "by_source": {},
-            "by_topic": {},
-            "total_size_mb": 0,
-            "avg_completeness": 0,
-        }
-
-        total_size_bytes = 0
-        completeness_scores = []
-
-        for dataset in accessible_datasets:
-            source = dataset.source or "unknown"
-            stats["by_source"][source] = stats["by_source"].get(source, 0) + 1
-
-            topic = dataset.topic or "unknown"
-            stats["by_topic"][topic] = stats["by_topic"].get(topic, 0) + 1
-
-            if dataset.file_size_bytes:
-                total_size_bytes += dataset.file_size_bytes
-
-            if dataset.completeness_score is not None:
-                try:
-                    completeness_scores.append(float(dataset.completeness_score))
-                except (TypeError, ValueError):
-                    pass
-
-        stats["total_size_mb"] = total_size_bytes / (1024 * 1024)
-        if completeness_scores:
-            stats["avg_completeness"] = sum(completeness_scores) / len(
-                completeness_scores
-            )
-
+        config = Config()
+        catalog = DatasetCatalog(config)
+        owner_segment = sanitize_username(current_user.username)
+        stats = catalog.get_statistics(owner_username=owner_segment)
         stats = clean_nan_recursive(stats)
 
         return jsonify({"status": "success", "statistics": stats})
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error getting catalog statistics: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/backup", methods=["GET"])
+@login_required
 def download_backup() -> Response:
-    """Download a zip backup of raw, clean, and metadata directories."""
+    """Download a zip archive containing the current user's cleaned datasets."""
     try:
         config = Config()
-        raw_dir = config.get_directory("raw")
+        catalog = DatasetCatalog(config)
         clean_dir = config.get_directory("clean")
-        metadata_dir = config.get_directory("metadata")
+        owner_segment = sanitize_username(current_user.username)
+        user_dir = clean_dir / owner_segment
 
-        missing_dirs = [
-            str(p)
-            for p in [raw_dir, clean_dir, metadata_dir]
-            if not p.exists()
-        ]
-        if len(missing_dirs) == 3:
-            return jsonify({
-                "status": "error",
-                "message": "No data directories found to back up."
-            }), 404
+        if not user_dir.exists():
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": "No datasets found for the current user.",
+                }
+            ), 404
 
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         temp_path = Path(temp_file.name)
         temp_file.close()
 
+        datasets = catalog.search(
+            query="",
+            filters=None,
+            limit=100000,
+            owner_username=owner_segment,
+        )
+        csv_display_names = {
+            record["file_path"]: (
+                record.get("display_file_name")
+                or record.get("file_name")
+                or Path(record["file_path"]).name
+            )
+            for record in datasets
+            if record.get("file_path")
+        }
+
         with zipfile.ZipFile(temp_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
-            if raw_dir.exists():
-                _add_directory_to_zip(zip_file, raw_dir, raw_dir.name)
-            if clean_dir.exists():
-                _add_directory_to_zip(zip_file, clean_dir, clean_dir.name)
-            if metadata_dir.exists():
-                _add_directory_to_zip(zip_file, metadata_dir, metadata_dir.name)
+            _add_directory_to_zip(
+                zip_file,
+                user_dir,
+                owner_segment,
+                csv_display_names=csv_display_names,
+            )
 
         @after_this_request
         def cleanup(response: Response) -> Response:
             try:
                 temp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+            except OSError as exc:
+                logger.warning("Could not remove temporary backup zip %s: %s", temp_path, exc)
             return response
 
         return send_file(
             temp_path,
             as_attachment=True,
-            download_name="mises_data_backup.zip",
+            download_name=f"{owner_segment}_datasets.zip",
             mimetype="application/zip",
         )
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error creating backup zip: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/<int:dataset_id>/delete", methods=["DELETE", "POST"])
+@login_required
 def delete_dataset(dataset_id: int) -> Response:
     """Delete a dataset from catalog and filesystem."""
     try:
@@ -955,6 +1023,9 @@ def delete_dataset(dataset_id: int) -> Response:
         # Get dataset info first
         dataset = catalog.get_dataset(dataset_id)
         if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+
+        if not catalog.can_access(dataset_id, current_user.username, "admin"):
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
         # Delete the physical file
@@ -977,12 +1048,65 @@ def delete_dataset(dataset_id: int) -> Response:
                 {"status": "error", "message": "Failed to delete dataset"}
             ), 500
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error deleting dataset {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@api_bp.route("/datasets/clear-my-data", methods=["POST"])
+@login_required
+def clear_my_data() -> Response:
+    """Delete all datasets and files for the current user."""
+    try:
+        config = Config()
+        catalog = DatasetCatalog(config)
+        owner_segment = sanitize_username(current_user.username)
+
+        with sqlite3.connect(catalog.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, file_path FROM datasets WHERE owner_username = ?",
+                (owner_segment,),
+            )
+            rows = cursor.fetchall()
+            dataset_ids = [row[0] for row in rows]
+            file_paths = [row[1] for row in rows]
+
+            for file_path in file_paths:
+                path = Path(file_path)
+                if path.exists():
+                    path.unlink()
+
+            if dataset_ids:
+                placeholders = ",".join(["?"] * len(dataset_ids))
+                cursor.execute(
+                    f"DELETE FROM dataset_columns WHERE dataset_id IN ({placeholders})",
+                    dataset_ids,
+                )
+
+            cursor.execute(
+                "DELETE FROM datasets WHERE owner_username = ?",
+                (owner_segment,),
+            )
+
+        clean_dir = config.get_directory("clean") / owner_segment
+        if clean_dir.exists():
+            shutil.rmtree(clean_dir)
+
+        return jsonify(
+            {
+                "status": "success",
+                "deleted_count": len(dataset_ids),
+                "message": "All your local data has been deleted permanently.",
+            }
+        )
+    except DATASET_API_ERRORS as e:
+        logger.error(f"Error clearing data for {current_user.username}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @api_bp.route("/datasets/<int:dataset_id>/redownload", methods=["POST"])
+@login_required
 def redownload_dataset(dataset_id: int) -> Response:
     """Re-download a dataset to refresh incomplete or corrupted data."""
     try:
@@ -993,25 +1117,22 @@ def redownload_dataset(dataset_id: int) -> Response:
         dataset = catalog.get_dataset(dataset_id)
         if not dataset:
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id, current_user.username, "write"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
-        # First, delete the old file and catalog entry
-        file_path = Path(dataset["file_path"])
-        if file_path.exists():
-            file_path.unlink()
-        catalog.delete_dataset(dataset_id)
-
-        # NOTE: We cannot fully reconstruct the original download without the indicator ID or slug
+        # NOTE: Auto re-download is not supported yet; keep current dataset intact.
         return jsonify({
             "status": "error",
             "message": "Please re-download this dataset from the Search page. Auto re-download not yet supported.",
         }), 501
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error re-downloading dataset {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route('/datasets/versions')
+@login_required
 def get_dataset_versions() -> Response:
     """
     Return all versions for a given identifier and optional source.
@@ -1029,14 +1150,19 @@ def get_dataset_versions() -> Response:
         config = Config()
         catalog = DatasetCatalog(config)
         versions = catalog.get_versions_for_identifier(identifier, source=source or None)
+        versions = [
+            version for version in versions
+            if catalog.can_access(version.get("id", 0), current_user.username, "read")
+        ]
 
         return jsonify({"status": "success", "total": len(versions), "versions": versions})
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error getting dataset versions: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route("/datasets/<int:dataset_id>/fields")
+@login_required
 def get_dataset_fields(dataset_id: int) -> Response:
     """
     Get field/column information for a dataset with inferred types.
@@ -1050,6 +1176,8 @@ def get_dataset_fields(dataset_id: int) -> Response:
         # Get dataset info
         dataset = catalog.get_dataset(dataset_id)
         if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
         
         # Load preview data to infer types
@@ -1128,12 +1256,13 @@ def get_dataset_fields(dataset_id: int) -> Response:
             "source": dataset.get("source", "unknown")
         })
         
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error getting dataset fields {dataset_id}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @api_bp.route('/llm/models')
+@login_required
 def get_llm_models() -> Response:
     """
     Return available models for GitHub Copilot SDK.
@@ -1144,13 +1273,8 @@ def get_llm_models() -> Response:
         config = Config()
         llm_cfg = config.get_llm_config()
         
-        # Default models available with Copilot subscription
-        available_models = [
-            "gpt-4.1",           # Latest GPT-4 Turbo
-            "claude-3.5-sonnet", # Anthropic Claude 3.5 Sonnet
-            "claude-3-opus",     # Anthropic Claude 3 Opus
-            "gpt-4",             # GPT-4
-        ]
+        # Enforced allowlist aligned with Copilot Chat UI governance
+        available_models = list(ALLOWED_COPILOT_MODELS)
         
         return jsonify({
             "status": "success",
@@ -1160,93 +1284,13 @@ def get_llm_models() -> Response:
             "note": "Actual availability depends on your Copilot subscription tier"
         }), 200
 
-    except Exception as e:
+    except DATASET_API_ERRORS as e:
         logger.error(f"Error getting LLM models: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-SQL_SAMPLE_LIMIT = int(os.getenv("SMOOTHCSV_SQL_SAMPLE_LIMIT", "5000"))
-SQL_PREVIEW_LIMIT = int(os.getenv("SMOOTHCSV_SQL_PREVIEW_LIMIT", "200"))
-
-
-def _get_smoothcsv_db_path(config: Config) -> Path:
-    return config.data_root / "smoothcsv_cache.db"
-
-
-def _init_smoothcsv_db(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS dataset_mapping (
-            dataset_id INTEGER PRIMARY KEY,
-            table_name TEXT NOT NULL,
-            file_hash TEXT,
-            sample_limit INTEGER,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    conn.commit()
-
-
-def _smoothcsv_table_name(dataset_id: int) -> str:
-    return f"table{dataset_id:06d}"
-
-
-def _ensure_smoothcsv_table(
-    conn: sqlite3.Connection,
-    dataset: dict,
-    sample_limit: int,
-) -> str:
-    _init_smoothcsv_db(conn)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT table_name, file_hash, sample_limit FROM dataset_mapping WHERE dataset_id = ?",
-        (dataset["id"],),
-    )
-    row = cursor.fetchone()
-    table_name = row["table_name"] if row else _smoothcsv_table_name(dataset["id"])
-    current_hash = dataset.get("file_hash")
-    needs_reload = (
-        row is None
-        or row["file_hash"] != current_hash
-        or row["sample_limit"] != sample_limit
-    )
-
-    if needs_reload:
-        file_path = Path(dataset["file_path"])
-        if not file_path.exists():
-            raise FileNotFoundError(f"Dataset file not found: {file_path}")
-        df = pd.read_csv(file_path, nrows=sample_limit)
-        df.to_sql(table_name, conn, if_exists="replace", index=False)
-        cursor.execute(
-            """
-            INSERT INTO dataset_mapping (dataset_id, table_name, file_hash, sample_limit)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(dataset_id) DO UPDATE SET
-                table_name = excluded.table_name,
-                file_hash = excluded.file_hash,
-                sample_limit = excluded.sample_limit,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (dataset["id"], table_name, current_hash, sample_limit),
-        )
-        conn.commit()
-
-    return table_name
-
-
-def _prepare_smoothcsv_sql(sql: str, limit: int) -> str:
-    sql = sql.strip().rstrip(";")
-    if not sql:
-        raise ValueError("Missing SQL query.")
-    if not sql.lower().startswith("select"):
-        raise ValueError("Only SELECT queries are supported.")
-    if not re.search(r"\blimit\b", sql, flags=re.IGNORECASE):
-        sql = f"{sql} LIMIT {limit}"
-    return sql
-
-
 @api_bp.route("/edit/sql/query", methods=["POST"])
+@login_required
 def edit_sql_query() -> Response:
     """Run a SQL query against the selected dataset (sampled)."""
     try:
@@ -1263,17 +1307,19 @@ def edit_sql_query() -> Response:
         dataset = catalog.get_dataset(int(dataset_id))
         if not dataset:
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(int(dataset_id), current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
-        db_path = _get_smoothcsv_db_path(config)
+        db_path = get_smoothcsv_db_path(config.data_root)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         try:
-            table_name = _ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
+            table_name = ensure_smoothcsv_table(conn, dataset, SQL_SAMPLE_LIMIT)
             cursor = conn.cursor()
             cursor.execute("DROP VIEW IF EXISTS dataset")
             cursor.execute(f'CREATE TEMP VIEW dataset AS SELECT * FROM "{table_name}"')
 
-            query_sql = _prepare_smoothcsv_sql(sql, limit)
+            query_sql = prepare_smoothcsv_sql(sql, limit)
             cursor.execute(query_sql)
             rows = cursor.fetchall()
             columns = [col[0] for col in cursor.description] if cursor.description else []
@@ -1294,12 +1340,13 @@ def edit_sql_query() -> Response:
 
     except (ValueError, FileNotFoundError) as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
-    except Exception as exc:
+    except DATASET_API_ERRORS as exc:
         logger.error("SQL query error: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @api_bp.route("/datasets/<int:dataset_id>/fork", methods=["POST"])
+@login_required
 def fork_dataset(dataset_id: int) -> Response:
     """Create a forked dataset marked as edited."""
     try:
@@ -1310,6 +1357,8 @@ def fork_dataset(dataset_id: int) -> Response:
         catalog = DatasetCatalog(config)
         dataset = catalog.get_dataset(dataset_id)
         if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        if not catalog.can_access(dataset_id, current_user.username, "write"):
             return jsonify({"status": "error", "message": "Dataset not found"}), 404
 
         source_path = Path(dataset["file_path"])
@@ -1326,7 +1375,12 @@ def fork_dataset(dataset_id: int) -> Response:
         dest_path = source_path.parent / dest_name
 
         shutil.copyfile(source_path, dest_path)
-        new_id = catalog.index_dataset(dest_path, force=True)
+        new_id = catalog.index_dataset(
+            dest_path,
+            owner_username=current_user.username,
+            display_file_name=dest_name,
+            force=True,
+        )
         if not new_id:
             return jsonify({"status": "error", "message": "Failed to index forked dataset"}), 500
 
@@ -1349,6 +1403,6 @@ def fork_dataset(dataset_id: int) -> Response:
             }
         )
 
-    except Exception as exc:
+    except DATASET_API_ERRORS as exc:
         logger.error("Fork dataset error: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500

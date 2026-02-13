@@ -1,5 +1,29 @@
 # Configuración Nginx con Prefijo /misesdata
 
+## ✅ Implementación Completada
+
+La aplicación ahora soporta completamente el prefijo `/misesdata/` tanto en desarrollo local como detrás de nginx.
+
+### Cambios Implementados
+
+1. **Helper JavaScript Global** (`src/web/templates/base.html`):
+   - Variable global `window.APP_PREFIX` que lee el prefijo del servidor
+   - Función `apiUrl(path)` que concatena automáticamente el prefijo
+   - Todas las llamadas `fetch()` ahora usan `apiUrl('/api/...')`
+
+2. **Templates Actualizados** (47 URLs corregidas):
+   - `search.html` - 4 URLs
+   - `browse_local.html` - 10 URLs
+   - `copilot_chat.html` - 25 URLs
+   - `visualization_canvas.html` - 4 URLs
+   - `visualization_pygwalker.html` - 2 URLs
+   - `base.html` - 1 URL (`/auth/set-language`)
+
+3. **Backend Flask** (ya estaba configurado):
+   - `ProxyFix` middleware con `x_prefix=1`
+   - Lee `SCRIPT_NAME` del entorno
+   - Configura `APPLICATION_ROOT` automáticamente
+
 ## Configuración de Nginx
 
 Edita tu archivo de configuración de nginx:
@@ -160,3 +184,73 @@ server {
 ```
 
 Con esta configuración no necesitas `SCRIPT_NAME` ni prefijos. Funciona tanto local como con nginx sin cambios adicionales.
+
+---
+
+## Cómo Funciona la Solución
+
+### Flujo de Datos
+
+1. **Usuario accede**: `https://dominio.com/misesdata/`
+2. **Nginx recibe**: Añade header `X-Forwarded-Prefix: /misesdata`
+3. **Flask ProxyFix**: Lee el header y establece `SCRIPT_NAME=/misesdata`
+4. **Flask render**: `request.script_root` retorna `/misesdata`
+5. **Template base.html**: `window.APP_PREFIX = "/misesdata"`
+6. **JavaScript**: `apiUrl('/api/search')` → `/misesdata/api/search`
+7. **Navegador fetch**: `GET https://dominio.com/misesdata/api/search`
+
+### Código Clave
+
+**backend (src/web/__init__.py)**:
+```python
+script_name = os.getenv('SCRIPT_NAME', '')
+if script_name:
+    app.config['APPLICATION_ROOT'] = script_name
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
+```
+
+**frontend (base.html)**:
+```html
+<script>
+  window.APP_PREFIX = "{{ request.script_root | safe }}";
+  
+  function apiUrl(path) {
+    return window.APP_PREFIX + path;
+  }
+</script>
+```
+
+**uso en templates**:
+```javascript
+// ❌ Antes (hardcoded):
+fetch('/api/search?q=gdp')
+
+// ✅ Ahora (con helper):
+fetch(apiUrl('/api/search?q=gdp'))
+```
+
+### Escenarios Soportados
+
+| Escenario | SCRIPT_NAME | APP_PREFIX | URL Final |
+|-----------|-------------|------------|-----------|
+| Local dev | (vacío) | "" | `/api/search` |
+| Con env var | `/misesdata` | "/misesdata" | `/misesdata/api/search` |
+| Detrás nginx | `/misesdata` | "/misesdata" | `/misesdata/api/search` |
+
+## Testing
+
+Ver `test_url_prefix.sh` en la raíz del proyecto para pruebas automatizadas.
+
+```bash
+# Test local
+python -m src.web
+# Acceder: http://localhost:5000/
+
+# Test con prefijo
+SCRIPT_NAME=/misesdata python -m src.web
+# Acceder: http://localhost:5000/misesdata/
+
+# Verificar en consola del navegador
+console.log(window.APP_PREFIX)  // debe mostrar "" o "/misesdata"
+```

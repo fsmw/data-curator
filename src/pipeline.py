@@ -41,6 +41,7 @@ class PipelineOptions:
     strict_validation: bool = True
     create_ai_package: bool = True
     rag_index: bool = False
+    owner_username: Optional[str] = None
 
 
 class PipelineRunner:
@@ -100,7 +101,7 @@ class PipelineRunner:
             if options.strict_validation and not validation["passed"]:
                 raise ValueError("Validation failed: " + "; ".join(validation["issues"]))
 
-            output_path = cleaner.save_clean_dataset(
+            output_path, friendly_name = cleaner.save_clean_dataset(
                 cleaned,
                 topic=options.topic,
                 source=options.source,
@@ -108,6 +109,7 @@ class PipelineRunner:
                 start_year=options.start_year,
                 end_year=options.end_year,
                 identifier=options.identifier,
+                owner_username=options.owner_username,
             )
 
             manifest["output"] = {
@@ -126,9 +128,9 @@ class PipelineRunner:
                 transformations=cleaner.get_transformations(),
                 original_source_url=options.url,
                 dataset_info={
-                    "identifier": options.identifier,
-                    "indicator_name": options.identifier or output_path.stem,
-                    "file_name": output_path.name,
+                    "identifier": options.identifier or friendly_name or output_path.stem,
+                    "indicator_name": options.identifier or friendly_name or output_path.stem,
+                    "file_name": friendly_name or output_path.name,
                 },
                 force_regenerate=options.force,
             )
@@ -140,7 +142,7 @@ class PipelineRunner:
                     data_summary=data_summary,
                     topic=options.topic,
                     source=options.source,
-                    identifier=options.identifier or output_path.stem,
+                    identifier=options.identifier or friendly_name or output_path.stem,
                     description="",
                     source_url=options.url,
                 )
@@ -156,7 +158,12 @@ class PipelineRunner:
                 }
 
             catalog = DatasetCatalog(self.config)
-            dataset_id = catalog.index_dataset(output_path, force=True)
+            dataset_id = catalog.index_dataset(
+                output_path,
+                owner_username=options.owner_username,
+                display_file_name=friendly_name,
+                force=True,
+            )
 
             rag_indexed = False
             if options.rag_index and self.config.get_rag_config().get("enabled", False):

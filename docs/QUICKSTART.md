@@ -8,19 +8,19 @@ cd c:\dev\mises
 pip install -r requirements.txt
 ```
 
-### 2. Configure OpenRouter (optional but recommended)
+### 2. Configure GitHub Copilot CLI (recommended)
 ```bash
 # Copy template
 copy .env.example .env
 
-# Edit .env and add your OpenRouter API key
-# Get key at: https://openrouter.ai/keys
+# Start Copilot CLI and authenticate
+copilot
+# then run /login
 ```
 
 `.env` example:
 ```env
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+COPILOT_MODEL=gpt-5-mini
 ```
 
 ### 3. Initialize directory structure
@@ -101,7 +101,7 @@ python -m src.cli document dataset.csv \
 
 ✅ **Coverage codes**: Use standard codes (latam, oecd, global, not "Latin America")
 
-✅ **API Key**: Add OpenRouter key to `.env` for AI-powered metadata. Without it, uses basic templates.
+✅ **Copilot Auth**: Authenticate with Copilot CLI (`copilot` + `/login`) for AI-powered metadata. Without it, uses basic templates.
 
 ✅ **Caching**: Metadata is cached by default to save API costs. Use `--force` to regenerate.
 
