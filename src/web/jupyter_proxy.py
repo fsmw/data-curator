@@ -35,11 +35,10 @@ def _filter_headers(headers: Dict[str, str]) -> Dict[str, str]:
     return {k: v for k, v in headers.items() if k.lower() not in HOP_BY_HOP_HEADERS}
 
 
-def _build_upstream_ws_url(path: str, query_string: bytes, manager: object) -> str:
+def _build_upstream_ws_url(*, path: str, query_string: bytes, port: int, jupyter_base_path: str = "/jupyter/") -> str:
     """Build upstream WebSocket URL using manager's jupyter_base_path."""
-    jupyter_path = getattr(manager, "jupyter_base_path", "/jupyter/")
-    upstream_path = f"{jupyter_path.rstrip('/')}/{path}" if path else jupyter_path
-    upstream_url = f"ws://127.0.0.1:{manager.port}{upstream_path}"
+    upstream_path = f"{jupyter_base_path.rstrip('/')}/{path}" if path else jupyter_base_path
+    upstream_url = f"ws://127.0.0.1:{port}{upstream_path}"
     if query_string:
         upstream_url = f"{upstream_url}?{query_string.decode('utf-8')}"
     return upstream_url
@@ -72,7 +71,8 @@ def _proxy_websocket_stream(manager: object, downstream_ws: object, path: str, q
     upstream_headers = _filter_headers(dict(request.headers))
     upstream_headers["Host"] = f"127.0.0.1:{manager.port}"
     upstream_headers["Origin"] = manager.base_url
-    upstream_url = _build_upstream_ws_url(path=path, query_string=query_string, port=manager.port)
+    jupyter_base = getattr(manager, "jupyter_base_path", "/jupyter/")
+    upstream_url = _build_upstream_ws_url(path=path, query_string=query_string, port=manager.port, jupyter_base_path=jupyter_base)
     header_list = [f"{key}: {value}" for key, value in upstream_headers.items()]
     upstream_ws = websocket.create_connection(
         upstream_url,
