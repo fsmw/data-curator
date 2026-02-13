@@ -29,6 +29,16 @@ from src.agents import (
     quick_report,
 )
 
+AGENT_API_ERRORS = (
+    KeyError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+    UnicodeDecodeError,
+)
+
 
 def _get_orchestrator():
     """Get or create the agent orchestrator."""
@@ -54,7 +64,7 @@ def _parse_table_from_request(data: dict) -> tuple:
             df = pd.DataFrame(data['rows'])
             ctx = create_table_context(df, name, description)
             return df, ctx, None
-        except Exception as e:
+        except (TypeError, ValueError) as e:
             return None, None, f"Error parsing rows: {e}"
     
     if 'csv' in data:
@@ -62,7 +72,7 @@ def _parse_table_from_request(data: dict) -> tuple:
             df = pd.read_csv(io.StringIO(data['csv']))
             ctx = create_table_context(df, name, description)
             return df, ctx, None
-        except Exception as e:
+        except AGENT_API_ERRORS as e:
             return None, None, f"Error parsing CSV: {e}"
     
     return None, None, None  # No data provided
@@ -88,7 +98,7 @@ def agent_transform():
     
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         goal = data.get('goal', '')
         mode = data.get('mode', 'python')
@@ -135,7 +145,7 @@ def agent_transform():
         
         return jsonify(result)
 
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -172,7 +182,7 @@ def agent_suggest():
     
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         history = data.get('history', [])
         focus = data.get('focus')
         
@@ -197,7 +207,7 @@ def agent_suggest():
             "suggestions": suggestions
         })
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -218,7 +228,7 @@ def agent_quality():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         df, table_ctx, error = _parse_table_from_request(data)
         
@@ -241,7 +251,7 @@ def agent_quality():
             "quality_report": report
         })
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -258,7 +268,7 @@ def agent_clean():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         df, _, error = _parse_table_from_request(data)
         
@@ -289,7 +299,7 @@ def agent_clean():
             "result": result_df.to_dict(orient="records")
         })
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -311,7 +321,7 @@ def agent_report():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         df, table_ctx, error = _parse_table_from_request(data)
         
@@ -348,7 +358,7 @@ def agent_report():
                 "format": "json"
             })
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -371,7 +381,7 @@ def agent_analyze():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         df, _, error = _parse_table_from_request(data)
         
@@ -420,7 +430,7 @@ def agent_analyze():
         
         return jsonify(response)
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -441,7 +451,7 @@ def agent_workflow():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
         df, _, error = _parse_table_from_request(data)
         
@@ -492,5 +502,5 @@ def agent_workflow():
         
         return jsonify(response)
         
-    except Exception as e:
+    except AGENT_API_ERRORS as e:
         return jsonify({"status": "error", "message": str(e)}), 500

@@ -96,6 +96,10 @@ class MisesCopilotAgent:
         self._tool_names: List[str] = []
         self._rag_store = None
         self._rag_embedding = None
+        self._tool_call_count = 0
+        self._tool_call_repeats: Dict[str, int] = {}
+        self._tool_call_cache: Dict[str, Any] = {}
+        self._tools_called_current_turn: List[str] = []
 
         self.logger = logging.getLogger(__name__)
         
@@ -412,6 +416,10 @@ Always be helpful, insightful, and concise."""
             augmented_message, tool_event = await self._maybe_augment_prompt(message)
             
             # Wrap the actual call with timeout
+            self._tool_call_count = 0
+            self._tool_call_repeats = {}
+            self._tool_call_cache = {}
+            self._tools_called_current_turn = []
             if stream:
                 # Streaming response
                 response_text = ""
@@ -519,7 +527,7 @@ Always be helpful, insightful, and concise."""
                         'session_id': self.session.session_id,
                         'done': False,
                         'fallback_used': True,
-                        'tool_use': {
+                        'fallback_tool_use': {
                             'name': tool_event['name'],
                             'input': tool_event.get('input')
                         }
@@ -572,7 +580,8 @@ Always be helpful, insightful, and concise."""
                     'status': 'success',
                     'text': '',
                     'session_id': self.session.session_id,
-                    'done': True
+                    'done': True,
+                    'tools_called': list(self._tools_called_current_turn),
                 }
                 
             except AttributeError:
@@ -634,7 +643,37 @@ Always be helpful, insightful, and concise."""
         async def handler(invocation):
             try:
                 args = invocation.get("arguments") or {}
+                cache_key = f"{name}:{json.dumps(args, sort_keys=True, ensure_ascii=True)}"
+                self._tool_call_count += 1
+                self._tool_call_repeats[cache_key] = self._tool_call_repeats.get(cache_key, 0) + 1
+                if self._tool_call_count > 15:
+                    return {
+                        "textResultForLlm": (
+                            "Tool call limit reached for this response. "
+                            "Use existing tool results and answer now."
+                        ),
+                        "resultType": "failure",
+                        "error": "tool call limit reached"
+                    }
+                if self._tool_call_repeats[cache_key] > 3 and cache_key in self._tool_call_cache:
+                    cached_result = self._tool_call_cache[cache_key]
+                    if isinstance(cached_result, dict):
+                        cached_payload = dict(cached_result)
+                        cached_payload["cached"] = True
+                        cached_payload["note"] = "Repeated tool call reused cached result."
+                    else:
+                        cached_payload = {
+                            "status": "success",
+                            "cached": True,
+                            "note": "Repeated tool call reused cached result.",
+                            "result": cached_result,
+                        }
+                    return {
+                        "textResultForLlm": json.dumps(cached_payload, ensure_ascii=True),
+                        "resultType": "success"
+                    }
                 result = await tool_info["function"](**args)
+                self._tool_call_cache[cache_key] = result
                 return {
                     "textResultForLlm": json.dumps(result, ensure_ascii=True),
                     "resultType": "success"
@@ -681,8 +720,21 @@ Always be helpful, insightful, and concise."""
             self.logger.debug("RAG retrieval failed: %s", e)
             return ""
 
+    def _build_tools_available_context(self) -> str:
+        """Build a compact tools-available block to inject into each prompt."""
+        if not self.tools:
+            return "No tools registered."
+        lines = []
+        for name, tool in self.tools.items():
+            description = str(tool.get("description", "")).strip().split(".")[0]
+            lines.append(f"- {name}: {description}")
+        lines.append(
+            "- Decision rule: Evaluate tool usage first; for factual/data questions prefer tools before free-text reasoning."
+        )
+        return "\n".join(lines)
+
     async def _maybe_augment_prompt(self, message: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-        """Attach RAG context and optionally search results for dataset-like queries."""
+        """Attach tool context, RAG context, and optionally fallback search results."""
         if "[Tool result: search_datasets]" in message:
             augmented = message
         else:
@@ -691,6 +743,16 @@ Always be helpful, insightful, and concise."""
                 augmented = f"{message}\n\n[Context]\n{rag_context}"
             else:
                 augmented = message
+
+        if "[Tools available]" not in augmented:
+            tools_context = self._build_tools_available_context()
+            augmented = (
+                f"{augmented}\n\n"
+                f"[Tools available]\n{tools_context}\n\n"
+                "[Tool usage policy]\n"
+                "Before answering, evaluate whether any listed tool should be called. "
+                "If the user requests counts, listings, filtering, analysis, or dataset facts, use tools."
+            )
 
         if not self._looks_like_dataset_query(augmented):
             return augmented, None
@@ -733,6 +795,8 @@ Always be helpful, insightful, and concise."""
         tool_name = input_data.get("toolName")
         print(f"[copilot] pre-tool: {tool_name}")
         self.logger.info(f"Copilot pre-tool: {tool_name}")
+        if tool_name and tool_name not in self._tools_called_current_turn:
+            self._tools_called_current_turn.append(tool_name)
 
     def _on_post_tool_use(self, input_data, _env):
         tool_name = input_data.get("toolName")

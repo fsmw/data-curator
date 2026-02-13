@@ -14,6 +14,7 @@ from datetime import datetime
 import pandas as pd
 
 from src.config import Config
+from src.dataset_catalog_migrations import migrate_dataset_catalog
 from src.logger import get_logger
 from src.utils.storage import sanitize_username
 
@@ -135,6 +136,13 @@ class DatasetCatalog:
                 WHERE rowid = new.id;
             END
         """)
+
+        migration_result = migrate_dataset_catalog(self.db_path)
+        if migration_result["applied"] > 0:
+            logger.warning(
+                "Applied %s legacy catalog migration(s) during startup; run `python -m src.cli migrate-catalog` in deploy steps.",
+                migration_result["applied"],
+            )
         
         # Indexes for performance
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_datasets_source ON datasets(source)")
@@ -476,7 +484,7 @@ class DatasetCatalog:
             logger.info("Indexed dataset: %s", file_path.name)
             return dataset_id
 
-        except Exception as e:
+        except (sqlite3.Error, OSError, ValueError, TypeError, pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             conn.rollback()
             logger.error("Error indexing %s: %s", file_path, e, exc_info=True)
             return None
@@ -727,7 +735,7 @@ class DatasetCatalog:
             
             df = pd.read_csv(file_path, nrows=limit)
             return df
-        except Exception as e:
+        except (OSError, ValueError, pd.errors.EmptyDataError, pd.errors.ParserError) as e:
             logger.error("Error loading preview: %s", e, exc_info=True)
             return None
     

@@ -23,6 +23,16 @@ from . import api_bp
 
 logger = get_logger(__name__)
 
+DOWNLOAD_API_ERRORS = (
+    AttributeError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+)
+
 # In-memory progress tracking for SSE
 _download_progress: Dict[str, Dict] = {}
 
@@ -143,7 +153,7 @@ def start_download() -> Response:
             if raw_data is None or raw_data.empty:
                 return jsonify({"status": "error", "message": "No data returned from source"}), 500
 
-        except Exception as e:
+        except DOWNLOAD_API_ERRORS as e:
             return jsonify({"status": "error", "message": f"Data ingestion failed: {str(e)}"}), 500
 
         # Clean the data
@@ -191,7 +201,7 @@ def start_download() -> Response:
                 owner_username=owner_username,
             )
 
-        except Exception as e:
+        except DOWNLOAD_API_ERRORS as e:
             return jsonify({"status": "error", "message": f"Data cleaning failed: {str(e)}"}), 500
 
         # Generate metadata documentation
@@ -208,7 +218,7 @@ def start_download() -> Response:
                         ai_packager = AIPackager(output_path.parent)
                         metadata_text = ai_packager.create_context_owid(owid_metadata)
                         generator.save_metadata_for_dataset(output_path, metadata_text)
-            except Exception as e:
+            except DOWNLOAD_API_ERRORS as e:
                 logger.warning(f"OWID metadata notes failed: {e}")
 
         if metadata_text is None:
@@ -228,7 +238,7 @@ def start_download() -> Response:
                     force_regenerate=False,
                 )
                 generator.save_metadata_for_dataset(output_path, metadata_text)
-            except Exception as e:
+            except DOWNLOAD_API_ERRORS as e:
                 logger.warning(f"Metadata generation failed: {e}")
                 metadata_text = None
 
@@ -249,7 +259,7 @@ def start_download() -> Response:
                         topic=topic,
                     )
                     logger.info(f"AI package created: {len(ai_package_files)} files")
-            except Exception as e:
+            except DOWNLOAD_API_ERRORS as e:
                 logger.warning(f"AI packaging failed: {e}")
                 ai_package_files = {}
 
@@ -263,7 +273,7 @@ def start_download() -> Response:
                 force=True,
             )
             logger.info(f"Indexed dataset: {output_path}")
-        except Exception as e:
+        except DOWNLOAD_API_ERRORS as e:
             logger.error(f"Failed to index dataset: {e}")
 
         # Success response
@@ -283,7 +293,7 @@ def start_download() -> Response:
 
         return jsonify(response_payload), 200
 
-    except Exception as e:
+    except DOWNLOAD_API_ERRORS as e:
         logger.error(f"Download error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 

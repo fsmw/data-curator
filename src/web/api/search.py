@@ -17,6 +17,16 @@ from . import api_bp
 
 logger = get_logger(__name__)
 
+SEARCH_API_ERRORS = (
+    AttributeError,
+    ImportError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
+
 
 def check_indicator_downloaded(
     config: Config,
@@ -75,7 +85,7 @@ def check_indicator_downloaded(
                     break
 
         return {"downloaded": is_downloaded, "in_my_data": in_my_data}
-    except Exception as e:
+    except SEARCH_API_ERRORS as e:
         logger.error(f"Error checking downloaded status via catalog: {e}")
         return {"downloaded": False, "in_my_data": False}
 
@@ -219,6 +229,6 @@ def search_api() -> Response:
             "query": query,
             "sources": sources_count
         })
-    except Exception as e:
+    except SEARCH_API_ERRORS as e:
         logger.error(f"Search API error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500

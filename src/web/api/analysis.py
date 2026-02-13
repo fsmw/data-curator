@@ -16,6 +16,15 @@ from . import api_bp
 
 logger = get_logger(__name__)
 
+ANALYSIS_API_ERRORS = (
+    AttributeError,
+    KeyError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
+
 
 @api_bp.route("/analyze/descriptive", methods=["POST"])
 @login_required
@@ -40,7 +49,7 @@ def analyze_descriptive() -> Response:
         result = analyze_dataset(dataset["file_path"], analysis_type="descriptive")
         return jsonify({"status": "success", "result": result})
 
-    except Exception as e:
+    except ANALYSIS_API_ERRORS as e:
         logger.error(f"Descriptive analysis error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -73,7 +82,7 @@ def analyze_regression() -> Response:
         )
         return jsonify({"status": "success", "result": result})
 
-    except Exception as e:
+    except ANALYSIS_API_ERRORS as e:
         logger.error(f"Regression analysis error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -108,6 +117,6 @@ def analyze_compare() -> Response:
         )
         return jsonify({"status": "success", "result": result})
 
-    except Exception as e:
+    except ANALYSIS_API_ERRORS as e:
         logger.error(f"Compare analysis error: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500

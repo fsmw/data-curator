@@ -25,6 +25,18 @@ from . import api_bp
 logger = get_logger(__name__)
 
 _AI_DISABLED_MESSAGE = "AI features are not enabled in this backend."
+DATA_FORMULATOR_API_ERRORS = (
+    FileNotFoundError,
+    OSError,
+    KeyError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+    UnicodeDecodeError,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+)
 
 
 def _ensure_session_id() -> str:
@@ -258,12 +270,12 @@ def df_list_tables() -> Response:
                         "source_metadata": None,
                     }
                 )
-            except Exception as exc:
+            except DATA_FORMULATOR_API_ERRORS as exc:
                 logger.warning("Failed to load dataset preview: %s", exc)
 
         return jsonify({"status": "success", "tables": tables})
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error listing tables: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -336,7 +348,7 @@ def df_sample_table() -> Response:
             }
         )
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error sampling table: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -385,7 +397,7 @@ def df_get_table() -> Response:
             }
         )
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error getting table: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -437,7 +449,7 @@ def df_analyze_table() -> Response:
 
         return jsonify({"status": "success", "table_name": table_name, "statistics": stats})
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error analyzing table: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -470,7 +482,7 @@ def df_create_table() -> Response:
             raw_data = request.form.get("raw_data")
             try:
                 df = pd.DataFrame(json.loads(raw_data))
-            except Exception as exc:
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
                 return jsonify({"status": "error", "message": f"Invalid JSON data: {exc}"}), 400
 
         if df is None:
@@ -505,7 +517,7 @@ def df_create_table() -> Response:
             }
         )
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error creating table: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -529,14 +541,14 @@ def df_delete_table() -> Response:
         if file_path.exists():
             try:
                 file_path.unlink()
-            except Exception as exc:
+            except OSError as exc:
                 logger.warning("Failed to delete file %s: %s", file_path, exc)
 
         catalog.delete_dataset(dataset["id"])
 
         return jsonify({"status": "success", "message": f"Table {table_name} deleted"})
 
-    except Exception as exc:
+    except DATA_FORMULATOR_API_ERRORS as exc:
         logger.error("Error deleting table: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500
 

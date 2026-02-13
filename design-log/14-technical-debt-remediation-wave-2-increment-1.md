@@ -44,5 +44,19 @@ Wave 1 resolvió hardening de auth/RBAC y convergencia crítica de permisos/mode
 - Se creó `src/dataset_catalog_migrations.py` con migraciones versionadas y tabla `schema_migrations`.
 - Se agregó comando `migrate-catalog` en `src/cli.py` para ejecutar migraciones de catálogo fuera de runtime.
 - En `src/dataset_catalog.py` se reemplazó la captura genérica en `_extract_metadata` por errores tipados de I/O y parseo CSV.
+- Se eliminaron capturas genéricas restantes en `src/dataset_catalog.py` (`index_dataset`, `get_preview_data`) usando excepciones tipadas.
+- En `src/web/api/visualization.py` se reemplazaron capturas genéricas por `VISUALIZATION_API_ERRORS` y se tipificó un `except` interno en autodetección de categorías.
+- Se extrajo tipado semántico/encodings a `src/web/api/visualization_types.py` (`detect_semantic_type`, `get_semantic_hints`, `infer_field_type`, `auto_detect_encodings`) para reducir tamaño y acoplamiento de `visualization.py`.
+- En `src/web/api/download.py` se eliminaron capturas genéricas y se centralizó manejo tipado con `DOWNLOAD_API_ERRORS`.
+- En `src/web/api/search.py` se eliminaron capturas genéricas y se centralizó manejo tipado con `SEARCH_API_ERRORS`.
+- En `src/web/api/analysis.py` se eliminaron capturas genéricas y se centralizó manejo tipado con `ANALYSIS_API_ERRORS`.
+- Se retiró el registro de `data_formulator` del blueprint API (`src/web/api/__init__.py`) por falta de uso activo en frontend/rutas internas del proyecto.
+- En `src/web/api/agent.py` se reemplazaron capturas genéricas por `AGENT_API_ERRORS` y se endureció parseo JSON con `request.get_json() or {}` para evitar fallos por payload vacío.
+- En `src/web/api/compare.py` se reemplazó captura genérica por `COMPARE_API_ERRORS` y se tipificó el fallback de `year_range`.
+- En `src/web/api/data_formulator.py` se reemplazaron capturas genéricas por `DATA_FORMULATOR_API_ERRORS`; el parseo de `raw_data` ahora captura errores tipados de JSON, y el borrado de archivo captura `OSError`.
+- En `src/dataset_catalog.py` se añadió ejecución de migraciones formales al arranque (`migrate_dataset_catalog`) antes de crear índices, para mantener compatibilidad con catálogos legacy y evitar fallos por columnas faltantes.
+- Se corrigió compatibilidad con prefijo base (`/misesdata`) en navegación PyGWalker: `visualization_pygwalker.html`, `visualization_canvas.html` y `copilot_chat.html` dejaron de usar rutas hardcodeadas `/visualizepg*` y ahora usan `apiUrl(...)`.
+- En `src/copilot_tools.py::list_local_datasets` se redujo payload (sin `columns`), se agregó `returned_count/is_truncated`, y `total_cataloged` ahora refleja conteo real para evitar respuestas ambiguas al “contar datasets”.
+- En `src/copilot_agent.py` se añadió guard de bucles de herramientas (límite de llamadas por respuesta + reutilización de cache en invocaciones repetidas) para mitigar timeouts por tool-calling repetitivo.
 - Verificación ejecutada: `python3 -m py_compile` sobre módulos modificados ✅.
-- Verificación pendiente: pruebas `pytest` bloqueadas localmente por dependencias ausentes (`click`, `pytest`) en el entorno.
+- Verificación ejecutada: `.venv/bin/pytest -q tests/test_api_auth_hardening.py tests/test_copilot_threads_api.py` ✅ (**17 passed**).

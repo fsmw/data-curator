@@ -23,4 +23,3 @@ from . import analysis
 from . import agent
 from . import compare
 from . import visualization
-from . import data_formulator

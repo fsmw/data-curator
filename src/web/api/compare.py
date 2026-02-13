@@ -18,6 +18,17 @@ from . import api_bp
 
 logger = get_logger(__name__)
 
+COMPARE_API_ERRORS = (
+    FileNotFoundError,
+    OSError,
+    KeyError,
+    TypeError,
+    ValueError,
+    pd.errors.EmptyDataError,
+    pd.errors.MergeError,
+    pd.errors.ParserError,
+)
+
 
 @api_bp.route("/compare/data")
 @login_required
@@ -104,14 +115,13 @@ def compare_data() -> Response:
             max_year_val = merged['year'].max()
             
             # Handle NaN if explicitly present (safeguard)
-            import numpy as np
             if pd.isna(min_year_val) or pd.isna(max_year_val):
                  min_year = 2000
                  max_year = 2023
             else:
                  min_year = int(min_year_val)
                  max_year = int(max_year_val)
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             min_year = 2000
             max_year = 2023
 
@@ -135,6 +145,6 @@ def compare_data() -> Response:
             "overlap_stats": overlap_stats
         })
 
-    except Exception as e:
+    except COMPARE_API_ERRORS as e:
         logger.error(f"Error comparing datasets: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500

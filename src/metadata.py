@@ -24,6 +24,9 @@ class MetadataGenerator:
         self.use_llm = config.config["metadata"]["use_llm"]
         self.cache_enabled = config.config["metadata"]["cache_enabled"]
         self.cache_dir = Path(".metadata_cache")
+        self._copilot_failure_count = 0
+        self._copilot_disabled_reason: Optional[str] = None
+        self._copilot_retry_config = None
 
         if self.cache_enabled:
             self.cache_dir.mkdir(exist_ok=True)
@@ -33,8 +36,14 @@ class MetadataGenerator:
         if self.use_llm:
             # Import and initialize CopilotAgent lazily
             try:
-                from src.copilot_agent import MisesCopilotAgent
+                from src.copilot_agent import MisesCopilotAgent, RetryConfig
                 self.copilot_agent = MisesCopilotAgent(config)
+                # Metadata generation should fail fast when Copilot is unavailable.
+                self._copilot_retry_config = RetryConfig(
+                    max_retries=1,
+                    timeout=12.0,
+                    fallback_models=(),
+                )
                 # Start client in sync context
                 asyncio.run(self.copilot_agent.start())
             except Exception as e:
@@ -74,7 +83,7 @@ class MetadataGenerator:
                 return cached
 
         # Try Copilot SDK generation first
-        if self.use_llm and self.copilot_agent:
+        if self.use_llm and self.copilot_agent and not self._copilot_disabled_reason:
             try:
                 metadata = asyncio.run(
                     self._generate_with_copilot(
@@ -96,6 +105,17 @@ class MetadataGenerator:
             except Exception as e:
                 print(f"⚠ Copilot SDK generation failed: {e}")
                 print("  Falling back to template...")
+                self._copilot_failure_count += 1
+                if self._should_disable_copilot(str(e)):
+                    self._copilot_disabled_reason = str(e)
+                    self.copilot_agent = None
+                    print(
+                        "⚠ Copilot metadata generation disabled for this run due to repeated/fatal SDK errors."
+                    )
+        elif self._copilot_disabled_reason:
+            print(
+                "⚠ Copilot metadata generation disabled; using template fallback."
+            )
 
         # Fallback to template
         metadata = self._generate_from_template(
@@ -133,13 +153,25 @@ class MetadataGenerator:
         # Call Copilot SDK
         response = await self.copilot_agent.chat(
             message=prompt,
-            stream=False
+            stream=False,
+            retry_config=self._copilot_retry_config,
         )
         
         if response['status'] == 'success':
             return response['text']
         else:
             raise Exception(f"Copilot SDK error: {response.get('error', 'Unknown error')}")
+
+    def _should_disable_copilot(self, error_text: str) -> bool:
+        """Return True when Copilot should be disabled for the current run."""
+        lowered = error_text.lower()
+        fatal_markers = [
+            "all retry attempts and model fallbacks exhausted",
+            "permission denied",
+            "client not connected",
+            "copilot/bin/copilot",
+        ]
+        return any(marker in lowered for marker in fatal_markers) or self._copilot_failure_count >= 2
 
     def _build_llm_prompt(
         self,

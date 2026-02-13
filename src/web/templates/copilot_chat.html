@@ -2071,6 +2071,17 @@
                   this.streamStatus = `🧠 ${data.thinking.type || 'Thinking'}...`;
                 }
 
+                // Capture fallback tool context (do not count as primary tool usage)
+                if (data.fallback_tool_use) {
+                  this.messages[assistantIndex].thinking.push({
+                    type: 'tool_use',
+                    content: `Fallback used ${data.fallback_tool_use.name}${data.fallback_tool_use.input ? ': ' + JSON.stringify(data.fallback_tool_use.input, null, 2) : ''}`,
+                    tool: data.fallback_tool_use.name,
+                    timestamp: new Date()
+                  });
+                  this.messages[assistantIndex].fallbackUsed = true;
+                }
+
                 // Capture tool usage
                 if (data.tool_use) {
                   this.messages[assistantIndex].thinking.push({
@@ -2086,6 +2097,15 @@
                   }
                   
                   this.streamStatus = `🔧 Using ${data.tool_use.name}...`;
+                }
+
+                // Capture tools list reported by backend hooks
+                if (Array.isArray(data.tools_called)) {
+                  for (const toolName of data.tools_called) {
+                    if (toolName && !this.messages[assistantIndex].tools.includes(toolName)) {
+                      this.messages[assistantIndex].tools.push(toolName);
+                    }
+                  }
                 }
 
                 if (data.fallback_used) {
@@ -3142,7 +3162,7 @@
           console.warn('Could not save charts for the canvas:', e);
         }
       }
-      const url = `/visualizepg${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = apiUrl(`/visualizepg${params.toString() ? `?${params.toString()}` : ''}`);
       window.open(url, '_blank');
     },
 
@@ -3274,7 +3294,7 @@
       const params = new URLSearchParams();
       if (suggestion.dataset_ids && suggestion.dataset_ids[0]) params.set('dataset_id', suggestion.dataset_ids[0]);
       params.set('chart_intent', JSON.stringify(suggestion));
-      window.open('/visualizepg' + (params.toString() ? '?' + params.toString() : ''), '_blank');
+      window.open(apiUrl('/visualizepg' + (params.toString() ? '?' + params.toString() : '')), '_blank');
     } catch (e) {
       console.error('Error opening chart from suggestion:', e);
     }

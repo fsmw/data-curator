@@ -200,8 +200,8 @@
         const params = new URLSearchParams();
         params.set('dataset_id', datasetId);
         if (this.chartIntent) params.set('chart_intent', this.chartIntent);
-        this.iframeSrc = `/visualizepg/frame?${params.toString()}`;
-        window.history.replaceState({}, '', `/visualizepg?${params.toString()}`);
+        this.iframeSrc = apiUrl(`/visualizepg/frame?${params.toString()}`);
+        window.history.replaceState({}, '', apiUrl(`/visualizepg?${params.toString()}`));
       },
 
       formatBytes(bytes) {
