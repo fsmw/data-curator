@@ -1,0 +1,42 @@
+.notebook-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 70vh;
+}
+
+.notebook-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.jupyter-iframe {
+    width: 100%;
+    min-height: 75vh;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.status-ok {
+    color: #0f5132;
+    background: #d1e7dd;
+}
+
+.status-down {
+    color: #842029;
+    background: #f8d7da;
+}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('ui.static', filename='css/jupyter_embed.css') }}">
+
+<div class="notebook-container">
+  <div class="notebook-toolbar">
+    <h2 class="mb-0">{{ _("Notebooks") }}</h2>
+    {% if jupyter_enabled %}
+    <span class="status-chip status-ok">{{ _("Jupyter active") }}</span>
+    {% else %}
+    <span class="status-chip status-down">{{ _("Jupyter disabled") }}</span>
+    {% endif %}
+  </div>
+
+  {% if jupyter_enabled %}
+  <iframe
+    id="jupyter-frame"
+    src="{{ jupyter_url }}"
+    class="jupyter-iframe"
+    sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
+  ></iframe>
+  {% else %}
+  <div class="alert alert-warning mt-3">
+    {{ _("Jupyter integration is disabled. Set JUPYTER_ENABLE=1 to enable it.") }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 import os
+import atexit
 from pathlib import Path
 from flask import Flask, request
 from datetime import timedelta
@@ -9,6 +10,8 @@ from flask_babel import Babel
 from .routes import ui_bp
 from .api import api_bp  # New API Blueprint
 from .auth import auth_bp
+from .jupyter_manager import JupyterManager
+from .jupyter_proxy import create_jupyter_proxy_blueprint, register_jupyter_websocket_proxy
 
 # Internationalization
 babel = Babel()
@@ -129,6 +132,46 @@ def create_app() -> Flask:
     app.register_blueprint(ui_bp)
     app.register_blueprint(api_bp)  # New: API routes under /api/*
     app.register_blueprint(auth_bp)
+
+    # Optional Jupyter integration lifecycle
+    jupyter_enabled = os.getenv("JUPYTER_ENABLE", "0").strip().lower() in {"1", "true", "yes", "on"}
+    jupyter_port = int(os.getenv("JUPYTER_PORT", "8888"))
+    flask_port = int(os.getenv("FLASK_RUN_PORT", "5000"))
+    notebooks_dir = os.getenv(
+        "JUPYTER_NOTEBOOK_DIR",
+        str((config.data_root / "notebooks").absolute()),
+    )
+    jupyter_config_dir = os.getenv(
+        "JUPYTER_CONFIG_DIR",
+        str((Path(__file__).parent.parent.parent / "jupyter_config").absolute()),
+    )
+    jupyter_template_seed_dir = os.getenv(
+        "JUPYTER_TEMPLATE_SEED_DIR",
+        str((Path(jupyter_config_dir) / "notebook_templates").absolute()),
+    )
+    # Get app prefix for Jupyter base_url (e.g., "/misesdata" in production)
+    app_prefix = app.config.get("APPLICATION_ROOT", "") or ""
+
+    manager = JupyterManager(
+        port=jupyter_port,
+        notebook_dir=notebooks_dir,
+        config_dir=jupyter_config_dir,
+        template_seed_dir=jupyter_template_seed_dir,
+        db_path=str(db_path),
+        flask_port=flask_port,
+        enabled=jupyter_enabled,
+        app_prefix=app_prefix,
+    )
+    app.extensions["jupyter_manager"] = manager
+    app.register_blueprint(create_jupyter_proxy_blueprint())
+    jupyter_sock = register_jupyter_websocket_proxy(app)
+    if jupyter_sock is not None:
+        app.extensions["jupyter_sock"] = jupyter_sock
+    manager.ensure_notebook_dirs()
+    manager.provision_templates()
+    if jupyter_enabled:
+        manager.start()
+        atexit.register(manager.stop)
 
     # Get the parent directory of src/web (i.e., repository root)
     app_root = Path(__file__).parent.parent.parent
