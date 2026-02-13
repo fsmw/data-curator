@@ -70,9 +70,9 @@ def _proxy_websocket_stream(manager: object, downstream_ws: object, path: str, q
 
     upstream_headers = _filter_headers(dict(request.headers))
     upstream_headers["Host"] = f"127.0.0.1:{manager.port}"
-    upstream_headers["Origin"] = manager.base_url
-    jupyter_base = getattr(manager, "jupyter_base_path", "/jupyter/")
-    upstream_url = _build_upstream_ws_url(path=path, query_string=query_string, port=manager.port, jupyter_base_path=jupyter_base)
+    # Use internal path for upstream connection (Jupyter always listens on /jupyter/)
+    jupyter_internal = getattr(manager, "jupyter_internal_path", "/jupyter/")
+    upstream_url = _build_upstream_ws_url(path=path, query_string=query_string, port=manager.port, jupyter_base_path=jupyter_internal)
     header_list = [f"{key}: {value}" for key, value in upstream_headers.items()]
     upstream_ws = websocket.create_connection(
         upstream_url,

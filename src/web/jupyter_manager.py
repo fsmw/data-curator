@@ -60,6 +60,11 @@ class JupyterManager:
         """Return Jupyter's base_url path including app prefix (e.g., '/misesdata/jupyter/')."""
         return f"{self.app_prefix}/jupyter/" if self.app_prefix else "/jupyter/"
 
+    @property
+    def jupyter_internal_path(self) -> str:
+        """Return Jupyter's internal base_url path without app prefix (always '/jupyter/')."""
+        return "/jupyter/"
+
     def _wait_for_ready(self, timeout: int = 30) -> bool:
         start = time.time()
         while time.time() - start < timeout:
