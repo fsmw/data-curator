@@ -178,12 +178,20 @@
                       <i class="bi bi-eye"></i>
                     </button>
 
+                    <!-- Download CSV Direct (no account save) -->
+                    <button @click.prevent="downloadDirectCSV(result)" class="btn btn-outline-secondary btn-sm btn-icon"
+                      :disabled="downloadingDirect[result.id] === true"
+                      title="{{ _('Download CSV directly (no account save)') }}">
+                      <span x-show="downloadingDirect[result.id]" class="spinner-border spinner-border-sm"></span>
+                      <i x-show="!downloadingDirect[result.id]" class="bi bi-file-earmark-arrow-down"></i>
+                    </button>
+
                     <!-- Download button (all types) -->
                     <!-- Download/Update button -->
                     <button @click.prevent="startDownload(result)" class="btn btn-sm"
                       :class="result.in_my_data ? 'btn-outline-success' : 'btn-outline-primary'"
                       :disabled="downloading[result.id] === true"
-                      :title="result.in_my_data ? 'Update dataset (re-download)' : 'Download CSV data'">
+                      :title="result.in_my_data ? 'Update dataset (re-download)' : 'Download to account'">
 
                       <!-- Spinner -->
                       <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
@@ -418,6 +426,7 @@
       loading: false,
       error: '',
       downloading: {},
+      downloadingDirect: {},
       downloadStatus: {},
       successMessage: '',
       currentSlug: '',
@@ -570,7 +579,7 @@
           if (!slug) throw new Error('No slug available');
 
           // Load PNG directly
-          const pngUrl = `/api/chart/export-png?slug=${encodeURIComponent(slug)}`;
+          const pngUrl = apiUrl(`/api/chart/export-png?slug=${encodeURIComponent(slug)}`);
 
           // Verify the image loads
           const img = new Image();
@@ -824,6 +833,66 @@
         }
       },
 
+      async downloadDirectCSV(result) {
+        // Download CSV directly without saving to account
+        this.downloadingDirect = { ...this.downloadingDirect, [result.id]: true };
+        this.error = '';
+        this.successMessage = '';
+
+        try {
+          const res = await fetch(apiUrl('/api/download/csv-direct'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              source: result.source.toLowerCase(),
+              indicator_id: result.id,
+              countries: result.countries || null,
+              start_year: result.start_year || null,
+              end_year: result.end_year || null
+            })
+          });
+
+          if (!res.ok) {
+            let errorMsg = 'Download failed';
+            try {
+              const errorData = await res.json();
+              errorMsg = errorData.message || errorMsg;
+            } catch (e) {
+              errorMsg = `HTTP ${res.status}: ${res.statusText}`;
+            }
+            throw new Error(errorMsg);
+          }
+
+          // Get the filename from Content-Disposition header
+          const disposition = res.headers.get('Content-Disposition');
+          let filename = 'dataset.csv';
+          if (disposition && disposition.includes('filename=')) {
+            const match = disposition.match(/filename=([^;]+)/);
+            if (match) filename = match[1].trim();
+          }
+
+          // Download the file
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          this.successMessage = `Downloaded: ${filename}`;
+          setTimeout(() => { this.successMessage = ''; }, 3000);
+
+        } catch (err) {
+          this.error = `Error downloading CSV: ${err.message}`;
+          console.error('Direct CSV download error:', err);
+        } finally {
+          this.downloadingDirect = { ...this.downloadingDirect, [result.id]: false };
+        }
+      },
+
       selectionKey(result) {
         return result.id || result.slug || result.indicator || '';
       },
@@ -903,7 +972,7 @@
         const identifier = result.slug || result.id || result.indicator;
         const source = (result.source || '').toLowerCase();
         // Open browse local with query params to show latest and prefill search
-        const url = `/browse/local?q=${encodeURIComponent(identifier)}&latest=true&source=${encodeURIComponent(source)}`;
+        const url = apiUrl(`/browse/local?q=${encodeURIComponent(identifier)}&latest=true&source=${encodeURIComponent(source)}`);
         window.location.href = url;
       },
 

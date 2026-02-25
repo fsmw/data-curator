@@ -406,8 +406,10 @@ class DatasetCatalog:
                 'max_year': metadata.get('max_year'),
                 'countries_json': json.dumps(metadata.get('countries', [])),
                 'country_count': metadata.get('country_count', 0),
+                'regions_json': json.dumps(metadata.get('regions', [])),
                 'null_percentage': metadata.get('null_percentage', 0),
                 'completeness_score': metadata.get('completeness_score', 0),
+                'is_edited': metadata.get('is_edited', 0),
             }
 
             # Upsert record
@@ -447,9 +449,9 @@ class DatasetCatalog:
                         file_size_bytes, file_hash, modified_at, indexed_at,
                         row_count, column_count, columns_json,
                         min_year, max_year,
-                        countries_json, country_count,
-                        null_percentage, completeness_score
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        countries_json, country_count, regions_json,
+                        null_percentage, completeness_score, is_edited
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 cursor.execute(insert_sql, (
                     dataset_data['file_path'], dataset_data['file_name'],
@@ -463,7 +465,9 @@ class DatasetCatalog:
                     dataset_data['columns_json'],
                     dataset_data['min_year'], dataset_data['max_year'],
                     dataset_data['countries_json'], dataset_data['country_count'],
+                    dataset_data.get('regions_json', '[]'),
                     dataset_data['null_percentage'], dataset_data['completeness_score'],
+                    dataset_data.get('is_edited', 0)
                 ))
                 dataset_id = cursor.lastrowid
 
@@ -514,6 +518,49 @@ class DatasetCatalog:
             else:
                 stats['skipped'] += 1
         
+        return stats
+
+    def index_user_datasets(self, username: str, force: bool = False) -> Dict[str, int]:
+        """Index all CSV files for a specific user.
+        
+        Scans the user's directory and indexes all CSV files found.
+        
+        Args:
+            username: The username to index datasets for
+            force: If True, re-index even if file hasn't changed
+            
+        Returns:
+            Dictionary with statistics: indexed, skipped, errors, total_files
+        """
+        from src.utils.storage import sanitize_username
+        
+        stats = {'indexed': 0, 'skipped': 0, 'errors': 0, 'total_files': 0}
+        
+        owner_segment = sanitize_username(username)
+        if not owner_segment:
+            logger.warning("Cannot index datasets: invalid username '%s'", username)
+            return stats
+        
+        user_dir = self.datasets_dir / owner_segment
+        if not user_dir.exists():
+            logger.info("User directory does not exist: %s", user_dir)
+            return stats
+        
+        logger.info("Scanning %s for CSV files for user '%s'...", user_dir, username)
+        csv_files = list(user_dir.rglob("*.csv"))
+        stats['total_files'] = len(csv_files)
+        logger.info("Found %s CSV files for user '%s'", len(csv_files), username)
+        
+        for csv_file in csv_files:
+            result = self.index_dataset(csv_file, force=force)
+            if result:
+                stats['indexed'] += 1
+            elif result is None:
+                stats['errors'] += 1
+            else:
+                stats['skipped'] += 1
+        
+        logger.info("Indexing complete for user '%s': %s", username, stats)
         return stats
 
     def list_datasets(self, limit: int = 5000) -> List[Dict]:

@@ -12,8 +12,8 @@
   .browse-actions .btn-delete-dark { background-color: #7f1d1d; border-color: #7f1d1d; }
   .browse-actions .btn-delete-dark:hover { background-color: #991b1b; border-color: #991b1b; }
 </style>
-<div x-data="browseLocal"
-  @keydown.window.escape="if (showVersionsModal) closeVersions(); else if (showModal) closeModal(); else if (showCleanDataModal) closeCleanDataModal();">
+  <div x-data="browseLocal"
+  @keydown.window.escape="if (showVersionsModal) closeVersions(); else if (showModal) closeModal(); else if (showCleanDataModal) closeCleanDataModal(); else if (showFilterModal) closeFilterModal();">
   <!-- Search and Filters Card -->
   <div class="card p-3 mb-3">
     <div class="row g-2 align-items-center">
@@ -168,6 +168,7 @@
               </th>
               <th>Dataset</th>
               <th>Source</th>
+              <th>Filter</th>
               <th>Rows</th>
               <th>Years</th>
               <th>Countries</th>
@@ -195,6 +196,10 @@
                   <span class="badge badge-soft-primary" x-text="dataset.source.toUpperCase()"></span>
                   <span class="badge badge-soft-secondary ms-1" x-text="dataset.topic"></span>
                 </td>
+                <td>
+                  <span class="badge bg-info text-dark" x-show="dataset.coverage && isPresetFilter(dataset.coverage)" x-text="getPresetLabel(dataset.coverage)"></span>
+                  <span x-show="!dataset.coverage || !isPresetFilter(dataset.coverage)" class="text-muted">-</span>
+                </td>
                 <td class="small" x-text="formatNumber(dataset.row_count)"></td>
                 <td class="small">
                   <span x-show="dataset.min_year && dataset.max_year">
@@ -212,13 +217,17 @@
                     <span class="spinner-border spinner-border-sm" role="status"></span>
                   </span>
                   <div class="btn-group btn-group-sm">
-                    <a class="btn btn-outline-secondary" :href="`/edit?dataset_id=${dataset.id}`"
+                    <a class="btn btn-outline-secondary" :href="apiUrl(`/edit?dataset_id=${dataset.id}`)"
                       title="Edit dataset">
                       <i class="bi bi-pencil-square"></i>
                     </a>
                     <button @click="viewDataset(dataset.id)" class="btn btn-outline-primary"
                       title="View dataset details">
                       <i class="bi bi-eye"></i>
+                    </button>
+                    <button @click.stop="openFilterModal(dataset)" class="btn btn-outline-info"
+                      title="Apply filters to dataset">
+                      <i class="bi bi-funnel"></i>
                     </button>
                     <button @click.stop="downloadDataset(dataset.id, dataset.file_name)"
                       class="btn btn-outline-success"
@@ -262,9 +271,12 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                   <a class="btn btn-outline-secondary btn-sm" @click.stop
-                    :href="`/edit?dataset_id=${dataset.id}`" title="Edit dataset">
+                    :href="apiUrl(`/edit?dataset_id=${dataset.id}`)" title="Edit dataset">
                     <i class="bi bi-pencil-square"></i>
                   </a>
+                  <button class="btn btn-outline-info btn-sm" @click.stop="openFilterModal(dataset)" title="Apply filters">
+                    <i class="bi bi-funnel"></i>
+                  </button>
                   <span class="badge" :class="getCompletenessClass(dataset.completeness_score)"
                     x-text="formatPercent(dataset.completeness_score)"></span>
                 </div>
@@ -272,10 +284,11 @@
               <div class="small text-muted mb-2" style="min-height: 2.5em;"
                 x-text="dataset.description || dataset.file_name"></div>
               <div class="tiny text-secondary mb-2" style="font-size: 0.75rem;" x-text="dataset.file_name"></div>
-              <div class="d-flex flex-wrap gap-1 mb-2">
-                <span class="badge badge-soft-primary" x-text="dataset.source.toUpperCase()"></span>
-                <span class="badge badge-soft-secondary" x-text="dataset.topic"></span>
-              </div>
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  <span class="badge badge-soft-primary" x-text="dataset.source.toUpperCase()"></span>
+                  <span class="badge badge-soft-secondary" x-text="dataset.topic"></span>
+                  <span class="badge bg-info text-dark" x-show="dataset.coverage && isPresetFilter(dataset.coverage)" x-text="getPresetLabel(dataset.coverage)"></span>
+                </div>
               <div class="small">
                 <div><strong>Rows:</strong> <span x-text="formatNumber(dataset.row_count)"></span></div>
                 <div><strong>Columns:</strong> <span x-text="dataset.column_count"></span></div>
@@ -508,6 +521,79 @@
     </div>
   </div>
 
+  <!-- Filter Dataset Modal -->
+  <div class="modal fade" :class="{ 'show d-block': showFilterModal }" tabindex="-1"
+    style="background: rgba(0,0,0,0.5);" x-show="showFilterModal" @click.self="closeFilterModal()">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Apply Filters</h5>
+          <button type="button" class="btn-close" @click="closeFilterModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div x-show="loadingFilterPresets" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <div class="text-secondary small mt-2">Loading filters...</div>
+          </div>
+          
+          <div x-show="!loadingFilterPresets">
+            <div class="mb-3">
+              <label class="form-label fw-bold">Dataset</label>
+              <div class="form-control-plaintext" x-text="selectedDataset?.indicator_name || selectedDataset?.file_name"></div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">Filter Preset</label>
+              <select class="form-select" x-model="filterOptions.preset">
+                <option value="">Select a filter preset...</option>
+                <template x-for="category in filterPresets" :key="category.name">
+                  <optgroup :label="category.name">
+                    <template x-for="filter in category.filters" :key="filter.key">
+                      <option :value="filter.key" x-text="filter.label + ' (' + filter.country_count + ' countries)'"></option>
+                    </template>
+                  </optgroup>
+                </template>
+              </select>
+              <div class="form-text">Choose a geographic or language filter to apply to this dataset.</div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Start Year</label>
+                <input type="number" class="form-control" x-model="filterOptions.start_year" placeholder="e.g. 2000">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold">End Year</label>
+                <input type="number" class="form-control" x-model="filterOptions.end_year" placeholder="e.g. 2023">
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">Custom Name (Optional)</label>
+              <input type="text" class="form-control" x-model="filterOptions.name" placeholder="e.g. Salaries - Spanish Speaking Countries">
+              <div class="form-text">Leave blank to auto-generate name based on filter.</div>
+            </div>
+            
+            <div x-show="filterError" class="alert alert-warning" role="alert">
+              <i class="bi bi-exclamation-triangle"></i>
+              <span x-text="filterError"></span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeFilterModal()">Cancel</button>
+          <button class="btn btn-primary" @click="applyFilter()" :disabled="applyingFilter || !filterOptions.preset">
+            <span x-show="!applyingFilter">Apply Filter</span>
+            <span x-show="applyingFilter">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+              Applying...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Clean My Data Modal -->
   <div class="modal fade" :class="{ 'show d-block': showCleanDataModal }" tabindex="-1"
     style="background: rgba(0,0,0,0.5);" x-show="showCleanDataModal" @click.self="closeCleanDataModal()">
@@ -583,6 +669,20 @@
       selectedIdentifier: null,
       showCleanDataModal: false,
       cleaningMyData: false,
+      
+      // Filter modal
+      showFilterModal: false,
+      filterPresets: [],
+      loadingFilterPresets: false,
+      selectedDataset: null,
+      applyingFilter: false,
+      filterError: null,
+      filterOptions: {
+        preset: '',
+        start_year: '',
+        end_year: '',
+        name: ''
+      },
 
       searchTimeout: null,
 
@@ -946,6 +1046,139 @@
         this.notesHtml = '';
         this.notesError = '';
         this.loadingNotes = false;
+      },
+
+      // Filter modal functions
+      async openFilterModal(dataset) {
+        this.selectedDataset = dataset;
+        this.showFilterModal = true;
+        this.loadingFilterPresets = true;
+        this.filterError = null;
+        this.filterOptions = {
+          preset: '',
+          start_year: '',
+          end_year: '',
+          name: ''
+        };
+
+        try {
+          const response = await fetch(apiUrl('/api/filters/presets'));
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.filterPresets = data.categories;
+          } else {
+            this.filterError = 'Failed to load filter presets';
+          }
+        } catch (err) {
+          this.filterError = 'Failed to load filter presets: ' + err.message;
+        } finally {
+          this.loadingFilterPresets = false;
+        }
+      },
+
+      closeFilterModal() {
+        if (this.applyingFilter) return;
+        this.showFilterModal = false;
+        this.selectedDataset = null;
+        this.filterPresets = [];
+        this.filterOptions = {
+          preset: '',
+          start_year: '',
+          end_year: '',
+          name: ''
+        };
+        this.filterError = null;
+      },
+
+      async applyFilter() {
+        if (!this.selectedDataset || !this.filterOptions.preset) return;
+        
+        this.applyingFilter = true;
+        this.filterError = null;
+        this.error = null;
+        this.success = null;
+
+        try {
+          const payload = {
+            preset: this.filterOptions.preset
+          };
+          
+          if (this.filterOptions.start_year) {
+            payload.start_year = parseInt(this.filterOptions.start_year);
+          }
+          if (this.filterOptions.end_year) {
+            payload.end_year = parseInt(this.filterOptions.end_year);
+          }
+          if (this.filterOptions.name.trim()) {
+            payload.name = this.filterOptions.name.trim();
+          }
+
+          const response = await fetch(apiUrl(`/api/datasets/${this.selectedDataset.id}/filter`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            this.closeFilterModal();
+            await this.loadStatistics();
+            await this.loadDatasets();
+            this.success = `Filter applied: ${data.row_count} rows from ${data.original_row_count} rows`;
+            setTimeout(() => { this.success = null }, 5000);
+            
+            // Automatically open the preview of the new filtered dataset
+            if (data.new_dataset_id) {
+              setTimeout(() => { this.viewDataset(data.new_dataset_id); }, 300);
+            }
+          } else {
+            this.filterError = data.message || 'Failed to apply filter';
+          }
+        } catch (err) {
+          this.filterError = 'Failed to apply filter: ' + err.message;
+        } finally {
+          this.applyingFilter = false;
+        }
+      },
+
+      isPresetFilter(coverage) {
+        const presetKeys = ['latam', 'latinamerica', 'spanish', 'español', 'americas', 'america', 
+                           'europe', 'europa', 'eu', 'asia', 'africa', 'oceania',
+                           'north_america', 'norteamerica', 'south_america', 'sudamerica',
+                           'central_america_caribbean', 'centroamerica_caribe',
+                           'english', 'ingles', 'portuguese', 'portugues', 'french', 'frances'];
+        return presetKeys.includes(coverage?.toLowerCase());
+      },
+
+      getPresetLabel(coverage) {
+        const labels = {
+          'latam': 'Latinoamérica',
+          'latinamerica': 'Latinoamérica',
+          'spanish': 'Hispanohablante',
+          'español': 'Hispanohablante',
+          'americas': 'América',
+          'america': 'América',
+          'europe': 'Europa',
+          'europa': 'Europa',
+          'eu': 'Unión Europea',
+          'asia': 'Asia',
+          'africa': 'África',
+          'oceania': 'Oceanía',
+          'north_america': 'Norteamérica',
+          'norteamerica': 'Norteamérica',
+          'south_america': 'Sudamérica',
+          'sudamerica': 'Sudamérica',
+          'central_america_caribbean': 'Centroamérica y Caribe',
+          'centroamerica_caribe': 'Centroamérica y Caribe',
+          'english': 'English Speaking',
+          'ingles': 'English Speaking',
+          'portuguese': 'Portuguese Speaking',
+          'portugues': 'Portuguese Speaking',
+          'french': 'French Speaking',
+          'frances': 'French Speaking'
+        };
+        return labels[coverage?.toLowerCase()] || coverage;
       },
 
       // Visualization Logic

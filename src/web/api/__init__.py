@@ -23,3 +23,5 @@ from . import analysis
 from . import agent
 from . import compare
 from . import visualization
+from . import jupyter
+from . import filters

@@ -53,6 +53,36 @@
     transform: scale(0.98);
   }
   
+  /* Dataset card styles (draggable) */
+  .dataset-card {
+    transition: all 0.15s ease;
+    border: 1px solid #e9ecef;
+    cursor: grab;
+  }
+  
+  .dataset-card:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+  }
+  
+  .dataset-card:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+  }
+  
+  .dataset-card.dragging {
+    opacity: 0.5;
+    border-color: var(--bs-primary);
+  }
+  
+  .cursor-grab {
+    cursor: grab;
+  }
+  
+  .cursor-grab:active {
+    cursor: grabbing;
+  }
+  
   /* Spin animation for refresh */
   .spin {
     animation: spin 1s linear infinite;
@@ -647,6 +677,58 @@
         </div>
       </template>
     </div>
+
+    <!-- Available Datasets Section -->
+    <div class="border-top mt-3 pt-3">
+      <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+        <small class="fw-bold text-secondary text-uppercase" style="font-size: 0.7rem;">
+          <i class="bi bi-database me-1"></i>Available Datasets
+        </small>
+        <button class="btn btn-link btn-sm p-0 text-secondary" @click="showDatasets = !showDatasets">
+          <i class="bi" :class="showDatasets ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+        </button>
+      </div>
+      
+      <!-- Loading State -->
+      <div x-show="loadingDatasets" class="text-center py-2">
+        <span class="spinner-border spinner-border-sm text-secondary"></span>
+      </div>
+      
+      <!-- Empty State -->
+      <div x-show="!loadingDatasets && availableDatasets.length === 0" class="text-center py-2 text-muted small">
+        <i class="bi bi-inbox"></i> No datasets available
+      </div>
+      
+      <!-- Dataset List (Draggable) -->
+      <div x-show="showDatasets && !loadingDatasets && availableDatasets.length > 0" 
+           class="dataset-list" 
+           style="max-height: 300px; overflow-y: auto;">
+        <template x-for="dataset in availableDatasets.slice(0, 20)" :key="dataset.id">
+          <div class="dataset-card cursor-grab mb-2 p-2 rounded border bg-white"
+               draggable="true"
+               @dragstart="startDraggingDataset($event, dataset)"
+               @dragend="stopDraggingDataset()"
+               :class="{'dragging': draggingDatasetId === dataset.id, 'opacity-50': draggingDatasetId && draggingDatasetId !== dataset.id}"
+               :title="dataset.description || dataset.name">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-folder text-primary"></i>
+              <div class="flex-grow-1 text-truncate">
+                <span class="small fw-bold" x-text="dataset.name"></span>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+              <small class="text-muted" style="font-size: 0.7rem;" x-text="(dataset.row_count || 0).toLocaleString() + ' rows'"></small>
+              <span class="badge bg-secondary bg-opacity-25 text-secondary" style="font-size: 0.6rem;" x-text="dataset.source"></span>
+            </div>
+          </div>
+        </template>
+        
+        <!-- Show More Link -->
+        <div x-show="availableDatasets.length > 20" class="text-center mt-2">
+          <small class="text-muted" x-text="'+ ' + (availableDatasets.length - 20) + ' more datasets'"></small>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Main Chat Area -->
@@ -851,6 +933,40 @@
                       <!-- Message content - Show when we have content (inline [GRAFICAR:N] → botón junto a cada Gráfico:) -->
                       <template x-if="msg.content">
                         <div :class="msg.error ? 'text-danger' : 'markdown-body'" x-html="formatMessage(msg.content, index, msg.chart_suggestions)"></div>
+                      </template>
+
+                      <!-- Generated Chart from generate_chart tool -->
+                      <template x-if="msg.chartData">
+                        <div class="mt-3 pt-3 border-top border-secondary">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <small class="fw-bold text-secondary">
+                              <i class="bi bi-graph-up me-1"></i>
+                              <span x-text="msg.chartData.title"></span>
+                            </small>
+                            <div class="d-flex gap-1">
+                              <button class="btn btn-sm btn-outline-secondary" 
+                                      @click="openFullscreenChart(msg.chartData)"
+                                      title="Ver en pantalla completa">
+                                <i class="bi bi-arrows-fullscreen"></i>
+                              </button>
+                              <button class="btn btn-sm btn-outline-secondary" 
+                                      @click="addChatChartToCanvas(msg.chartData)"
+                                      title="Add to Canvas">
+                                <i class="bi bi-plus-lg"></i>
+                              </button>
+                              <button class="btn btn-sm btn-outline-secondary"
+                                      @click="downloadChartPNG(msg.chartData)"
+                                      title="Download PNG">
+                                <i class="bi bi-download"></i>
+                              </button>
+                            </div>
+                          </div>
+                          <div :id="'chart-container-' + index" class="chart-message-container border rounded bg-white" style="min-height: 300px;"></div>
+                          <small class="text-muted d-block mt-1" x-show="msg.chartData.data_points">
+                            <span x-text="msg.chartData.data_points"></span> data points • 
+                            <span x-text="msg.chartData.columns_used.join(', ')"></span>
+                          </small>
+                        </div>
                       </template>
 
                       <!-- Suggested Charts: Chart button for each suggestion -->
@@ -1085,6 +1201,28 @@
 
     <!-- Input Area -->
     <div class="p-3 bg-white border-top">
+      <!-- Context Datasets (dropped into prompt) -->
+      <div x-show="contextDatasets.length > 0" class="mb-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <small class="text-muted"><i class="bi bi-database me-1"></i>Contexto:</small>
+          <template x-for="ds in contextDatasets" :key="ds.id">
+            <span class="badge bg-primary bg-opacity-10 text-primary d-flex align-items-center gap-1" 
+                  style="font-size: 0.85rem; padding: 0.4rem 0.6rem;">
+              <i class="bi bi-table"></i>
+              <span x-text="ds.name || ds.id"></span>
+              <button type="button" class="btn-close btn-close-white ms-1" 
+                      style="font-size: 0.6rem;" 
+                      @click="removeContextDataset(ds.id)"
+                      title="Quitar del contexto"></button>
+            </span>
+          </template>
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" 
+                  @click="clearContextDatasets()" title="Limpiar contexto">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+      </div>
+      
       <form @submit.prevent="sendMessage()">
         <div class="input-group input-group-lg shadow-sm" @dragover.prevent
           :class="draggingOver ? 'border-primary ring' : ''" @dragenter="draggingOver = true"
@@ -1093,7 +1231,8 @@
             title="Toggle Visual Builder">
             <i class="bi bi-sliders"></i>
           </button>
-          <input type="text" class="form-control border-start-0" placeholder="Ask or drag fields here..."
+          <input type="text" class="form-control border-start-0" 
+            :placeholder="contextDatasets.length > 0 ? 'Analizar ' + contextDatasets.map(d => d.name || d.id).join(', ') + '...' : 'Ask or drag fields here...'"
             x-model="inputMessage" :disabled="loading || !copilot_available" @keydown.enter="sendMessage()">
           <button class="btn btn-primary" type="submit"
             :disabled="!inputMessage.trim() || loading || !copilot_available">
@@ -1316,6 +1455,40 @@
     </div>
   </div>
 
+  <!-- Fullscreen Chart Modal -->
+  <div x-cloak
+       :style="showFullscreenChart ? 'display: flex;' : 'display: none !important;'"
+       class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+       style="background: rgba(0,0,0,0.85); z-index: 1100;"
+       @click.self="closeFullscreenChart()"
+       @keydown.escape.window="closeFullscreenChart()">
+    <div class="bg-white rounded-3 shadow-lg d-flex flex-column" style="width: 95vw; height: 90vh; max-width: 95vw; max-height: 90vh;">
+      <div class="modal-header border-bottom d-flex justify-content-between align-items-center px-4 py-3">
+        <h5 class="modal-title mb-0" x-text="fullscreenChartData ? fullscreenChartData.title : 'Chart'">Chart</h5>
+        <button type="button" class="btn-close" @click="closeFullscreenChart()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body flex-grow-1 p-0" style="overflow: hidden;">
+        <div id="fullscreen-chart-container" style="width: 100%; height: 100%;"></div>
+      </div>
+      <div class="modal-footer border-top d-flex justify-content-between align-items-center px-4 py-3">
+        <div>
+          <small class="text-muted" x-show="fullscreenChartData && fullscreenChartData.data_points">
+            <span x-text="fullscreenChartData.data_points"></span> data points • 
+            <span x-text="fullscreenChartData.columns_used ? fullscreenChartData.columns_used.join(', ') : ''"></span>
+          </small>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary" @click="downloadChartPNG(fullscreenChartData)">
+            <i class="fas fa-download"></i> Download PNG
+          </button>
+          <button class="btn btn-secondary" @click="closeFullscreenChart()">
+            <i class="fas fa-times"></i> Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Derive Field Modal -->
   <div x-cloak
        :style="showDeriveField ? 'display: flex;' : 'display: none !important;'"
@@ -1504,6 +1677,11 @@
       // Dataset Search State
       datasetSearchQuery: '',
       datasetDropdownOpen: false,
+      
+      // Dataset Context State (drag-drop)
+      showDatasets: true,
+      draggingDatasetId: null,
+      contextDatasets: [],  // Datasets dragged into prompt context
 
       // Suggestions State
       suggestions: [],
@@ -1556,6 +1734,10 @@
       canvasCharts: [],  // [{id, spec, title, timestamp, datasetId}]
       activeChartId: null,
       canvasFullscreen: false,
+
+      // Fullscreen Chart Modal State
+      showFullscreenChart: false,
+      fullscreenChartData: null,
 
       // Model Selection State
       availableModels: [],
@@ -1958,6 +2140,14 @@
         userMessage += (userMessage ? '\n\n' : '') + `[Visual Config] ${bindingParts.join(', ')}`;
       }
     }
+    
+    // Inject Context Datasets info
+    if (this.contextDatasets.length > 0) {
+      const datasetInfo = this.contextDatasets.map(ds => 
+        `- ${ds.name || ds.id}${ds.topic ? ` (${ds.topic})` : ''}${ds.source ? ` [${ds.source}]` : ''}`
+      ).join('\n');
+      userMessage += (userMessage ? '\n\n' : '') + `[Context Datasets]\n${datasetInfo}`;
+    }
 
     if (!userMessage) return; // double check empty
     this.inputMessage = '';
@@ -2135,6 +2325,18 @@
                   }
                 }
 
+                // Capture chart data from generate_chart tool
+                if (data.chart_data) {
+                  this.messages[assistantIndex].chartData = data.chart_data;
+                  this.messages[assistantIndex].thinking.push({
+                    type: 'chart_generated',
+                    content: `Chart generated: ${data.chart_data.title} (${data.chart_data.chart_type})`,
+                    tool: 'generate_chart',
+                    timestamp: new Date()
+                  });
+                  this.streamStatus = `📊 Chart generated: ${data.chart_data.title}`;
+                }
+
                 if (!data.thinking && !data.tool_use && !data.tool_result) {
                   this.streamStatus = 'Receiving...';
                 }
@@ -2162,6 +2364,13 @@
       if (parsed.suggestions && parsed.suggestions.length > 0) {
         this.messages[assistantIndex].chart_suggestions = parsed.suggestions;
         this.messages[assistantIndex].content = parsed.content;
+      }
+
+      // 3c. Render chart if chart_data is present
+      if (this.messages[assistantIndex].chartData) {
+        this.$nextTick(() => {
+          this.renderChartInMessage(assistantIndex);
+        });
       }
 
       // 4. Update Thread State
@@ -2724,6 +2933,211 @@
   },
   
   // ============================================
+  // Chat Chart Functions (generate_chart tool)
+  // ============================================
+  
+  async renderChartInMessage(assistantIndex) {
+    const msg = this.messages[assistantIndex];
+    if (!msg || !msg.chartData) return;
+    
+    const containerId = 'chart-container-' + assistantIndex;
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.warn('Chart container not found:', containerId);
+      return;
+    }
+    
+    // Ensure Vega scripts are loaded
+    if (typeof vegaEmbed === 'undefined') {
+      await this.loadVegaScripts();
+    }
+    
+    try {
+      const spec = msg.chartData.vegalite_spec;
+      if (!spec) {
+        container.innerHTML = '<div class="text-danger p-3">Chart specification not available</div>';
+        return;
+      }
+      
+      // Configure chart dimensions
+      const chartSpec = JSON.parse(JSON.stringify(spec));
+      chartSpec.width = container.clientWidth - 40 || 600;
+      chartSpec.height = 350;
+      chartSpec.autosize = { type: 'fit', contains: 'padding' };
+      
+      // Render with Vega-Embed
+      await vegaEmbed(container, chartSpec, {
+        actions: { source: false, compiled: false, editor: false },
+        theme: 'latimes',
+        renderer: 'svg'
+      });
+      
+    } catch (error) {
+      console.error('Error rendering chart in message:', error);
+      container.innerHTML = '<div class="text-danger p-3">Error rendering chart: ' + error.message + '</div>';
+    }
+  },
+
+  // Fullscreen Chart Functions
+  async openFullscreenChart(chartData) {
+    if (!chartData || !chartData.vegalite_spec) return;
+    
+    this.fullscreenChartData = chartData;
+    this.showFullscreenChart = true;
+    
+    // Wait for modal to open and DOM to update
+    await this.$nextTick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      // Ensure Vega scripts are loaded
+      if (typeof vegaEmbed === 'undefined') {
+        await this.loadVegaScripts();
+      }
+      
+      const container = document.getElementById('fullscreen-chart-container');
+      if (!container) return;
+      
+      // Clear previous content
+      container.innerHTML = '';
+      
+      // Configure chart for fullscreen
+      const chartSpec = JSON.parse(JSON.stringify(chartData.vegalite_spec));
+      
+      // Calculate responsive dimensions
+      const containerWidth = container.clientWidth - 48;
+      const containerHeight = container.clientHeight - 48;
+      chartSpec.width = containerWidth;
+      chartSpec.height = Math.max(containerHeight, 500);
+      chartSpec.autosize = { type: 'fit', contains: 'padding' };
+      
+      // Enhance title if present
+      if (chartSpec.title) {
+        if (typeof chartSpec.title === 'string') {
+          chartSpec.title = { text: chartSpec.title, fontSize: 18 };
+        } else {
+          chartSpec.title.fontSize = 18;
+        }
+      }
+      
+      // Render with Vega-Embed
+      await vegaEmbed(container, chartSpec, {
+        actions: { 
+          source: false, 
+          compiled: false, 
+          editor: false,
+          export: true
+        },
+        theme: 'latimes',
+        renderer: 'svg'
+      });
+      
+    } catch (error) {
+      console.error('Error rendering fullscreen chart:', error);
+      const container = document.getElementById('fullscreen-chart-container');
+      if (container) {
+        container.innerHTML = '<div class="text-danger p-3">Error rendering chart: ' + error.message + '</div>';
+      }
+    }
+  },
+  
+  closeFullscreenChart() {
+    this.showFullscreenChart = false;
+    this.fullscreenChartData = null;
+    
+    // Clear the container
+    const container = document.getElementById('fullscreen-chart-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+  },
+  
+  addChatChartToCanvas(chartData) {
+    // Convert generate_chart format to canvas format
+    const chartId = 'chart_chat_' + Date.now();
+    const canvasChart = {
+      id: chartId,
+      spec: chartData.vegalite_spec,
+      title: chartData.title,
+      timestamp: Date.now(),
+      datasetId: chartData.dataset_id
+    };
+    
+    this.canvasCharts.unshift(canvasChart);
+    this.activeChartId = chartId;
+    this.showCanvas = true;
+    
+    // Save to thread
+    this.saveChartToThread(canvasChart);
+    
+    // Render after DOM update
+    this.$nextTick(() => {
+      this.renderCanvasChart(canvasChart);
+    });
+  },
+  
+  async downloadChartPNG(chartData) {
+    if (!chartData || !chartData.vegalite_spec) return;
+    
+    try {
+      // Ensure Vega scripts are loaded
+      if (typeof vegaEmbed === 'undefined') {
+        await this.loadVegaScripts();
+      }
+      
+      // Create a temporary container
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '-9999px';
+      document.body.appendChild(tempContainer);
+      
+      // Render chart
+      const spec = JSON.parse(JSON.stringify(chartData.vegalite_spec));
+      spec.width = 800;
+      spec.height = 450;
+      
+      const result = await vegaEmbed(tempContainer, spec, {
+        actions: false,
+        renderer: 'svg'
+      });
+      
+      // Wait for render and export
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const svg = tempContainer.querySelector('svg');
+      if (svg) {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          
+          const link = document.createElement('a');
+          link.download = `${chartData.title.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        };
+        
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      }
+      
+      // Cleanup
+      document.body.removeChild(tempContainer);
+      
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+      alert('Error downloading chart: ' + error.message);
+    }
+  },
+  
+  // ============================================
   // Visualization Canvas Functions
   // ============================================
   
@@ -3251,13 +3665,39 @@
 
   handleInputDrop(event) {
     const data = event.dataTransfer.getData('application/json');
+    const type = event.dataTransfer.getData('type');
     if (data) {
-      const field = JSON.parse(data);
-      // Insert field name at cursor position or append
-      // For simplicity, appending:
-      this.inputMessage += (this.inputMessage ? ' ' : '') + `[${field.name}]`;
+      const parsed = JSON.parse(data);
+      
+      if (type === 'dataset') {
+        if (!this.contextDatasets.find(d => d.id === parsed.id)) {
+          this.contextDatasets.push(parsed);
+        }
+      } else {
+        // Field dropped - insert field name at cursor position
+        this.inputMessage += (this.inputMessage ? ' ' : '') + `[${parsed.name}]`;
+      }
       this.draggingOver = false;
     }
+  },
+  
+  startDraggingDataset(event, dataset) {
+    this.draggingDatasetId = dataset.id;
+    event.dataTransfer.setData('application/json', JSON.stringify(dataset));
+    event.dataTransfer.setData('type', 'dataset');
+    event.dataTransfer.effectAllowed = 'copy';
+  },
+  
+  stopDraggingDataset() {
+    this.draggingDatasetId = null;
+  },
+  
+  removeContextDataset(datasetId) {
+    this.contextDatasets = this.contextDatasets.filter(d => d.id !== datasetId);
+  },
+  
+  clearContextDatasets() {
+    this.contextDatasets = [];
   },
 
   // --- Helpers ---
@@ -3580,7 +4020,7 @@ window.runCode = async function(blockId, language) {
     const rows = dataResult.data || (dataResult.preview && dataResult.preview.rows) || [];
     
     // Execute via transform endpoint
-    const endpoint = language.toLowerCase() === 'sql' ? '/api/agent/transform/sql' : '/api/agent/transform';
+    const endpoint = language.toLowerCase() === 'sql' ? apiUrl('/api/agent/transform/sql') : apiUrl('/api/agent/transform');
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

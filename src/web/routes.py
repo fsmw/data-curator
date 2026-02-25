@@ -19,6 +19,7 @@ from flask import (
     url_for,
     request,
     Response,
+    current_app,
 )
 from flask_login import login_required, current_user
 from flask_babel import gettext as _
@@ -346,3 +347,14 @@ def help_page() -> str:
     """Render the help page."""
     ctx = base_context("help", _("Help"), _("Shortcuts and Guide"))
     return render_template("help.html", **ctx)
+
+
+@ui_bp.route("/notebooks")
+@login_required
+def notebooks_page() -> str:
+    """Render embedded Jupyter notebooks page."""
+    ctx = base_context("notebooks", _("Notebooks"), _("Interactive notebooks"))
+    manager = current_app.extensions.get("jupyter_manager")
+    ctx["jupyter_enabled"] = bool(manager and manager.enabled)
+    ctx["jupyter_url"] = url_for("jupyter_proxy.proxy", path="lab")
+    return render_template("notebooks.html", **ctx)

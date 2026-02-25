@@ -232,6 +232,38 @@ class MisesCopilotAgent:
 1. Call list_local_datasets() to see what they have (cataloged + any uncataloged CSVs).
 2. From the list, propose concrete analyses (e.g. "puedes cruzar dataset X con Y por país y año") and offer to run preview_data or analyze_data on specific ids. If there are uncataloged_files, suggest they run "curate index" so those appear in the catalog.
 
+**When generating charts and visualizations (CRITICAL - ALWAYS EXECUTE, DON'T JUST SUGGEST):**
+
+When the user asks for visualizations, or when you determine data would be better shown as a chart rather than text:
+1. **CALL smart_visualizer IMMEDIATELY** - Do not just describe the chart, GENERATE IT using the smart_visualizer tool.
+2. **Common scenarios for automatic visualization:**
+   - User says: "muéstrame un gráfico", "visualiza", "grafica", "plot", "chart"
+   - User asks about trends over time (use line chart)
+   - User asks for comparisons between countries/regions (use bar chart)
+   - User asks about correlations between variables (use scatter plot)
+   - Data has many rows (>50) - a chart conveys patterns better than text
+
+3. **Using smart_visualizer:**
+   - dataset_id: ID from list_local_datasets
+   - x_field: Column name for X axis (usually 'year' for time series, or a categorical field like 'country')
+   - y_field: Column name for Y axis (numeric metric like 'value', 'gdp', 'population')
+   - color_field: (optional) Field to group/color by (e.g., 'country', 'region')
+   - chart_type: Choose appropriate type:
+     * "line" - Time series, trends over years
+     * "bar" - Comparisons between categories
+     * "scatter" - Correlations between two numeric variables
+     * "area" - Accumulated trends or proportions over time
+   - description: Clear title for the chart
+
+4. **The chart will render INLINE** in your response automatically - no special markers needed.
+
+5. **You can generate MULTIPLE charts** in one response if helpful - call smart_visualizer for each different visualization.
+
+6. **For complex comparisons** (e.g., correlating two different datasets):
+   - Use analyze_data to get insights first
+   - Then call smart_visualizer to create the visualization
+   - Explain what the chart shows in your text
+
 **When you suggest specific charts (e.g. in "Propuestas de Análisis Cruzado" or any "Gráfico: ..." line):**
 1. **Inline button:** Wherever you describe a chart in the text (e.g. "Gráfico: Línea: Entrada vs Salida de IED en el tiempo" or "Gráfico: Mapa: Conflictos (color intensidad)..."), put the marker [GRAFICAR:N] immediately after that description. N is the 0-based index of that chart in the chart_suggestions array (so the first chart you describe is [GRAFICAR:0], the second [GRAFICAR:1], etc.). This makes a "Graficar" button appear right there in the text.
 2. **Block at the end:** At the end of your message, add a single fenced code block with language `chart_suggestions` and a JSON array in the SAME order as the [GRAFICAR:0], [GRAFICAR:1], ... in the text:
@@ -532,13 +564,36 @@ Always be helpful, insightful, and concise."""
                             'input': tool_event.get('input')
                         }
                     }
+                    
+                    tool_result = tool_event.get('result')
                     yield {
                         'status': 'success',
                         'session_id': self.session.session_id,
                         'done': False,
                         'fallback_used': True,
-                        'tool_result': tool_event.get('result')
+                        'tool_result': tool_result
                     }
+                    
+                    # Check if this is a smart_visualizer result with chart_spec
+                    if isinstance(tool_result, dict):
+                        if tool_result.get('status') == 'success' and 'chart_spec' in tool_result:
+                            chart_data = {
+                                'chart_id': tool_result.get('dataset_id', 'unknown'),
+                                'dataset_id': tool_result.get('dataset_id'),
+                                'dataset_name': tool_result.get('dataset_name', 'Unknown Dataset'),
+                                'title': tool_result.get('description', 'Chart'),
+                                'chart_type': tool_result.get('chart_spec', {}).get('mark', 'unknown'),
+                                'vegalite_spec': tool_result.get('chart_spec'),
+                                'data_points': tool_result.get('row_count', 0),
+                                'columns_used': tool_result.get('columns_used', []),
+                                'preview_data': tool_result.get('preview_data', [])
+                            }
+                            yield {
+                                'status': 'success',
+                                'session_id': self.session.session_id,
+                                'done': False,
+                                'chart_data': chart_data
+                            }
 
                 async for event in self.session.send_streaming({'prompt': augmented_message}):
                     # Parse the event to extract different types of content
@@ -566,7 +621,31 @@ Always be helpful, insightful, and concise."""
                                 'input': getattr(event, 'input', None)
                             }
                         elif event.type == 'tool_result':
-                            chunk_data['tool_result'] = getattr(event, 'content', str(event))
+                            tool_result = getattr(event, 'content', str(event))
+                            chunk_data['tool_result'] = tool_result
+                            
+                            # Check if this is a smart_visualizer result with chart_spec
+                            if isinstance(tool_result, dict):
+                                if tool_result.get('status') == 'success' and 'chart_spec' in tool_result:
+                                    # Extract chart data for frontend rendering
+                                    chart_data = {
+                                        'chart_id': tool_result.get('dataset_id', 'unknown'),
+                                        'dataset_id': tool_result.get('dataset_id'),
+                                        'dataset_name': tool_result.get('dataset_name', 'Unknown Dataset'),
+                                        'title': tool_result.get('description', 'Chart'),
+                                        'chart_type': tool_result.get('chart_spec', {}).get('mark', 'unknown'),
+                                        'vegalite_spec': tool_result.get('chart_spec'),
+                                        'data_points': tool_result.get('row_count', 0),
+                                        'columns_used': tool_result.get('columns_used', []),
+                                        'preview_data': tool_result.get('preview_data', [])
+                                    }
+                                    # Send chart_data event
+                                    yield {
+                                        'status': 'success',
+                                        'session_id': self.session.session_id,
+                                        'done': False,
+                                        'chart_data': chart_data
+                                    }
                         else:
                             # Default: treat as text
                             chunk_data['text'] = str(event)

@@ -821,7 +821,14 @@ def export_chart_png() -> Response:
 @api_bp.route("/datasets/refresh", methods=["POST"])
 @login_required
 def refresh_datasets() -> Response:
-    """Re-index current user's datasets and regenerate metadata."""
+    """Re-index current user's datasets and regenerate metadata.
+    
+    This endpoint:
+    1. Scans the user's directory for all CSV files (including new ones)
+    2. Indexes any new datasets found
+    3. Re-indexes existing datasets if force=True or file changed
+    4. Regenerates metadata for indexed datasets
+    """
     try:
         config = Config()
         catalog = DatasetCatalog(config)
@@ -829,50 +836,34 @@ def refresh_datasets() -> Response:
 
         payload = request.get_json(silent=True) or {}
         force = bool(payload.get("force", False))
-        user_datasets = catalog.search(
-            query="",
-            filters=None,
-            limit=100000,
-            owner_username=owner_segment,
-        )
-        stats = {"indexed": 0, "skipped": 0, "errors": 0}
-
-        for ds in user_datasets:
-            file_path = Path(ds["file_path"])
-            if not file_path.exists():
-                stats["errors"] += 1
-                continue
-            previous_hash = ds.get("file_hash")
-            current_hash = catalog._compute_file_hash(file_path)
-            result = catalog.index_dataset(
-                file_path,
-                display_file_name=ds.get("display_file_name"),
-                force=force,
-            )
-            if not result:
-                stats["errors"] += 1
-            elif not force and previous_hash == current_hash:
-                stats["skipped"] += 1
-            else:
-                stats["indexed"] += 1
-
-        # Regenerate metadata for current user's datasets
+        
+        # Step 1: Index all CSV files for this user (scans directory for new files)
+        logger.info(f"Starting dataset refresh for user '{current_user.username}' (force={force})")
+        index_stats = catalog.index_user_datasets(current_user.username, force=force)
+        
+        # Step 2: Get list of datasets that need metadata regeneration
+        # Only regenerate for datasets that were indexed or updated
         try:
             metadata_gen = MetadataGenerator(config)
             cleaner = DataCleaner(config)
             metadata_generated = 0
             metadata_errors = 0
 
+            # Get all datasets for this user after indexing
             refreshed_datasets = catalog.search(
                 query="",
                 filters=None,
                 limit=100000,
                 owner_username=owner_segment,
             )
+            
+            logger.info(f"Found {len(refreshed_datasets)} datasets for metadata regeneration")
+            
             for ds in refreshed_datasets:
                 try:
                     file_path = Path(ds['file_path'])
                     if not file_path.exists():
+                        logger.warning(f"Dataset file not found, skipping metadata: {file_path}")
                         continue
 
                     df = pd.read_csv(file_path)
@@ -901,15 +892,28 @@ def refresh_datasets() -> Response:
                     logger.error(f"Error generating metadata for dataset {ds.get('id')}: {e}")
                     metadata_errors += 1
 
-            stats['metadata_generated'] = metadata_generated
-            stats['metadata_errors'] = metadata_errors
+            index_stats['metadata_generated'] = metadata_generated
+            index_stats['metadata_errors'] = metadata_errors
 
         except DATASET_API_ERRORS as e:
             logger.warning(f"Metadata generation failed: {e}")
-            stats['metadata_warning'] = str(e)
+            index_stats['metadata_warning'] = str(e)
 
+        # Get updated statistics
+        try:
+            updated_stats = catalog.get_statistics(owner_username=owner_segment)
+            index_stats['current_statistics'] = updated_stats
+        except DATASET_API_ERRORS as e:
+            logger.warning(f"Could not get updated statistics: {e}")
+
+        logger.info(f"Dataset refresh completed for user '{current_user.username}': {index_stats}")
+        
         return jsonify(
-            {"status": "success", "message": "Catalog refreshed and metadata regenerated", "stats": stats}
+            {
+                "status": "success", 
+                "message": f"Catalog refreshed: {index_stats.get('indexed', 0)} indexed, {index_stats.get('total_files', 0)} total files found", 
+                "stats": index_stats
+            }
         )
 
     except DATASET_API_ERRORS as e:
@@ -1405,4 +1409,140 @@ def fork_dataset(dataset_id: int) -> Response:
 
     except DATASET_API_ERRORS as exc:
         logger.error("Fork dataset error: %s", exc, exc_info=True)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@api_bp.route("/datasets/<int:dataset_id>/filter", methods=["POST"])
+@login_required
+def filter_dataset(dataset_id: int) -> Response:
+    """
+    Apply filters to a dataset and create a new filtered dataset.
+    
+    Request body:
+        {
+            "preset": "spanish",           # Optional: filter preset name
+            "countries": ["ESP", "MEX"],   # Optional: specific country codes
+            "start_year": 2000,            # Optional: start year filter
+            "end_year": 2020,              # Optional: end year filter
+            "name": "Custom name"          # Optional: custom name for filtered dataset
+        }
+    
+    Returns:
+        New dataset with filters applied
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        
+        # Validate at least one filter is provided
+        preset = payload.get("preset")
+        countries = payload.get("countries")
+        start_year = payload.get("start_year")
+        end_year = payload.get("end_year")
+        
+        if not preset and not countries and start_year is None and end_year is None:
+            return jsonify({
+                "status": "error",
+                "message": "No filters specified. Provide preset, countries, or year range."
+            }), 400
+        
+        config = Config()
+        catalog = DatasetCatalog(config)
+        
+        # Get source dataset
+        dataset = catalog.get_dataset(dataset_id)
+        if not dataset:
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        
+        if not catalog.can_access(dataset_id, current_user.username, "read"):
+            return jsonify({"status": "error", "message": "Dataset not found"}), 404
+        
+        # Load dataset
+        file_path = Path(dataset["file_path"])
+        if not file_path.exists():
+            return jsonify({"status": "error", "message": "Dataset file not found"}), 404
+        
+        df = pd.read_csv(file_path)
+        
+        # Apply filters using DataCleaner
+        cleaner = DataCleaner(config)
+        
+        filters = {}
+        if preset:
+            filters["preset"] = preset
+        if countries:
+            filters["countries"] = countries
+        if start_year is not None:
+            filters["start_year"] = start_year
+        if end_year is not None:
+            filters["end_year"] = end_year
+        
+        df_filtered = cleaner.apply_filters(df, filters)
+        
+        # Determine new dataset name
+        custom_name = payload.get("name", "").strip()
+        if custom_name:
+            base_name = custom_name
+        else:
+            # Use original name with filter suffix
+            original_name = dataset.get("indicator_name") or file_path.stem
+            filter_suffix = preset or f"filtered_{start_year}_{end_year}"
+            base_name = f"{original_name} - {filter_suffix.title()}"
+        
+        # Prepare parameters for save_clean_dataset
+        topic = dataset.get("topic", "general")
+        source = dataset.get("source", "unknown")
+        
+        # Use preset as coverage identifier
+        coverage = preset if preset else "filtered"
+        identifier = dataset.get("indicator_id") or file_path.stem
+        
+        # Save filtered dataset
+        new_path, friendly_name = cleaner.save_clean_dataset(
+            data=df_filtered,
+            topic=topic,
+            source=source,
+            coverage=coverage,
+            start_year=start_year,
+            end_year=end_year,
+            identifier=identifier,
+            owner_username=current_user.username,
+        )
+        
+        # Index the new dataset
+        new_id = catalog.index_dataset(
+            new_path,
+            owner_username=current_user.username,
+            display_file_name=friendly_name,
+            force=True,
+        )
+        
+        if not new_id:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to index filtered dataset"
+            }), 500
+        
+        # Mark as edited (derived from original)
+        conn = sqlite3.connect(catalog.db_path)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE datasets SET is_edited = 1 WHERE id = ?", (new_id,))
+            conn.commit()
+        finally:
+            conn.close()
+        
+        transformations = cleaner.get_transformations()
+        
+        return jsonify({
+            "status": "success",
+            "dataset_id": new_id,
+            "file_path": str(new_path),
+            "file_name": friendly_name,
+            "transformations": transformations,
+            "row_count": len(df_filtered),
+            "original_row_count": len(df),
+        })
+        
+    except DATASET_API_ERRORS as exc:
+        logger.error("Filter dataset error: %s", exc, exc_info=True)
         return jsonify({"status": "error", "message": str(exc)}), 500

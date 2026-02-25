@@ -74,6 +74,7 @@ HERRAMIENTAS DISPONIBLES:
 3. search_external_sources - Busca datasets DISPONIBLES en internet para descargar (requiere: query en INGLÉS, source)
 4. download_dataset - Descarga un dataset de internet (requiere: source, indicator_id)
 5. analyze_dataset - Analiza un dataset descargado (requiere: dataset_id, query)
+6. generate_chart - Genera un gráfico VegaLite visualizando datos (requiere: dataset_id, title, chart_type, vegalite_spec)
 
 CUÁNDO USAR CADA HERRAMIENTA:
 - "¿Cuántos datasets tenemos?" → list_datasets
@@ -267,6 +268,55 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
                         }
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_chart",
+                    "description": """Genera un gráfico VegaLite a partir de un dataset local.
+
+USAR CUANDO:
+- El usuario pide "muestra un gráfico", "visualiza", "grafica", "plot"
+- Necesitas mostrar tendencias temporales, comparaciones, o correlaciones
+- Quieres visualizar datos de forma más clara que texto
+
+TIPOS DE GRÁFICOS:
+- line: Series temporales (ej: evolución del PIB)
+- bar: Comparaciones (ej: PIB por país)
+- scatter: Correlaciones (ej: inflación vs desempleo)
+- area: Tendencias acumuladas
+
+IMPORTANTE:
+- Los campos en vegalite_spec DEBEN existir exactamente en el dataset
+- Usa analyze_dataset primero si no conoces los nombres de columnas
+- El dataset_id debe ser un ID válido del catálogo local
+
+Ejemplo de uso:
+[TOOL_CALL]generate_chart{"dataset_id": 20, "title": "Evolución del PIB", "chart_type": "line", "vegalite_spec": {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "mark": "line", "encoding": {"x": {"field": "Year", "type": "temporal"}, "y": {"field": "GDP", "type": "quantitative"}, "color": {"field": "Country", "type": "nominal"}}}}[/TOOL_CALL]""",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "dataset_id": {
+                                "type": "integer",
+                                "description": "ID del dataset en el catálogo local"
+                            },
+                            "title": {
+                                "type": "string",
+                                "description": "Título descriptivo del gráfico"
+                            },
+                            "chart_type": {
+                                "type": "string",
+                                "description": "Tipo de gráfico: line, bar, scatter, area",
+                                "enum": ["line", "bar", "scatter", "area"]
+                            },
+                            "vegalite_spec": {
+                                "type": "object",
+                                "description": "Especificación VegaLite completa en formato JSON"
+                            }
+                        },
+                        "required": ["dataset_id", "title", "chart_type", "vegalite_spec"]
+                    }
+                }
             }
         ]
     
@@ -277,7 +327,8 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
             "search_external_sources": self._search_external_sources,
             "download_dataset": self._download_dataset,
             "analyze_dataset": self._analyze_dataset,
-            "list_datasets": self._list_datasets
+            "list_datasets": self._list_datasets,
+            "generate_chart": self._generate_chart
         }
     
     def chat(self, message: str, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
@@ -594,11 +645,35 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
                 "content": final_message
             })
             
-            return {
+            # Check if any tool call generated a chart
+            chart_data = None
+            for tc in tool_calls_made:
+                if tc['function'] == 'generate_chart':
+                    result = tc['result']
+                    if result.get('success'):
+                        chart_data = {
+                            "chart_id": result.get('chart_id'),
+                            "dataset_id": result.get('dataset_id'),
+                            "dataset_name": result.get('dataset_name'),
+                            "title": result.get('title'),
+                            "chart_type": result.get('chart_type'),
+                            "vegalite_spec": result.get('vegalite_spec'),
+                            "data_points": result.get('data_points'),
+                            "columns_used": result.get('columns_used')
+                        }
+                        break  # Only take the first chart
+            
+            response_obj = {
                 "response": final_message,
                 "tool_calls": tool_calls_made,
                 "conversation_history": conversation_history
             }
+            
+            if chart_data:
+                response_obj["chart_data"] = chart_data
+                response_obj["has_chart"] = True
+            
+            return response_obj
         
         # No tool calls - direct response
         conversation_history.append({
@@ -949,3 +1024,90 @@ Ejemplo: [TOOL_CALL]download_dataset{"source":"owid","indicator_id":"consumer-pr
             import traceback
             traceback.print_exc()
             return {"error": str(e)}
+    
+    def _generate_chart(self, dataset_id: int, title: str, chart_type: str, vegalite_spec: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a VegaLite chart from a dataset.
+        
+        Args:
+            dataset_id: ID of the dataset in local catalog
+            title: Chart title
+            chart_type: Type of chart (line, bar, scatter, area)
+            vegalite_spec: Complete VegaLite specification in JSON format
+            
+        Returns:
+            Dict with chart metadata and validation results
+        """
+        try:
+            # Get dataset info
+            dataset = self.catalog.get_dataset(dataset_id)
+            if not dataset:
+                return {
+                    "success": False,
+                    "error": f"Dataset {dataset_id} no encontrado en el catálogo. Usa list_datasets para ver los disponibles."
+                }
+            
+            # Load data (limit to 1000 rows for performance)
+            df = pd.read_csv(dataset['file_path'])
+            if len(df) > 1000:
+                df = df.head(1000)
+            
+            # Get column names for validation
+            available_columns = df.columns.tolist()
+            
+            # Extract fields from vegalite spec for validation
+            fields_used = []
+            encoding = vegalite_spec.get('encoding', {})
+            for channel in ['x', 'y', 'color', 'size', 'shape', 'column', 'row']:
+                if channel in encoding:
+                    field = encoding[channel].get('field')
+                    if field and field not in fields_used:
+                        fields_used.append(field)
+            
+            # Validate fields exist in dataset
+            missing_fields = [f for f in fields_used if f not in available_columns]
+            if missing_fields:
+                return {
+                    "success": False,
+                    "error": f"Campos no encontrados en el dataset: {missing_fields}. Columnas disponibles: {available_columns}",
+                    "available_columns": available_columns,
+                    "dataset_id": dataset_id,
+                    "dataset_name": dataset.get('indicator_name', 'Unknown')
+                }
+            
+            # Prepare data for chart (convert to records format for VegaLite)
+            chart_data = df.to_dict('records')
+            
+            # Build complete VegaLite spec with data
+            complete_spec = {
+                "$schema": vegalite_spec.get("$schema", "https://vega.github.io/schema/vega-lite/v5.json"),
+                "title": title,
+                "data": {
+                    "values": chart_data
+                },
+                **{k: v for k, v in vegalite_spec.items() if k != "$schema"}
+            }
+            
+            # Generate unique chart ID
+            import uuid
+            chart_id = str(uuid.uuid4())[:8]
+            
+            return {
+                "success": True,
+                "chart_id": chart_id,
+                "dataset_id": dataset_id,
+                "dataset_name": dataset.get('indicator_name', 'Unknown'),
+                "title": title,
+                "chart_type": chart_type,
+                "vegalite_spec": complete_spec,
+                "data_points": len(chart_data),
+                "columns_used": fields_used,
+                "available_columns": available_columns[:10]  # First 10 columns
+            }
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Error generando gráfico: {str(e)}"
+            }

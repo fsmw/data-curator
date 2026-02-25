@@ -91,32 +91,89 @@ class DataCleaner:
         """
         Filter dataset by region (e.g., 'latam').
         Requires standardized country codes (ISO3).
+        
+        Args:
+            df: Input DataFrame
+            region: Region name (e.g., 'latam', 'europe', 'americas')
+                   Use 'list' to see available regions
+        
+        Returns:
+            Filtered DataFrame
         """
         if not region or region.lower() == 'global':
             return df
             
-        region = region.lower()
-        target_codes = []
-        
-        if region == 'latam':
+        if region.lower() == 'list':
             try:
-                from src.utils.regions import LATAM_ISO_CODES
-                target_codes = LATAM_ISO_CODES
+                from src.utils.regions import list_available_filters
+                filters = list_available_filters()
+                print("\nAvailable regions:")
+                for cat_name, filters_dict in filters.items():
+                    print(f"\n{cat_name.replace('_', ' ').title()}:")
+                    for key, desc in filters_dict.items():
+                        print(f"  - {key}: {desc}")
+                return df
             except ImportError:
-                print("Could not import LATAM_ISO_CODES")
+                print("Could not import regions module")
                 return df
         
-        if not target_codes:
+        # Use the new filter_by_preset method
+        return self.filter_by_preset(df, region)
+    
+    def filter_by_preset(self, df: pd.DataFrame, preset_name: str) -> pd.DataFrame:
+        """
+        Filter dataset using a predefined filter preset.
+        
+        Args:
+            df: Input DataFrame
+            preset_name: Name of the preset (e.g., 'latam', 'spanish', 'americas')
+        
+        Returns:
+            Filtered DataFrame
+        """
+        try:
+            from src.utils.regions import get_filter_countries, FILTER_PRESETS
+        except ImportError:
+            print("Could not import regions module")
             return df
-            
+        
+        target_codes = get_filter_countries(preset_name)
+        
+        if not target_codes:
+            available = list(FILTER_PRESETS.keys())
+            print(f"Unknown filter preset: '{preset_name}'")
+            print(f"Available presets: {', '.join(available[:10])}...")
+            return df
+        
+        return self.filter_by_countries(df, target_codes, label=preset_name)
+    
+    def filter_by_countries(self, df: pd.DataFrame, country_codes: list, label: Optional[str] = None) -> pd.DataFrame:
+        """
+        Filter dataset by specific country codes.
+        
+        Args:
+            df: Input DataFrame
+            country_codes: List of ISO3 country codes to keep
+            label: Optional label for the transformation log
+        
+        Returns:
+            Filtered DataFrame
+        """
+        if not country_codes:
+            return df
+        
+        # Normalize to uppercase
+        target_codes = [str(c).upper() for c in country_codes]
+        
         # Find country column
         country_cols = [
             col
             for col in df.columns
-            if "country" in col.lower() or "pais" in col.lower() or "code" in col.lower()
+            if "country" in col.lower() or "pais" in col.lower() or "code" in col.lower() or "iso" in col.lower()
         ]
 
         if not country_cols:
+            print("Warning: No country column found for filtering")
             return df
 
         country_col = country_cols[0]
@@ -125,12 +182,95 @@ class DataCleaner:
         original_len = len(df)
         df_filtered = df[df[country_col].isin(target_codes)].copy()
         
-        if len(df_filtered) < original_len:
-             self.transformations.append(
-                f"Filtered data to {region.upper()} region. Kept {len(df_filtered)}/{original_len} rows."
+        rows_removed = original_len - len(df_filtered)
+        if rows_removed > 0:
+            filter_label = label or f"{len(target_codes)} countries"
+            self.transformations.append(
+                f"Filtered to {filter_label}: kept {len(df_filtered)}/{original_len} rows ({rows_removed} removed)"
             )
-            
+        
         return df_filtered
+    
+    def filter_by_year_range(self, df: pd.DataFrame, start_year: Optional[int] = None, end_year: Optional[int] = None) -> pd.DataFrame:
+        """
+        Filter dataset by year range.
+        
+        Args:
+            df: Input DataFrame
+            start_year: Starting year (inclusive)
+            end_year: Ending year (inclusive)
+        
+        Returns:
+            Filtered DataFrame
+        """
+        if start_year is None and end_year is None:
+            return df
+        
+        # Find year column
+        year_cols = [col for col in df.columns if "year" in col.lower() or "año" in col.lower()]
+        
+        if not year_cols:
+            print("Warning: No year column found for filtering")
+            return df
+        
+        year_col = year_cols[0]
+        
+        # Normalize year column to numeric
+        years = pd.to_numeric(df[year_col], errors="coerce")
+        
+        # Build filter mask
+        mask = pd.Series(True, index=df.index)
+        if start_year is not None:
+            mask = mask & (years >= start_year)
+        if end_year is not None:
+            mask = mask & (years <= end_year)
+        
+        original_len = len(df)
+        df_filtered = df[mask].copy()
+        
+        rows_removed = original_len - len(df_filtered)
+        if rows_removed > 0:
+            year_range = f"{start_year or 'start'}-{end_year or 'end'}"
+            self.transformations.append(
+                f"Filtered by year range ({year_range}): kept {len(df_filtered)}/{original_len} rows ({rows_removed} removed)"
+            )
+        
+        return df_filtered
+    
+    def apply_filters(self, df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
+        """
+        Apply multiple filters to a dataset.
+        
+        Args:
+            df: Input DataFrame
+            filters: Dictionary with filter specifications:
+                - 'preset': Name of preset filter (e.g., 'latam', 'spanish')
+                - 'countries': List of ISO3 country codes
+                - 'start_year': Starting year
+                - 'end_year': Ending year
+                - 'region': Alias for preset (legacy)
+        
+        Returns:
+            Filtered DataFrame
+        """
+        result = df.copy()
+        
+        # Apply preset/region filter
+        preset = filters.get('preset') or filters.get('region')
+        if preset:
+            result = self.filter_by_preset(result, preset)
+        
+        # Apply country list filter (overrides or combines with preset)
+        if 'countries' in filters and filters['countries']:
+            result = self.filter_by_countries(result, filters['countries'])
+        
+        # Apply year range filter
+        start_year = filters.get('start_year')
+        end_year = filters.get('end_year')
+        if start_year is not None or end_year is not None:
+            result = self.filter_by_year_range(result, start_year, end_year)
+        
+        return result
 
     def _validate_schema(self, df: pd.DataFrame) -> pd.DataFrame:
         """Validate dataframe against economic data schema."""

@@ -337,3 +337,137 @@ def progress_poll() -> Response:
         'percent': 0
     })
     return jsonify(progress)
+
+
+@api_bp.route("/download/csv-direct", methods=["POST"])
+@login_required
+def download_csv_direct() -> Response:
+    """
+    Download CSV directly without saving to account.
+    
+    Fetches data from source and returns it as a downloadable CSV file.
+    Does NOT save to user's account or catalog.
+    
+    Request body:
+        - source: Data source (owid, worldbank, etc.)
+        - indicator_id: Indicator identifier
+        - countries: List of country codes (optional)
+        - start_year: Start year (optional)
+        - end_year: End year (optional)
+    
+    Returns:
+        CSV file as attachment download
+    """
+    from src.config import Config
+    from src.ingestion import DataIngestionManager
+    from src.searcher import IndicatorSearcher
+    from io import StringIO
+    from datetime import datetime
+    
+    try:
+        data = request.get_json() or {}
+        
+        source = data.get("source", "").lower()
+        indicator_id = data.get("indicator_id", "")
+        countries = data.get("countries", [])
+        start_year = data.get("start_year")
+        end_year = data.get("end_year")
+        
+        if not source:
+            return jsonify({"status": "error", "message": "Source is required"}), 400
+        
+        if not indicator_id:
+            return jsonify({"status": "error", "message": "Indicator ID is required"}), 400
+        
+        # Initialize config and ingestion manager
+        config = Config()
+        manager = DataIngestionManager(config)
+        searcher = IndicatorSearcher(config)
+        
+        # Get indicator configuration using the searcher
+        indicator_config = searcher.get_indicator_by_id(indicator_id)
+        if not indicator_config:
+            return jsonify({
+                "status": "error", 
+                "message": f"Indicator {indicator_id} not found for source {source}"
+            }), 404
+        
+        # Determine fetch parameters based on source
+        fetch_kwargs = {}
+        
+        if countries:
+            fetch_kwargs["countries"] = countries
+        if start_year:
+            fetch_kwargs["start_year"] = int(start_year)
+        if end_year:
+            fetch_kwargs["end_year"] = int(end_year)
+        
+        # Add source-specific parameters
+        if source == "owid":
+            fetch_kwargs["slug"] = indicator_config.get("slug", indicator_id)
+        elif source == "worldbank":
+            indicator_code = indicator_config.get("indicator_code") or indicator_config.get("code", indicator_id)
+            fetch_kwargs["indicator"] = indicator_code
+        elif source == "oecd":
+            if "dataset" in indicator_config and "indicator_code" in indicator_config:
+                fetch_kwargs["dataset"] = indicator_config["dataset"]
+                fetch_kwargs["indicator"] = indicator_config["indicator_code"]
+            elif "code" in indicator_config:
+                fetch_kwargs["indicator"] = indicator_config["code"]
+        elif source == "ilostat":
+            if "database" in indicator_config and "indicator_code" in indicator_config:
+                fetch_kwargs["database"] = indicator_config["database"]
+                fetch_kwargs["indicator"] = indicator_config["indicator_code"]
+            elif "code" in indicator_config:
+                fetch_kwargs["indicator"] = indicator_config["code"]
+        elif source == "imf":
+            fetch_kwargs["indicator"] = indicator_config.get("indicator_code") or indicator_config.get("code", indicator_id)
+        elif source == "eclac":
+            if "table" in indicator_config:
+                fetch_kwargs["table"] = indicator_config["table"]
+            elif "code" in indicator_config:
+                fetch_kwargs["indicator"] = indicator_config["code"]
+        
+        # Add URL if present
+        if "url" in indicator_config:
+            fetch_kwargs["url"] = indicator_config["url"]
+        
+        # Fetch data directly using manager.ingest()
+        try:
+            df = manager.ingest(source, **fetch_kwargs)
+        except Exception as e:
+            logger.error(f"Failed to fetch data from {source}: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to fetch data: {str(e)}"
+            }), 500
+        
+        if df.empty:
+            return jsonify({
+                "status": "error",
+                "message": "No data returned from source"
+            }), 404
+        
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        indicator_name = indicator_config.get("name", indicator_id).replace(" ", "_").lower()
+        filename = f"{indicator_name}_{source}_{timestamp}.csv"
+        
+        # Convert DataFrame to CSV string
+        csv_buffer = StringIO()
+        df.to_csv(csv_buffer, index=False, encoding="utf-8")
+        csv_data = csv_buffer.getvalue()
+        
+        # Return as downloadable file
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Direct CSV download error: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500

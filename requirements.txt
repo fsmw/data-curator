@@ -7,6 +7,7 @@ github-copilot-sdk>=0.1.0  # GitHub Copilot SDK for agent orchestration
 
 # API clients and HTTP
 requests>=2.31.0
+websocket-client>=1.7.0
 
 # Configuration
 python-dotenv>=1.0.0
@@ -27,11 +28,18 @@ sqlalchemy>=2.0.0
 flask-login>=0.6.0
 flask-bcrypt>=1.0.0
 flask-babel>=4.0.0
+flask-sock>=0.7.0
 rich>=13.0.0
 
 # Web Visualization (Vega-Lite)
 altair>=5.0.0      # Python API for Vega-Lite declarative visualization
 pygwalker>=0.4.9   # Interactive data exploration (PyGWalker)
+
+# Embedded Jupyter integration
+jupyterlab>=4.2.0
+jupyter-server>=2.14.0
+notebook>=7.2.0
+nbformat>=5.10.0
 
 # Google Sheets integration
 
@@ -54,6 +62,8 @@ scipy>=1.10.0
 
 # Production WSGI server
 waitress>=2.1.0
+gevent>=24.2.1
+gevent-websocket>=0.10.1
 
 # Efficient Data Processing (Freedom Data Phase 5)
 polars>=0.20.0

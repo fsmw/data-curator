@@ -397,9 +397,37 @@ def download(
 )
 @click.option("--config", default="config.yaml", help="Path to configuration file")
 @click.option("--owner", help="Owner username for the cleaned dataset")
-def clean(input_file, topic, source, coverage, start_year, end_year, config, owner):
-    """Clean and standardize a dataset."""
+@click.option(
+    "--filter", "filter_preset",
+    help="Apply a predefined filter (e.g., 'latam', 'spanish', 'americas', 'europe'). Use 'list' to see all available filters."
+)
+@click.option(
+    "--filter-countries",
+    help="Comma-separated list of ISO3 country codes to filter (e.g., 'ARG,BRA,CHL')"
+)
+@click.option(
+    "--filter-start-year", type=int,
+    help="Filter data from this year onwards"
+)
+@click.option(
+    "--filter-end-year", type=int,
+    help="Filter data up to this year"
+)
+def clean(input_file, topic, source, coverage, start_year, end_year, config, owner, 
+          filter_preset, filter_countries, filter_start_year, filter_end_year):
+    """Clean and standardize a dataset. Optionally apply filters to create subsets."""
     click.echo(f"🧹 Cleaning dataset: {input_file}...")
+
+    # Show available filters if requested
+    if filter_preset == "list":
+        from .utils.regions import list_available_filters
+        filters = list_available_filters()
+        click.echo("\nAvailable filter presets:")
+        for cat_name, filters_dict in filters.items():
+            click.echo(f"\n{cat_name.replace('_', ' ').title()}:")
+            for key, desc in filters_dict.items():
+                click.echo(f"  • {key}: {desc}")
+        return
 
     try:
         cfg = Config(config)
@@ -411,6 +439,24 @@ def clean(input_file, topic, source, coverage, start_year, end_year, config, own
 
         # Clean data
         cleaned = cleaner.clean_dataset(data)
+
+        # Apply filters if specified
+        if filter_preset:
+            click.echo(f"📍 Applying filter preset: {filter_preset}")
+            cleaned = cleaner.filter_by_preset(cleaned, filter_preset)
+            # Update coverage name to reflect filter
+            if coverage == "global":
+                coverage = filter_preset
+        
+        if filter_countries:
+            countries = [c.strip().upper() for c in filter_countries.split(",")]
+            click.echo(f"📍 Filtering to {len(countries)} specific countries")
+            cleaned = cleaner.filter_by_countries(cleaned, countries)
+        
+        if filter_start_year or filter_end_year:
+            year_range = f"{filter_start_year or 'start'}-{filter_end_year or 'end'}"
+            click.echo(f"📍 Filtering by year range: {year_range}")
+            cleaned = cleaner.filter_by_year_range(cleaned, filter_start_year, filter_end_year)
 
         owner_username = owner or os.environ.get("USER") or os.environ.get("USERNAME")
         output_path, friendly_name = cleaner.save_clean_dataset(
@@ -475,6 +521,182 @@ def document(input_file, topic, source, url, force, config):
 
         click.echo(f"✅ Metadata saved to {metadata_path}")
 
+    except CLI_ABORT_ERRORS as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("--preset", help="Filter preset to apply (e.g., 'latam', 'spanish', 'americas')")
+@click.option(
+    "--countries",
+    help="Comma-separated list of ISO3 country codes (e.g., 'ARG,BRA,CHL,MEX')"
+)
+@click.option("--start-year", type=int, help="Filter data from this year onwards")
+@click.option("--end-year", type=int, help="Filter data up to this year")
+@click.option("--topic", help="Topic name for output file (auto-detected if not provided)")
+@click.option("--source", help="Source identifier for output file (auto-detected if not provided)")
+@click.option(
+    "--suffix",
+    default="filtered",
+    help="Suffix to add to output filename (default: 'filtered')"
+)
+@click.option("--config", default="config.yaml", help="Path to configuration file")
+@click.option("--list-presets", is_flag=True, help="Show available filter presets and exit")
+def filter_dataset(input_file, preset, countries, start_year, end_year, topic, source, suffix, config, list_presets):
+    """Create a filtered dataset from an existing dataset.
+    
+    Examples:
+        # Filter by Spanish-speaking countries
+        python -m src.cli filter data.csv --preset spanish --topic economia --source owid
+        
+        # Filter by specific countries
+        python -m src.cli filter data.csv --countries ARG,BRA,CHL --topic salarios
+        
+        # Filter by year range
+        python -m src.cli filter data.csv --start-year 2010 --end-year 2020 --topic pib
+        
+        # List available filters
+        python -m src.cli filter --list-presets
+    """
+    from .utils.regions import list_available_filters, get_filter_countries
+    
+    # Show available filters
+    if list_presets:
+        filters = list_available_filters()
+        click.echo("\n🌍 Available filter presets:\n")
+        for cat_name, filters_dict in filters.items():
+            click.echo(click.style(f"\n{cat_name.replace('_', ' ').title()}:", fg="cyan", bold=True))
+            for key, desc in filters_dict.items():
+                click.echo(f"  • {click.style(key, fg='green')}: {desc}")
+        click.echo("\n💡 Usage: python -m src.cli filter data.csv --preset <name>")
+        return
+    
+    # Validate that at least one filter is provided
+    if not preset and not countries and start_year is None and end_year is None:
+        click.echo("❌ Error: At least one filter must be specified.", err=True)
+        click.echo("Use --preset, --countries, --start-year, or --end-year", err=True)
+        click.echo("\nUse --list-presets to see available filter presets.", err=True)
+        raise click.Abort()
+    
+    try:
+        cfg = Config(config)
+        cleaner = DataCleaner(cfg)
+        
+        # Load data
+        click.echo(f"📂 Loading dataset: {input_file}")
+        data = pd.read_csv(input_file)
+        original_count = len(data)
+        click.echo(f"   Loaded {original_count} rows, {len(data.columns)} columns")
+        
+        # Build filter configuration
+        filters = {}
+        
+        if preset:
+            click.echo(f"📍 Applying preset filter: {preset}")
+            target_countries = get_filter_countries(preset)
+            if target_countries:
+                click.echo(f"   Will filter to {len(target_countries)} countries")
+                filters['preset'] = preset
+            else:
+                available = list(list_available_filters()['regiones_geograficas'].keys())[:5]
+                click.echo(f"❌ Unknown preset: '{preset}'", err=True)
+                click.echo(f"   Available: {', '.join(available)}...", err=True)
+                raise click.Abort()
+        
+        if countries:
+            country_list = [c.strip().upper() for c in countries.split(",")]
+            click.echo(f"📍 Filtering to {len(country_list)} specific countries")
+            filters['countries'] = country_list
+        
+        if start_year is not None or end_year is not None:
+            year_range = f"{start_year or 'start'}-{end_year or 'end'}"
+            click.echo(f"📍 Filtering by year range: {year_range}")
+            filters['start_year'] = start_year
+            filters['end_year'] = end_year
+        
+        # Apply filters
+        filtered = cleaner.apply_filters(data, filters)
+        filtered_count = len(filtered)
+        
+        if filtered_count == 0:
+            click.echo("⚠️  Warning: Filter resulted in empty dataset!", err=True)
+            raise click.Abort()
+        
+        rows_removed = original_count - filtered_count
+        click.echo(f"\n📊 Filter results:")
+        click.echo(f"   Original: {original_count} rows")
+        click.echo(f"   Filtered: {filtered_count} rows")
+        click.echo(f"   Removed:  {rows_removed} rows ({100*rows_removed/original_count:.1f}%)")
+        
+        # Auto-detect topic and source from filename if not provided
+        if not topic or not source:
+            filename = Path(input_file).stem
+            parts = filename.split('_')
+            if len(parts) >= 2:
+                detected_topic = parts[0]
+                detected_source = parts[1]
+                if not topic:
+                    topic = detected_topic
+                    click.echo(f"   Auto-detected topic: {topic}")
+                if not source:
+                    source = detected_source
+                    click.echo(f"   Auto-detected source: {source}")
+        
+        # Use defaults if still not set
+        topic = topic or "unknown"
+        source = source or "unknown"
+        
+        # Determine output filename
+        input_path = Path(input_file)
+        base_name = input_path.stem
+        
+        # Build filter description for filename
+        filter_parts = [suffix]
+        if preset:
+            filter_parts.append(preset)
+        if start_year or end_year:
+            year_desc = f"{start_year or ''}-{end_year or ''}"
+            filter_parts.append(year_desc)
+        
+        filter_desc = "_".join(filter_parts)
+        output_filename = f"{base_name}_{filter_desc}.csv"
+        output_path = input_path.parent / output_filename
+        
+        # Also save to clean directory if configured
+        clean_dir = Path(cfg.get_directory('clean'))
+        if clean_dir.exists():
+            # Use the naming convention: topic_source_coverage_start_end.csv
+            coverage = preset or "custom"
+            year_cols = [col for col in filtered.columns if "year" in col.lower() or "año" in col.lower()]
+            if year_cols:
+                years = pd.to_numeric(filtered[year_cols[0]], errors='coerce')
+                start_y = int(years.min()) if not pd.isna(years.min()) else None
+                end_y = int(years.max()) if not pd.isna(years.max()) else None
+            else:
+                start_y = end_y = None
+            
+            clean_filename = f"{topic}_{source}_{coverage}_{start_y or 'X'}_{end_y or 'X'}.csv"
+            clean_output_path = clean_dir / clean_filename
+        else:
+            clean_output_path = None
+        
+        # Save filtered data
+        filtered.to_csv(output_path, index=False)
+        click.echo(f"\n✅ Filtered dataset saved to: {output_path}")
+        
+        if clean_output_path:
+            filtered.to_csv(clean_output_path, index=False)
+            click.echo(f"✅ Also saved to clean directory: {clean_output_path}")
+        
+        # Show transformations
+        transformations = cleaner.get_transformations()
+        if transformations:
+            click.echo(f"\n📝 Transformations:")
+            for t in transformations:
+                click.echo(f"   • {t}")
+        
     except CLI_ABORT_ERRORS as e:
         click.echo(f"❌ Error: {e}", err=True)
         raise click.Abort()
