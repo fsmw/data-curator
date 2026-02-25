@@ -115,6 +115,11 @@ from src.config import Config
 from src.dataset_catalog import DatasetCatalog
 
 @ui_bp.route("/")
+@login_required
+def index():
+    """Redirect root to search page."""
+    return redirect(url_for('ui.search'))
+
 @ui_bp.route("/status")
 @login_required
 def status() -> str:

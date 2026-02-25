@@ -12,7 +12,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def login():
     """Handle user login."""
     if current_user.is_authenticated:
-        return redirect(url_for('ui.status'))
+        return redirect(url_for('ui.search'))
 
     if request.method == 'POST':
         username = request.form.get('username')
@@ -31,7 +31,7 @@ def login():
             user.last_login = db.func.now()
             db.session.commit()
 
-            # Redirect to requested page or admin
+            # Redirect to requested page or search
             next_page = request.args.get('next')
             if next_page:
                 # Si next_page comienza con el prefijo, redirigir directamente
@@ -39,8 +39,8 @@ def login():
                 if next_page.startswith('/'):
                     return redirect(next_page)
                 else:
-                    return redirect(url_for('ui.status'))
-            return redirect(url_for('admin.index'))
+                    return redirect(url_for('ui.search'))
+            return redirect(url_for('ui.search'))
         else:
             flash('Invalid username or password.', 'error')
 

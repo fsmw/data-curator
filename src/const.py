@@ -51,11 +51,6 @@ COUNTRY_CODES = {
 from flask_babel import lazy_gettext as _l
 
 NAV_ITEMS = [
-    {"slug": "status", "label": _l("Status"), "icon": "house"},
     {"slug": "search", "label": _l("Search"), "icon": "search"},
     {"slug": "browse_local", "label": _l("Browse Local"), "icon": "folder"},
-    {"slug": "edit", "label": _l("Edit"), "icon": "pencil-square"},
-    {"slug": "visualizepg", "label": _l("Visualization"), "icon": "bar-chart-line"},
-    {"slug": "copilot_chat", "label": _l("AI Chat"), "icon": "robot"},
-    {"slug": "help", "label": _l("Help"), "icon": "question-circle"},
 ]

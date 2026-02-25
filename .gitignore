@@ -28,6 +28,9 @@ mcp*/
 # Environment variables
 .env
 
+# Secret key for Flask sessions (auto-generated)
+.secret_key
+
 # Python cache
 __pycache__/
 *.py[cod]

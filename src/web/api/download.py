@@ -169,6 +169,11 @@ def start_download() -> Response:
         try:
             cleaned_data = cleaner.clean_dataset(raw_data)
             
+            # Extract user-provided filters from request
+            user_preset = data.get("filter_preset")
+            user_start_year = data.get("filter_start_year")
+            user_end_year = data.get("filter_end_year")
+            
             # Detect implicit region filter from identifier or tags
             target_region = "global"
             identifier_lower = (
@@ -179,9 +184,22 @@ def start_download() -> Response:
                 target_region = "latam"
                 coverage = "latam" 
                 
-            # Apply filter if needed
+            # Apply implicit filter if needed
             if target_region != "global":
                 cleaned_data = cleaner.filter_by_region(cleaned_data, target_region)
+            
+            # Apply user-provided filters
+            if user_preset or user_start_year or user_end_year:
+                filters = {}
+                if user_preset:
+                    filters["preset"] = user_preset
+                    coverage = user_preset  # Use preset as coverage identifier
+                if user_start_year:
+                    filters["start_year"] = int(user_start_year)
+                if user_end_year:
+                    filters["end_year"] = int(user_end_year)
+                
+                cleaned_data = cleaner.apply_filters(cleaned_data, filters)
 
             data_summary = cleaner.get_data_summary(cleaned_data)
 
@@ -190,13 +208,18 @@ def start_download() -> Response:
                 or indicator_config.get("id")
                 or indicator_id
             )
+            
+            # Adjust years for save_clean_dataset based on filters
+            save_start_year = user_start_year if user_start_year else None
+            save_end_year = user_end_year if user_end_year else None
+            
             output_path, friendly_name = cleaner.save_clean_dataset(
                 data=cleaned_data,
                 topic=topic,
                 source=source,
                 coverage=coverage,
-                start_year=None,
-                end_year=None,
+                start_year=save_start_year,
+                end_year=save_end_year,
                 identifier=identifier,
                 owner_username=owner_username,
             )

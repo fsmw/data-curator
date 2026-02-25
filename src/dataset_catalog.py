@@ -197,8 +197,33 @@ class DatasetCatalog:
                     break
             
             if year_col and df[year_col].notna().any():
-                metadata['min_year'] = int(df[year_col].min())
-                metadata['max_year'] = int(df[year_col].max())
+                try:
+                    min_val = df[year_col].min()
+                    max_val = df[year_col].max()
+                    
+                    # Handle datetime/timestamp objects
+                    if hasattr(min_val, 'year'):
+                        metadata['min_year'] = int(min_val.year)
+                        metadata['max_year'] = int(max_val.year)
+                    # Handle numeric values
+                    elif isinstance(min_val, (int, float)):
+                        metadata['min_year'] = int(min_val)
+                        metadata['max_year'] = int(max_val)
+                    # Handle string representations
+                    else:
+                        # Try to parse as datetime first
+                        try:
+                            import pandas as pd
+                            min_dt = pd.to_datetime(min_val)
+                            max_dt = pd.to_datetime(max_val)
+                            metadata['min_year'] = int(min_dt.year)
+                            metadata['max_year'] = int(max_dt.year)
+                        except:
+                            # Fallback: try direct int conversion
+                            metadata['min_year'] = int(float(min_val))
+                            metadata['max_year'] = int(float(max_val))
+                except Exception as e:
+                    logger.warning(f"Could not extract year range from column '{year_col}': {e}")
             
             # Detect country column and extract countries
             country_col = None

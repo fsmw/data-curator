@@ -55,16 +55,25 @@ def create_app() -> Flask:
     if secret:
         app.secret_key = secret
     else:
-        # Development fallback: use an ephemeral secret and warn the dev
+        # Development fallback: use a persistent secret key from file
+        secret_file = Path(__file__).parent.parent.parent / '.secret_key'
         try:
-            import secrets
-
-            app.secret_key = secrets.token_hex(32)
-            print("Warning: FLASK_SECRET_KEY not set. Using ephemeral secret key (development only). Set FLASK_SECRET_KEY in production.")
-        except Exception:
+            if secret_file.exists():
+                # Read existing secret key
+                app.secret_key = secret_file.read_text().strip()
+            else:
+                # Generate new secret key and save it
+                import secrets
+                new_secret = secrets.token_hex(32)
+                secret_file.write_text(new_secret)
+                app.secret_key = new_secret
+                print(f"Generated new persistent SECRET_KEY and saved to {secret_file}")
+                print("Note: Set FLASK_SECRET_KEY environment variable for production.")
+        except Exception as e:
             # Last resort fallback
-            app.secret_key = "dev-secret"
-            print("Warning: FLASK_SECRET_KEY not set and secrets unavailable. Using weak fallback key.")
+            app.secret_key = "dev-secret-fallback"
+            print(f"Warning: Could not read/write secret key file: {e}")
+            print("Using weak fallback key. Sessions will not persist across restarts.")
 
     # Configure SQLAlchemy - use absolute path to ensure consistency
     from src.config import Config

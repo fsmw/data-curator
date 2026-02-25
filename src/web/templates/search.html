@@ -147,14 +147,14 @@
                 </td>
                 <td class="text-end">
                   <div class="action-buttons">
-                    <span x-show="downloadStatus[result.id]" class="badge badge-pill"
+                    <span x-show="downloadStatus[result.id] && downloadStatus[result.id].status !== 'success'" class="badge badge-pill"
                       :class="statusClass(downloadStatus[result.id])"
                       x-text="statusLabel(downloadStatus[result.id])"></span>
-                    <span x-show="result.in_my_data" class="badge badge-success badge-pill me-2">
-                      <i class="bi bi-folder-check"></i> {{ _('My data') }}
+                    <span x-show="result.in_my_data" class="badge badge-success badge-pill me-2" title="{{ _('My data') }}">
+                      <i class="bi bi-folder-check"></i>
                     </span>
-                    <span x-show="result.downloaded && !result.in_my_data" class="badge badge-info badge-pill me-2">
-                      <i class="bi bi-check-circle-fill"></i> {{ _('Downloaded') }}
+                    <span x-show="result.downloaded && !result.in_my_data" class="badge badge-info badge-pill me-2" title="{{ _('Downloaded') }}">
+                      <i class="bi bi-check-circle-fill"></i>
                     </span>
 
                     <!-- Remote OWID: Preview button -->
@@ -186,26 +186,34 @@
                       <i x-show="!downloadingDirect[result.id]" class="bi bi-file-earmark-arrow-down"></i>
                     </button>
 
-                    <!-- Download button (all types) -->
-                    <!-- Download/Update button -->
-                    <button @click.prevent="startDownload(result)" class="btn btn-sm"
-                      :class="result.in_my_data ? 'btn-outline-success' : 'btn-outline-primary'"
-                      :disabled="downloading[result.id] === true"
-                      :title="result.in_my_data ? 'Update dataset (re-download)' : 'Download to account'">
+                    <!-- Download button with filter option -->
+                    <div class="btn-group" role="group">
+                      <!-- Main download button -->
+                      <button @click.prevent="startDownload(result)" class="btn btn-sm"
+                        :class="result.in_my_data ? 'btn-outline-success' : 'btn-outline-primary'"
+                        :disabled="downloading[result.id] === true"
+                        :title="result.in_my_data ? 'Update dataset (re-download)' : 'Download to account'">
 
-                      <!-- Spinner -->
-                      <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
+                        <!-- Spinner -->
+                        <span x-show="downloading[result.id]" class="spinner-border spinner-border-sm"></span>
 
-                      <!-- Icons/Text -->
-                      <template x-if="!downloading[result.id]">
-                        <span>
-                          <i x-show="!result.in_my_data" class="bi bi-download"></i>
-                          <span x-show="result.in_my_data">
-                            <i class="bi bi-arrow-repeat"></i> {{ _('Update') }}
+                        <!-- Icons only -->
+                        <template x-if="!downloading[result.id]">
+                          <span>
+                            <i x-show="!result.in_my_data" class="bi bi-download"></i>
+                            <i x-show="result.in_my_data" class="bi bi-arrow-repeat"></i>
                           </span>
-                        </span>
-                      </template>
-                    </button>
+                        </template>
+                      </button>
+                      
+                      <!-- Filter dropdown toggle -->
+                      <button @click.prevent="openFilterDownloadModal(result)" class="btn btn-sm"
+                        :class="result.in_my_data ? 'btn-outline-success' : 'btn-outline-primary'"
+                        :disabled="downloading[result.id] === true"
+                        title="Download with filters">
+                        <i class="bi bi-funnel"></i>
+                      </button>
+                    </div>
 
                     <!-- Remote OWID: Link to website -->
                     <a x-show="result.remote && (result.source || '').toLowerCase().includes('owid')"
@@ -271,7 +279,7 @@
       </div>
     </div>
   </div>
-</div>
+
 
 <!-- Preview Modal - PNG from OWID -->
 <div class="modal fade" id="owidPreviewModal" tabindex="-1" aria-hidden="true">
@@ -412,9 +420,77 @@
   </div>
 </div>
 
+<!-- Filter Download Modal -->
+<div class="modal fade" :class="{ 'show d-block': showFilterDownloadModal }" tabindex="-1"
+  style="background: rgba(0,0,0,0.5);" x-show="showFilterDownloadModal" @click.self="closeFilterDownloadModal()">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Download with Filters</h5>
+        <button type="button" class="btn-close" @click="closeFilterDownloadModal()"></button>
+      </div>
+      <div class="modal-body">
+        <div x-show="loadingFilterPresets" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <div class="text-secondary small mt-2">Loading filters...</div>
+        </div>
+        
+        <div x-show="!loadingFilterPresets">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Dataset</label>
+            <div class="form-control-plaintext" x-text="selectedFilterDataset?.indicator || selectedFilterDataset?.name"></div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">Filter Preset</label>
+            <select class="form-select" x-model="downloadFilterOptions.preset">
+              <option value="">All countries (no filter)</option>
+              <template x-for="category in filterPresets" :key="category.name">
+                <optgroup :label="category.name">
+                  <template x-for="filter in category.filters" :key="filter.key">
+                    <option :value="filter.key" x-text="filter.label + ' (' + filter.country_count + ' countries)'"></option>
+                  </template>
+                </optgroup>
+              </template>
+            </select>
+            <div class="form-text">Choose a geographic or language filter to apply during download.</div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Start Year</label>
+              <input type="number" class="form-control" x-model="downloadFilterOptions.start_year" placeholder="e.g. 2000">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">End Year</label>
+              <input type="number" class="form-control" x-model="downloadFilterOptions.end_year" placeholder="e.g. 2023">
+            </div>
+          </div>
+          
+          <div x-show="filterDownloadError" class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span x-text="filterDownloadError"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="closeFilterDownloadModal()">Cancel</button>
+        <button class="btn btn-primary" @click="downloadWithFilters()" :disabled="downloadingWithFilters">
+          <span x-show="!downloadingWithFilters">
+            <i class="bi bi-download"></i> Download Filtered
+          </span>
+          <span x-show="downloadingWithFilters">
+            <span class="spinner-border spinner-border-sm" role="status"></span>
+            Downloading...
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </div>
-</div>
+<!-- End of x-data context -->
 
 <script>
   function searchForm() {
@@ -435,6 +511,19 @@
       page: 1,
       perPage: 25,
       totalPages: 1,
+      
+      // Filter download modal
+      showFilterDownloadModal: false,
+      selectedFilterDataset: null,
+      filterPresets: [],
+      loadingFilterPresets: false,
+      downloadFilterOptions: {
+        preset: '',
+        start_year: '',
+        end_year: ''
+      },
+      filterDownloadError: null,
+      downloadingWithFilters: false,
 
       init() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -743,23 +832,38 @@
         }
 
         try {
+          const payload = {
+            id: result.id,
+            source: result.source.toLowerCase(),
+            indicator: result.indicator,
+            description: result.description,
+            remote: result.remote || false,
+            slug: result.slug,
+            url: result.url,
+            indicator_code: result.indicator_code,
+            dataset: result.dataset,
+            code: result.code,
+            database: result.database,
+            table: result.table
+          };
+          
+          // Add filter parameters if provided
+          if (options.filters) {
+            if (options.filters.preset) {
+              payload.filter_preset = options.filters.preset;
+            }
+            if (options.filters.start_year) {
+              payload.filter_start_year = options.filters.start_year;
+            }
+            if (options.filters.end_year) {
+              payload.filter_end_year = options.filters.end_year;
+            }
+          }
+          
           const res = await fetch(apiUrl('/api/download/start'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: result.id,
-              source: result.source.toLowerCase(),
-              indicator: result.indicator,
-              description: result.description,
-              remote: result.remote || false,
-              slug: result.slug,
-                url: result.url,
-                indicator_code: result.indicator_code,
-                dataset: result.dataset,
-                code: result.code,
-                database: result.database,
-                table: result.table
-            })
+            body: JSON.stringify(payload)
           });
 
           let data;
@@ -953,7 +1057,8 @@
         if (!state || !state.status) return '';
         if (state.status === 'in_progress') return 'Downloading';
         if (state.status === 'queued') return 'Queued';
-        if (state.status === 'success') return 'Done';
+        // Success state intentionally has no text label to match UI conventions
+        if (state.status === 'success') return '';
         if (state.status === 'error') return 'Error';
         return '';
       },
@@ -995,6 +1100,68 @@
           this.source = "owid";
         }
         this.performSearch();
+      },
+      
+      // Filter download modal functions
+      async openFilterDownloadModal(dataset) {
+        this.selectedFilterDataset = dataset;
+        this.showFilterDownloadModal = true;
+        this.loadingFilterPresets = true;
+        this.filterDownloadError = null;
+        this.downloadFilterOptions = {
+          preset: '',
+          start_year: '',
+          end_year: ''
+        };
+
+        try {
+          const response = await fetch(apiUrl('/api/filters/presets'));
+          const data = await response.json();
+          if (data.status === 'success') {
+            this.filterPresets = data.categories;
+          } else {
+            this.filterDownloadError = 'Failed to load filter presets';
+          }
+        } catch (err) {
+          this.filterDownloadError = 'Failed to load filter presets: ' + err.message;
+        } finally {
+          this.loadingFilterPresets = false;
+        }
+      },
+
+      closeFilterDownloadModal() {
+        if (this.downloadingWithFilters) return;
+        this.showFilterDownloadModal = false;
+        this.selectedFilterDataset = null;
+        this.filterPresets = [];
+        this.downloadFilterOptions = {
+          preset: '',
+          start_year: '',
+          end_year: ''
+        };
+        this.filterDownloadError = null;
+      },
+
+      async downloadWithFilters() {
+        if (!this.selectedFilterDataset || this.downloadingWithFilters) return;
+        
+        this.downloadingWithFilters = true;
+        this.filterDownloadError = null;
+        
+        try {
+          // Call startDownload with filter parameters  
+          await this.startDownload(this.selectedFilterDataset, {
+            filters: this.downloadFilterOptions,
+            silent: false
+          });
+          
+          // Close modal on success
+          this.closeFilterDownloadModal();
+        } catch (err) {
+          this.filterDownloadError = 'Download failed: ' + err.message;
+        } finally {
+          this.downloadingWithFilters = false;
+        }
       }
     };
   }
